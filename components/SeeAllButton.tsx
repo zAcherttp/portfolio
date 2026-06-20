@@ -61,8 +61,8 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
   }, [throttledSetParentWidth]);
 
   // Compute logarithmic spacing & truncation based on parent width
-  // Budgeting 108px for label, arrow, padding, and alignment with the ellipsis
-  const maxIconListWidth = Math.max(0, parentWidth - 108);
+  // Budgeting 116px for label, arrow, padding, and alignment with the ellipsis
+  const maxIconListWidth = Math.max(0, parentWidth - 116);
   const totalItems = remaining.length;
   const ICON_WIDTH = 16;
   const DEFAULT_REVEALED = 13.33; // 5/6 revealed (16 - 2.67px overlap)
@@ -119,7 +119,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
         setIsHovered(false);
         setIsExiting(true);
       }}
-      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-zinc-100/70 transition-colors group select-none overflow-hidden gap-0 text-xs font-mono text-zinc-400 group-hover:text-zinc-800 transition-colors font-medium"
+      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-zinc-100/70 group select-none overflow-hidden gap-0 text-xs text-zinc-400 hover:text-zinc-800 font-medium"
     >
       {/* Sliding Content Wrapper that controls exit fadeout and resets in-place */}
       <motion.div
@@ -147,13 +147,14 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
             width: isHovered || isExiting ? "auto" : 0,
             opacity: isHovered || isExiting ? 1 : 0,
             marginLeft: isHovered || isExiting ? 8 : 0,
+            paddingRight: isHovered || isExiting ? 16 : 0,
           }}
           transition={
             isHovered || isExiting
               ? { duration: DURATIONS.enter, ease: EASINGS.easeOutQuint }
               : { duration: DURATIONS.exit }
           }
-          className="flex items-center overflow-hidden flex-shrink-0 pr-4"
+          className="flex items-center overflow-hidden flex-shrink-0"
         >
           {itemsToRender.map((bookmark, index) => {
             const itemRevealed = getRevealedWidth(index);
@@ -184,18 +185,12 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
                   zIndex: index + 1,
                   marginLeft: index > 0 ? -itemOverlap : 0,
                 }}
-                className="relative w-4 h-4 flex items-center justify-center flex-shrink-0 bg-zinc-200 rounded-sm border border-white overflow-hidden"
+                className="relative w-4 h-4 flex items-center justify-center flex-shrink-0 bg-[#fefefe] rounded-sm border border-[#fefefe] overflow-hidden"
               >
-                {/* Favicon */}
-                <Favicon
-                  domain={getDomainName(bookmark.url)}
-                  title={bookmark.title}
-                />
-
-                {/* Grey Mask Overlay */}
+                {/* Favicon Wrapper that controls its opacity fade-in */}
                 <motion.div
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: isHovered || isExiting ? 0 : 1 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: isHovered || isExiting ? 1 : 0 }}
                   transition={
                     isHovered || isExiting
                       ? {
@@ -209,8 +204,13 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
                         }
                       : { duration: DURATIONS.exit }
                   }
-                  className="absolute inset-0 bg-zinc-200 rounded-sm"
-                />
+                  className="w-full h-full flex items-center justify-center"
+                >
+                  <Favicon
+                    domain={getDomainName(bookmark.url)}
+                    title={bookmark.title}
+                  />
+                </motion.div>
               </motion.div>
             );
           })}
