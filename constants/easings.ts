@@ -7,7 +7,7 @@ export const EASINGS = {
 };
 
 // Durations in seconds
-const staggerBase = 0.15;
+const staggerBase = 0.1;
 
 export const DURATIONS = {
   enter: 0.6,
@@ -15,7 +15,7 @@ export const DURATIONS = {
   fadeExit: 0.144,
   fadeEnter: 0.18,
   staggerBase: staggerBase,
-  staggerMaskBase: staggerBase + 0.1, // Always start mask reveal 0.1s after icon starts sliding
+  staggerMaskBase: staggerBase + 0.15, // Always start mask reveal 0.15s after icon starts sliding
 };
 
 // Orchestration / Stagger helpers
