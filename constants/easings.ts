@@ -12,6 +12,8 @@ export const DURATIONS = {
   exit: 0,
   fadeExit: 0.144,
   fadeEnter: 0.18,
+  staggerBase: 0.15,
+  staggerMaskBase: 0.25,
 };
 
 // Orchestration / Stagger helpers
