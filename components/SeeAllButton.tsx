@@ -61,7 +61,8 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
   }, [throttledSetParentWidth]);
 
   // Compute logarithmic spacing & truncation based on parent width
-  const maxIconListWidth = Math.max(0, parentWidth - 96);
+  // Budgeting 108px for label, arrow, padding, and alignment with the ellipsis
+  const maxIconListWidth = Math.max(0, parentWidth - 108);
   const totalItems = remaining.length;
   const ICON_WIDTH = 16;
   const DEFAULT_REVEALED = 13.33; // 5/6 revealed (16 - 2.67px overlap)
