@@ -173,7 +173,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
                         duration: DURATIONS.enter,
                         delay: getStaggerDelay(
                           index,
-                          0.1,
+                          0.15,
                           itemsToRender.length,
                         ),
                         ease: EASINGS.easeOutQuint,
@@ -202,7 +202,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
                           duration: 0.4,
                           delay: getStaggerDelay(
                             index,
-                            0.2,
+                            0.25,
                             itemsToRender.length,
                           ),
                           ease: "easeInOut",

@@ -8,7 +8,7 @@ export const EASINGS = {
 
 // Durations in seconds
 export const DURATIONS = {
-  enter: 0.8,
+  enter: 0.6,
   exit: 0,
   fadeExit: 0.144,
   fadeEnter: 0.18,
@@ -22,5 +22,5 @@ export const getStaggerDelay = (
 ) => {
   const progress = index / (totalItems - 1 || 1);
   const easeProgress = progress * progress; // Quadratic ease-in of delay values = ease-out cascade speed
-  return base + easeProgress * 0.56;
+  return base + easeProgress * 0.4;
 };
