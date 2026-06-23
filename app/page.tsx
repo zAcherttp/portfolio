@@ -436,7 +436,7 @@ export default function Home() {
             <h2 className="text-sm font-normal text-zinc-600">Bookmarks</h2>
           </div>
 
-          <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
+          <div className="flex flex-col -mx-3 pb-4">
             {featuredBookmarks.map((bookmark) => (
               <BookmarkRow
                 key={bookmark.url}

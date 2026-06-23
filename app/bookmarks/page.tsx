@@ -68,7 +68,7 @@ export default function BookmarksPage() {
 
         {/* Bookmarks List */}
         {filteredBookmarks.length > 0 ? (
-          <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
+          <div className="flex flex-col -mx-3 pb-4">
             {filteredBookmarks.map((bookmark) => (
               <BookmarkRow
                 key={bookmark.url}
