@@ -9,7 +9,7 @@ import { getDomainName } from "../utils/url";
 import Favicon from "./Favicon";
 import RotatingArrow from "./ui/RotatingArrow";
 
-interface Bookmark {
+interface Save {
   id: string;
   title: string;
   description: string;
@@ -19,7 +19,7 @@ interface Bookmark {
 }
 
 interface SeeAllButtonProps {
-  remaining: Bookmark[];
+  remaining: Save[];
   faviconMap?: Record<string, string | null>;
 }
 
@@ -154,13 +154,13 @@ export default function SeeAllButton({
           }
           className="flex items-center overflow-hidden shrink-0"
         >
-          {itemsToRender.map((bookmark, index) => {
+          {itemsToRender.map((save, index) => {
             const itemRevealed = getRevealedWidth(index);
             const itemOverlap = index > 0 ? ICON_WIDTH - itemRevealed : 0;
 
             return (
               <motion.div
-                key={bookmark.id}
+                key={save.id}
                 initial={{ x: 32, opacity: 0 }}
                 animate={{
                   x: isHovered || isExiting ? 0 : 32,
@@ -205,8 +205,8 @@ export default function SeeAllButton({
                   className="w-full h-full flex items-center justify-center"
                 >
                   <Favicon
-                    src={faviconMap[getDomainName(bookmark.url)] ?? null}
-                    title={bookmark.title}
+                    src={faviconMap[getDomainName(save.url)] ?? null}
+                    title={save.title}
                   />
                 </motion.div>
               </motion.div>

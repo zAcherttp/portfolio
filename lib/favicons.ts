@@ -1,16 +1,16 @@
 import { cacheLife } from "next/cache";
-import { bookmarksData } from "@/data/bookmarks";
+import { savesData } from "@/data/saves";
 import { getDomainName } from "@/utils/url";
 
 export type FaviconMap = Record<string, string | null>;
 
-// Fetches all bookmark favicons in one shot, cached server-side monthly.
+// Fetches all saves' favicons in one shot, cached server-side monthly.
 // Uses Promise.allSettled so a single failure never blocks the rest.
 export async function getAllFavicons(): Promise<FaviconMap> {
   "use cache";
   cacheLife("monthly");
 
-  const domains = [...new Set(bookmarksData.map((b) => getDomainName(b.url)))];
+  const domains = [...new Set(savesData.map((b) => getDomainName(b.url)))];
 
   const results = await Promise.allSettled(
     domains.map(async (domain) => {

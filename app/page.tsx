@@ -5,7 +5,6 @@ import { formatISO, subDays } from "date-fns";
 import { Mail, MapPin, Phone, User } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import { useEffect, useState } from "react";
-import BookmarkRow from "../components/BookmarkRow";
 import Footer from "../components/Footer";
 import type { Activity } from "../components/kibo-ui/contribution-graph";
 import {
@@ -16,11 +15,12 @@ import {
   ContributionGraphLegend,
   ContributionGraphTotalCount,
 } from "../components/kibo-ui/contribution-graph";
+import SaveRow from "../components/SaveRow";
 import SectionDivider from "../components/SectionDivider";
 import SeeAllButton from "../components/SeeAllButton";
 import StackIcon from "../components/StackIcon";
 import { GitHub, LinkedIn } from "../components/ui/icons";
-import { bookmarksData } from "../data/bookmarks";
+import { savesData } from "../data/saves";
 import { useFavicons } from "../hooks/useFavicons";
 import { getDomainName } from "../utils/url";
 
@@ -184,8 +184,8 @@ export default function Home() {
     setDummyData(generateDummyData(new Date()));
   }, []);
 
-  // Show only first 3 bookmarks in the peek window
-  const featuredBookmarks = bookmarksData.slice(0, 3);
+  // Show only first 3 saves in the peek window
+  const featuredSaves = savesData.slice(0, 3);
 
   // Load live contribution graph via TanStack Query (Layer 1 cache)
   const { data: activityData, isLoading } = useQuery<Activity[]>({
@@ -412,23 +412,23 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Bookmarks Peek Widget */}
+        {/* Saves Peek Widget */}
         <section className="mb-12">
           <div className="flex justify-between items-baseline mb-3">
             <h2 className="text-sm font-normal text-zinc-600">Saves</h2>
           </div>
 
           <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
-            {featuredBookmarks.map((bookmark) => (
-              <BookmarkRow
-                key={bookmark.id}
-                bookmark={bookmark}
-                faviconSrc={faviconMap?.[getDomainName(bookmark.url)] ?? null}
+            {featuredSaves.map((save) => (
+              <SaveRow
+                key={save.id}
+                save={save}
+                faviconSrc={faviconMap?.[getDomainName(save.url)] ?? null}
               />
             ))}
 
             <SeeAllButton
-              remaining={bookmarksData.slice(3)}
+              remaining={savesData.slice(3)}
               faviconMap={faviconMap ?? {}}
             />
           </div>

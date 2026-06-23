@@ -1,4 +1,4 @@
-export interface Bookmark {
+export interface Save {
   id: string;
   title: string;
   description: string;
@@ -7,7 +7,7 @@ export interface Bookmark {
   tags: string[];
 }
 
-export const bookmarksData: Bookmark[] = [
+export const savesData: Save[] = [
   {
     id: "1",
     title: "Animations.dev",
@@ -26,7 +26,7 @@ export const bookmarksData: Bookmark[] = [
   },
   {
     id: "3",
-    
+
     title: "Excalidraw",
     description: "Collaborative virtual whiteboard.",
     url: "https://excalidraw.com/",

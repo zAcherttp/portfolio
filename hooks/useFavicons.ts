@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { FaviconMap } from "@/lib/favicons";
 
-// Fetches all bookmark favicons from the server in one request.
+// Fetches all saves' favicons from the server in one request.
 // queryKey is a stable constant so TanStack never creates orphan queries.
 export const useFavicons = () => {
   return useQuery<FaviconMap>({

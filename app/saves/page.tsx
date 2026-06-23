@@ -3,9 +3,9 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import BookmarkRow from "../../components/BookmarkRow";
 import Footer from "../../components/Footer";
-import { bookmarksData } from "../../data/bookmarks";
+import SaveRow from "../../components/SaveRow";
+import { savesData } from "../../data/saves";
 import { useFavicons } from "../../hooks/useFavicons";
 import { getDomainName } from "../../utils/url";
 
@@ -15,12 +15,11 @@ export default function SavesPage() {
 
   const categories = [
     "All",
-    ...Array.from(new Set(bookmarksData.map((b) => b.category))).sort(),
+    ...Array.from(new Set(savesData.map((b) => b.category))).sort(),
   ];
 
-  const filteredBookmarks = bookmarksData.filter(
-    (bookmark) =>
-      selectedCategory === "All" || bookmark.category === selectedCategory,
+  const filteredSaves = savesData.filter(
+    (save) => selectedCategory === "All" || save.category === selectedCategory,
   );
 
   return (
@@ -66,13 +65,13 @@ export default function SavesPage() {
         </div>
 
         {/* Saves List */}
-        {filteredBookmarks.length > 0 ? (
+        {filteredSaves.length > 0 ? (
           <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
-            {filteredBookmarks.map((bookmark) => (
-              <BookmarkRow
-                key={bookmark.id}
-                bookmark={bookmark}
-                faviconSrc={faviconMap?.[getDomainName(bookmark.url)] ?? null}
+            {filteredSaves.map((save) => (
+              <SaveRow
+                key={save.id}
+                save={save}
+                faviconSrc={faviconMap?.[getDomainName(save.url)] ?? null}
               />
             ))}
           </div>

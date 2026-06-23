@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAllFavicons } from "@/lib/favicons";
 
-// Bulk favicon endpoint — returns all bookmark favicons as a JSON map
+// Bulk favicon endpoint — returns all saves' favicons as a JSON map
 // { domain: dataUrl | null }. No ?domain= param — the set of domains
-// is fixed to bookmarksData and never user-supplied.
+// is fixed to savesData and never user-supplied.
 export async function GET() {
   const faviconMap = await getAllFavicons();
 
