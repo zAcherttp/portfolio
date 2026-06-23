@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
+    "check": "biome check --write",
     "format": "biome format --write"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "@tanstack/react-query-devtools": "^5.101.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cnfast": "^0.0.8",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.21.0",
     "motion": "^12.40.0",
