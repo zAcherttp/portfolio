@@ -245,23 +245,7 @@ const RetroEffect = forwardRef<
 
 RetroEffect.displayName = "RetroEffect";
 
-interface WaveUniforms {
-  [key: string]: THREE.Uniform<number | THREE.Vector2 | THREE.Color>;
-  time: THREE.Uniform<number>;
-  resolution: THREE.Uniform<THREE.Vector2>;
-  fireSpeed: THREE.Uniform<number>;
-  noiseScale: THREE.Uniform<THREE.Vector2>;
-  flameHeight: THREE.Uniform<number>;
-  noiseStrength: THREE.Uniform<number>;
-  burnProgress: THREE.Uniform<number>;
-  mouseNDC: THREE.Uniform<THREE.Vector2>;
-  mouseVelocity: THREE.Uniform<THREE.Vector2>;
-  windStrength: THREE.Uniform<number>;
-  blowNDC: THREE.Uniform<THREE.Vector2>;
-  blowProgress: THREE.Uniform<number>;
-  blowRadius: THREE.Uniform<number>;
-  blowForce: THREE.Uniform<number>;
-}
+import { useMemo } from "react";
 
 interface DitheredWavesProps {
   fireSpeed: number;
@@ -293,6 +277,7 @@ function DitheredWaves({
   disableAnimation,
 }: DitheredWavesProps) {
   const mesh = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { viewport, size, gl } = useThree();
 
   const mouseNDCRef = useRef(new THREE.Vector2(0.5, -1.0)); // Default below viewport
@@ -303,30 +288,35 @@ function DitheredWaves({
   const blowNDCRef = useRef(new THREE.Vector2(0.5, -1.0));
   const blowProgressRef = useRef(1.0); // 1.0 means inactive
 
-  const waveUniformsRef = useRef<WaveUniforms>({
-    time: new THREE.Uniform(0),
-    resolution: new THREE.Uniform(new THREE.Vector2(0, 0)),
-    fireSpeed: new THREE.Uniform(fireSpeed),
-    noiseScale: new THREE.Uniform(new THREE.Vector2(...noiseScale)),
-    flameHeight: new THREE.Uniform(flameHeight),
-    noiseStrength: new THREE.Uniform(noiseStrength),
-    burnProgress: new THREE.Uniform(burnProgress),
-    mouseNDC: new THREE.Uniform(new THREE.Vector2(0.5, -1.0)),
-    mouseVelocity: new THREE.Uniform(new THREE.Vector2(0, 0)),
-    windStrength: new THREE.Uniform(windStrength),
-    blowNDC: new THREE.Uniform(new THREE.Vector2(0.5, -1.0)),
-    blowProgress: new THREE.Uniform(1.0),
-    blowRadius: new THREE.Uniform(blowRadius),
-    blowForce: new THREE.Uniform(blowForce),
-  });
+  // Stable initial uniforms object for three.js material compilation
+  // biome-ignore lint/correctness/useExhaustiveDependencies: uniforms must be initialized only once to prevent shader recompilation
+  const initialUniforms = useMemo(
+    () => ({
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(0, 0) },
+      fireSpeed: { value: fireSpeed },
+      noiseScale: { value: new THREE.Vector2(...noiseScale) },
+      flameHeight: { value: flameHeight },
+      noiseStrength: { value: noiseStrength },
+      burnProgress: { value: burnProgress },
+      mouseNDC: { value: new THREE.Vector2(0.5, -1.0) },
+      mouseVelocity: { value: new THREE.Vector2(0, 0) },
+      windStrength: { value: windStrength },
+      blowNDC: { value: new THREE.Vector2(0.5, -1.0) },
+      blowProgress: { value: 1.0 },
+      blowRadius: { value: blowRadius },
+      blowForce: { value: blowForce },
+    }),
+    [],
+  );
 
   useEffect(() => {
     const dpr = gl.getPixelRatio();
     const newWidth = Math.floor(size.width * dpr);
     const newHeight = Math.floor(size.height * dpr);
-    const currentRes = waveUniformsRef.current.resolution.value;
-    if (currentRes.x !== newWidth || currentRes.y !== newHeight) {
-      currentRes.set(newWidth, newHeight);
+    const mat = materialRef.current;
+    if (mat) {
+      mat.uniforms.resolution.value.set(newWidth, newHeight);
     }
   }, [size, gl]);
 
@@ -380,34 +370,46 @@ function DitheredWaves({
   }, [gl]);
 
   useFrame(({ clock }) => {
-    const u = waveUniformsRef.current;
+    const mat = materialRef.current;
+    if (!mat) return;
 
     if (!disableAnimation) {
-      u.time.value = clock.getElapsedTime();
+      mat.uniforms.time.value = clock.getElapsedTime();
     }
 
     // Dynamic props updates
-    if (u.fireSpeed.value !== fireSpeed) u.fireSpeed.value = fireSpeed;
-    if (
-      u.noiseScale.value.x !== noiseScale[0] ||
-      u.noiseScale.value.y !== noiseScale[1]
-    ) {
-      u.noiseScale.value.set(...noiseScale);
+    if (mat.uniforms.fireSpeed.value !== fireSpeed) {
+      mat.uniforms.fireSpeed.value = fireSpeed;
     }
-    if (u.flameHeight.value !== flameHeight) u.flameHeight.value = flameHeight;
-    if (u.noiseStrength.value !== noiseStrength)
-      u.noiseStrength.value = noiseStrength;
-    if (u.burnProgress.value !== burnProgress)
-      u.burnProgress.value = burnProgress;
-    if (u.windStrength.value !== windStrength)
-      u.windStrength.value = windStrength;
-    if (u.blowRadius.value !== blowRadius) u.blowRadius.value = blowRadius;
-    if (u.blowForce.value !== blowForce) u.blowForce.value = blowForce;
+    if (
+      mat.uniforms.noiseScale.value.x !== noiseScale[0] ||
+      mat.uniforms.noiseScale.value.y !== noiseScale[1]
+    ) {
+      mat.uniforms.noiseScale.value.set(...noiseScale);
+    }
+    if (mat.uniforms.flameHeight.value !== flameHeight) {
+      mat.uniforms.flameHeight.value = flameHeight;
+    }
+    if (mat.uniforms.noiseStrength.value !== noiseStrength) {
+      mat.uniforms.noiseStrength.value = noiseStrength;
+    }
+    if (mat.uniforms.burnProgress.value !== burnProgress) {
+      mat.uniforms.burnProgress.value = burnProgress;
+    }
+    if (mat.uniforms.windStrength.value !== windStrength) {
+      mat.uniforms.windStrength.value = windStrength;
+    }
+    if (mat.uniforms.blowRadius.value !== blowRadius) {
+      mat.uniforms.blowRadius.value = blowRadius;
+    }
+    if (mat.uniforms.blowForce.value !== blowForce) {
+      mat.uniforms.blowForce.value = blowForce;
+    }
 
     // Decay pointer velocity exponentially
     velocityRef.current.multiplyScalar(0.93);
-    u.mouseVelocity.value.copy(velocityRef.current);
-    u.mouseNDC.value.copy(mouseNDCRef.current);
+    mat.uniforms.mouseVelocity.value.copy(velocityRef.current);
+    mat.uniforms.mouseNDC.value.copy(mouseNDCRef.current);
 
     // Animate click blow
     if (blowProgressRef.current < 1.0) {
@@ -416,8 +418,8 @@ function DitheredWaves({
         blowProgressRef.current = 1.0;
       }
     }
-    u.blowProgress.value = blowProgressRef.current;
-    u.blowNDC.value.copy(blowNDCRef.current);
+    mat.uniforms.blowProgress.value = blowProgressRef.current;
+    mat.uniforms.blowNDC.value.copy(blowNDCRef.current);
   });
 
   return (
@@ -425,9 +427,10 @@ function DitheredWaves({
       <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
         <planeGeometry args={[1, 1]} />
         <shaderMaterial
+          ref={materialRef}
           vertexShader={waveVertexShader}
           fragmentShader={waveFragmentShader}
-          uniforms={waveUniformsRef.current}
+          uniforms={initialUniforms}
           transparent={true}
         />
       </mesh>
