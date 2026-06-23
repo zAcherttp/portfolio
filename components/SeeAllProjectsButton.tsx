@@ -120,7 +120,7 @@ export default function SeeAllProjectsButton({
       case "C#":
         return <CSharp {...props} />;
       default:
-        return <Git {...props} className="w-3 h-3 text-zinc-400" />;
+        return <Git {...props} className="w-3 h-3 text-subtle" />;
     }
   };
 

@@ -549,7 +549,7 @@ export const ContributionGraphCalendar = ({
           >
             <title>Contribution Graph</title>
             {!hideMonthLabels && (
-              <g className="fill-zinc-500 dark:fill-zinc-400">
+              <g className="fill-muted-foreground">
                 {monthLabels.map(({ label, weekIndex }) => (
                   <text
                     dominantBaseline="hanging"
@@ -585,7 +585,7 @@ export const ContributionGraphCalendar = ({
         createPortal(
           <div
             ref={highlightRef}
-            className="pointer-events-none fixed z-9998 rounded-xs border border-zinc-300/80 dark:border-zinc-700/80 opacity-0 transition-opacity duration-150"
+            className="pointer-events-none fixed z-9998 rounded-xs border border-subtle-2/80 opacity-0 transition-opacity duration-150"
             style={{ left: 0, top: 0, width: 0, height: 0 }}
           />,
           document.body,
