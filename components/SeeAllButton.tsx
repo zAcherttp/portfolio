@@ -5,7 +5,6 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { DURATIONS, EASINGS, getStaggerDelay } from "../constants/easings";
-import { usePreloadFavicons } from "../hooks/usePreloadFavicons";
 import { getDomainName } from "../utils/url";
 import Favicon from "./Favicon";
 import RotatingArrow from "./ui/RotatingArrow";
@@ -21,18 +20,17 @@ interface Bookmark {
 
 interface SeeAllButtonProps {
   remaining: Bookmark[];
+  faviconMap?: Record<string, string | null>;
 }
 
-export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
+export default function SeeAllButton({
+  remaining,
+  faviconMap = {},
+}: SeeAllButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [parentWidth, setParentWidth] = useState(720);
   const linkRef = useRef<HTMLAnchorElement>(null);
-
-  const domains = remaining.map((b) => getDomainName(b.url));
-
-  // Preload favicons into cache on initial render
-  usePreloadFavicons(domains);
 
   // Throttle state changes to at most once per 100ms
   const throttledSetParentWidth = useThrottledCallback(
@@ -136,7 +134,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
         className="flex items-center"
       >
         {/* see all text wrapper */}
-        <motion.div className="flex-shrink-0 flex items-center">
+        <motion.div className="shrink-0 flex items-center">
           <span>see all</span>
         </motion.div>
 
@@ -154,7 +152,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
               ? { duration: DURATIONS.enter, ease: EASINGS.easeOutQuint }
               : { duration: DURATIONS.exit }
           }
-          className="flex items-center overflow-hidden flex-shrink-0"
+          className="flex items-center overflow-hidden shrink-0"
         >
           {itemsToRender.map((bookmark, index) => {
             const itemRevealed = getRevealedWidth(index);
@@ -185,7 +183,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
                   zIndex: index + 1,
                   marginLeft: index > 0 ? -itemOverlap : 0,
                 }}
-                className="relative w-4 h-4 flex items-center justify-center flex-shrink-0 bg-[#fefefe] rounded-sm border border-[#fefefe] overflow-hidden"
+                className="relative w-4 h-4 flex items-center justify-center shrink-0 bg-[#fefefe] rounded-sm border border-[#fefefe] overflow-hidden"
               >
                 {/* Favicon Wrapper that controls its opacity fade-in */}
                 <motion.div
@@ -207,7 +205,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
                   className="w-full h-full flex items-center justify-center"
                 >
                   <Favicon
-                    domain={getDomainName(bookmark.url)}
+                    src={faviconMap[getDomainName(bookmark.url)] ?? null}
                     title={bookmark.title}
                   />
                 </motion.div>

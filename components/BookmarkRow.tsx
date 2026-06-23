@@ -16,9 +16,13 @@ interface Bookmark {
 
 interface BookmarkRowProps {
   bookmark: Bookmark;
+  faviconSrc?: string | null;
 }
 
-export default function BookmarkRow({ bookmark }: BookmarkRowProps) {
+export default function BookmarkRow({
+  bookmark,
+  faviconSrc,
+}: BookmarkRowProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -32,11 +36,8 @@ export default function BookmarkRow({ bookmark }: BookmarkRowProps) {
     >
       <div className="flex items-center gap-3 min-w-0">
         {/* Icon */}
-        <div className="flex-shrink-0 flex items-center justify-center w-4 h-4">
-          <Favicon
-            domain={getDomainName(bookmark.url)}
-            title={bookmark.title}
-          />
+        <div className="shrink-0 flex items-center justify-center w-4 h-4">
+          <Favicon src={faviconSrc} title={bookmark.title} />
         </div>
 
         {/* Text details */}
@@ -54,7 +55,7 @@ export default function BookmarkRow({ bookmark }: BookmarkRowProps) {
       </div>
 
       {/* Link / Domain */}
-      <div className="flex items-center text-xs text-zinc-400 group-hover:text-zinc-800 font-medium ml-4 flex-shrink-0 transition-colors">
+      <div className="flex items-center text-xs text-zinc-400 group-hover:text-zinc-800 font-medium ml-4 shrink-0 transition-colors">
         <span className="hidden sm:inline">{getDomainName(bookmark.url)}</span>
         <RotatingArrow isHovered={isHovered} />
       </div>

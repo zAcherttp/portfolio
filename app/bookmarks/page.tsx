@@ -6,9 +6,12 @@ import { useState } from "react";
 import BookmarkRow from "../../components/BookmarkRow";
 import Footer from "../../components/Footer";
 import { bookmarksData } from "../../data/bookmarks";
+import { useFavicons } from "../../hooks/useFavicons";
+import { getDomainName } from "../../utils/url";
 
 export default function BookmarksPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const { data: faviconMap } = useFavicons();
 
   const categories = [
     "All",
@@ -66,7 +69,11 @@ export default function BookmarksPage() {
         {filteredBookmarks.length > 0 ? (
           <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
             {filteredBookmarks.map((bookmark) => (
-              <BookmarkRow key={bookmark.id} bookmark={bookmark} />
+              <BookmarkRow
+                key={bookmark.id}
+                bookmark={bookmark}
+                faviconSrc={faviconMap?.[getDomainName(bookmark.url)] ?? null}
+              />
             ))}
           </div>
         ) : (
