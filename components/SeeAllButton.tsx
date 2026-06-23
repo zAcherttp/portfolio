@@ -108,7 +108,7 @@ export default function SeeAllButton({
   return (
     <Link
       ref={linkRef}
-      href="/bookmarks"
+      href="/saves"
       onMouseEnter={() => {
         setIsHovered(true);
         setIsExiting(false);

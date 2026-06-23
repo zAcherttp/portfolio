@@ -9,7 +9,7 @@ import { bookmarksData } from "../../data/bookmarks";
 import { useFavicons } from "../../hooks/useFavicons";
 import { getDomainName } from "../../utils/url";
 
-export default function BookmarksPage() {
+export default function SavesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const { data: faviconMap } = useFavicons();
 
