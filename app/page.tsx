@@ -15,9 +15,11 @@ import {
   ContributionGraphLegend,
   ContributionGraphTotalCount,
 } from "../components/kibo-ui/contribution-graph";
+import ProjectCard from "../components/ProjectCard";
 import SaveRow from "../components/SaveRow";
 import SectionDivider from "../components/SectionDivider";
 import SeeAllButton from "../components/SeeAllButton";
+import SeeAllProjectsButton from "../components/SeeAllProjectsButton";
 import StackIcon from "../components/StackIcon";
 import { GitHub, LinkedIn } from "../components/ui/icons";
 import { projectsData } from "../data/projects";
@@ -185,8 +187,9 @@ export default function Home() {
     setDummyData(generateDummyData(new Date()));
   }, []);
 
-  // Show only first 3 saves in the peek window
+  // Show only first 3 saves / projects in the peek window
   const featuredSaves = savesData.slice(0, 3);
+  const featuredProjects = projectsData.slice(0, 3);
 
   // Load live contribution graph via TanStack Query (Layer 1 cache)
   const { data: activityData, isLoading } = useQuery<Activity[]>({
@@ -416,49 +419,13 @@ export default function Home() {
         {/* Projects Section */}
         <SectionDivider className="mb-6" />
         <section className="mb-12 border-b border-zinc-100 pb-8">
-          <h2 className="mb-6 text-sm font-normal text-zinc-600">Projects</h2>
-          <div className="space-y-5">
-            {projectsData.map((project, index) => (
-              <div
-                key={project.id}
-                className="flex flex-col gap-2.5 p-4 rounded-xl border border-zinc-100/70 hover:bg-zinc-50/40 hover:border-zinc-200/50 transition-all duration-300 group/p"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-zinc-400">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <h3 className="font-medium text-sm text-zinc-900">
-                      {project.title}
-                    </h3>
-                  </div>
-                  <a
-                    href={project.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-950 transition-colors"
-                  >
-                    <span>{project.urlLabel}</span>
-                    <span className="inline-block transition-transform duration-200 group-hover/p:translate-x-0.5 group-hover/p:-translate-y-0.5">
-                      ↗
-                    </span>
-                  </a>
-                </div>
-                <p className="text-sm text-zinc-500 max-w-xl leading-relaxed">
-                  {project.description}
-                </p>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {project.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          <h2 className="mb-3 text-sm font-normal text-zinc-600">Projects</h2>
+          <div className="space-y-3 flex flex-col">
+            {featuredProjects.map((project, index) => (
+              <ProjectCard key={project.id} project={project} index={index} />
             ))}
+
+            <SeeAllProjectsButton remaining={projectsData.slice(3)} />
           </div>
         </section>
 
