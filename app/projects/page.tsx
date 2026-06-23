@@ -1,13 +1,14 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Footer from "../../components/Footer";
 import ProjectCard from "../../components/ProjectCard";
 import { projectsData } from "../../data/projects";
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
   const categories = [
@@ -22,31 +23,32 @@ export default function ProjectsPage() {
   );
 
   return (
-    <div className="min-h-screen text-zinc-900 font-sans antialiased relative z-10">
+    <div className="min-h-screen text-foreground font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-20">
         {/* Navigation */}
         <nav className="mb-12">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Home
-          </Link>
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
         </nav>
 
         {/* Header */}
         <header className="mb-8">
-          <h1 className="text-xl font-bold tracking-tight text-zinc-900 mb-2">
+          <h1 className="text-xl font-bold tracking-tight text-foreground mb-2">
             Projects
           </h1>
-          <p className="text-sm text-zinc-500 max-w-2xl leading-relaxed">
+          <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
             A curated list of libraries, developer tools, desktop applications,
             and web services I have built.
           </p>
         </header>
 
         {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-zinc-100">
+        <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-border">
           {categories.map((category) => (
             <button
               key={category}
@@ -54,8 +56,8 @@ export default function ProjectsPage() {
               onClick={() => setSelectedCategory(category)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer ${
                 selectedCategory === category
-                  ? "bg-zinc-900 text-white shadow-xs"
-                  : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200/80"
+                  ? "bg-foreground text-background shadow-xs"
+                  : "bg-muted text-muted-foreground hover:bg-surface-hover"
               }`}
             >
               {category}
@@ -71,8 +73,8 @@ export default function ProjectsPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-            <p className="text-zinc-500 font-medium">
+          <div className="text-center py-20 bg-muted/50 rounded-xl border border-dashed border-border">
+            <p className="text-muted-foreground font-medium">
               No projects found matching your criteria.
             </p>
           </div>
