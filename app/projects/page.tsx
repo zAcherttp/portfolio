@@ -22,7 +22,7 @@ export default function ProjectsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#fefefe] text-zinc-900 font-sans antialiased">
+    <div className="min-h-screen text-zinc-900 font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-20">
         {/* Navigation */}
         <nav className="mb-12">

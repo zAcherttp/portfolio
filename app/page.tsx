@@ -207,7 +207,7 @@ export default function Home() {
   const { data: faviconMap } = useFavicons();
 
   return (
-    <div className="min-h-screen bg-[#fefefe] text-zinc-900 font-sans antialiased">
+    <div className="min-h-screen text-zinc-900 font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-8 sm:py-12">
         {/* Intro Header */}
         <header className="mb-12">
