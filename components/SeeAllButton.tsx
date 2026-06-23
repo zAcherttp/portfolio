@@ -109,7 +109,7 @@ export default function SeeAllButton({
         setIsHovered(false);
         setIsExiting(true);
       }}
-      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-zinc-100/70 transition-colors group select-none overflow-hidden gap-0 text-xs text-zinc-400 hover:text-zinc-800 font-medium"
+      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-surface-hover transition-colors group select-none overflow-hidden gap-0 text-xs text-subtle hover:text-foreground/80 font-medium"
     >
       {/* Sliding Content Wrapper that controls exit fadeout and resets in-place */}
       <motion.div
@@ -175,7 +175,7 @@ export default function SeeAllButton({
                   zIndex: index + 1,
                   marginLeft: index > 0 ? -itemOverlap : 0,
                 }}
-                className="relative w-4 h-4 flex items-center justify-center shrink-0 bg-[#fefefe] rounded-sm border border-[#fefefe] overflow-hidden"
+                className="relative w-4 h-4 flex items-center justify-center shrink-0 bg-background rounded-sm border border-background overflow-hidden"
               >
                 {/* Favicon Wrapper that controls its opacity fade-in */}
                 <motion.div

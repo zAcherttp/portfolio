@@ -46,7 +46,7 @@ function Tech({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-zinc-900 py-1 px-2.5 rounded-md hover:bg-zinc-100/70 transition-colors"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-foreground py-1 px-2.5 rounded-md hover:bg-surface-hover transition-colors"
     >
       <StackIcon color={color} name={children} />
       {children}
@@ -207,50 +207,50 @@ export default function Home() {
   const { data: faviconMap } = useFavicons();
 
   return (
-    <div className="min-h-screen text-zinc-900 font-sans antialiased relative z-10">
+    <div className="min-h-screen text-foreground font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-8 sm:py-12">
         {/* Intro Header */}
         <header className="mb-12">
           {/* Profile Card Header */}
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-zinc-900">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
                 Tuấn Phát
               </h1>
-              <p className="text-xs text-zinc-400 font-mono mt-1.5 uppercase tracking-wider">
+              <p className="text-xs text-subtle font-mono mt-1.5 uppercase tracking-wider">
                 Software Developer
               </p>
             </div>
           </div>
 
           {/* Grid Metadata columns (gridless) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-1 gap-y-1 text-sm text-zinc-500 mb-4 -mx-2 sm:w-2/3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-1 gap-y-1 text-sm text-muted-foreground mb-4 -mx-2 sm:w-2/3">
             <div className="space-y-1">
               <motion.div
                 initial="normal"
                 whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-default py-1.5 px-2 rounded-md hover:bg-zinc-100/70 transition-colors"
+                className="flex items-center gap-2.5 group cursor-default py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
               >
                 <MotionMapPin
                   variants={iconBounceVariants}
-                  className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors"
+                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
                 />
-                <span className="group-hover:text-zinc-900 transition-colors">
+                <span className="group-hover:text-foreground transition-colors">
                   Ho Chi Minh City, Viet Nam
                 </span>
               </motion.div>
               <motion.div
                 initial="normal"
                 whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-pointer py-1.5 px-2 rounded-md hover:bg-zinc-100/70 transition-colors"
+                className="flex items-center gap-2.5 group cursor-pointer py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
               >
                 <MotionPhone
                   variants={iconBounceVariants}
-                  className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors"
+                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
                 />
                 <a
                   href="tel:+84326149613"
-                  className="font-mono text-sm group-hover:text-zinc-900 transition-colors"
+                  className="font-mono text-sm group-hover:text-foreground transition-colors"
                 >
                   +84 326 149 613
                 </a>
@@ -261,15 +261,15 @@ export default function Home() {
               <motion.div
                 initial="normal"
                 whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-pointer py-1.5 px-2 rounded-md hover:bg-zinc-100/70 transition-colors"
+                className="flex items-center gap-2.5 group cursor-pointer py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
               >
                 <MotionMail
                   variants={iconBounceVariants}
-                  className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors"
+                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
                 />
                 <a
                   href="mailto:zchr.work@gmail.com"
-                  className="group-hover:text-zinc-900 transition-colors"
+                  className="group-hover:text-foreground transition-colors"
                 >
                   zchr.work@gmail.com
                 </a>
@@ -277,13 +277,13 @@ export default function Home() {
               <motion.div
                 initial="normal"
                 whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-default py-1.5 px-2 rounded-md hover:bg-zinc-100/70 transition-colors"
+                className="flex items-center gap-2.5 group cursor-default py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
               >
                 <MotionUser
                   variants={iconBounceVariants}
-                  className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors"
+                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
                 />
-                <span className="group-hover:text-zinc-900 transition-colors">
+                <span className="group-hover:text-foreground transition-colors">
                   he / him
                 </span>
               </motion.div>
@@ -296,7 +296,7 @@ export default function Home() {
               href="https://github.com/zAcherttp"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-7 h-7 rounded-md border border-zinc-200/60 hover:bg-zinc-50 hover:border-zinc-300/80 hover:text-zinc-900 text-zinc-400 transition-all"
+              className="flex items-center justify-center w-7 h-7 rounded-md border border-border hover:bg-muted hover:border-border hover:text-foreground text-subtle transition-all"
               aria-label="GitHub"
             >
               <GitHub className="w-3.5 h-3.5" />
@@ -305,7 +305,7 @@ export default function Home() {
               href="https://www.linkedin.com/in/ttuanphat91605/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-7 h-7 rounded-md border border-zinc-200/60 hover:bg-zinc-50 hover:border-zinc-300/80 hover:text-zinc-900 text-zinc-400 transition-all"
+              className="flex items-center justify-center w-7 h-7 rounded-md border border-border hover:bg-muted hover:border-border hover:text-foreground text-subtle transition-all"
               aria-label="LinkedIn"
             >
               <LinkedIn className="w-3.5 h-3.5" />
@@ -315,18 +315,18 @@ export default function Home() {
 
         {/* About Section */}
         <SectionDivider className="mb-6" />
-        <section className="mb-12 border-b border-zinc-100 pb-6">
-          <h2 className="mb-3 text-sm font-normal text-zinc-600">About</h2>
-          <div className="max-w-2xl space-y-4 text-pretty text-sm leading-6 text-zinc-500">
+        <section className="mb-12 border-b border-border pb-6">
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">About</h2>
+          <div className="max-w-2xl space-y-4 text-pretty text-sm leading-6 text-muted-foreground">
             <p>
               I like building full-stack products with{" "}
-              <span className="font-medium text-zinc-900">React</span>,{" "}
-              <span className="font-medium text-zinc-900">Next.js</span>,{" "}
-              <span className="font-medium text-zinc-900">TypeScript</span>, and
+              <span className="font-medium text-foreground">React</span>,{" "}
+              <span className="font-medium text-foreground">Next.js</span>,{" "}
+              <span className="font-medium text-foreground">TypeScript</span>, and
               backend systems with{" "}
-              <span className="font-medium text-zinc-900">Hono</span>,{" "}
-              <span className="font-medium text-zinc-900">Docker</span>, and a
-              bit of <span className="font-medium text-zinc-900">Go</span> when
+              <span className="font-medium text-foreground">Hono</span>,{" "}
+              <span className="font-medium text-foreground">Docker</span>, and a
+              bit of <span className="font-medium text-foreground">Go</span> when
               I want to try something lower-level.
             </p>
             <p>
@@ -347,27 +347,27 @@ export default function Home() {
 
         {/* Stack Section */}
         <section className="mb-6">
-          <h2 className="mb-3 text-sm font-normal text-zinc-600">Stack</h2>
-          <p className="mb-4 max-w-2xl text-pretty text-sm leading-6 text-zinc-500">
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">Stack</h2>
+          <p className="mb-4 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
             Things I&apos;ve worked with enough to comfortably read, debug, and
             build small features in. Some are daily drivers, others are tools I
             keep coming back to.
           </p>
 
-          <div className="border-y border-zinc-100">
+          <div className="border-y border-border">
             {stackGroups.map((group, index) => (
               <div
                 key={group.label}
-                className="grid gap-2 border-b border-zinc-100 py-2 last:border-b-0 sm:grid-cols-[11rem_1fr] sm:gap-5"
+                className="grid gap-2 border-b border-border py-2 last:border-b-0 sm:grid-cols-[11rem_1fr] sm:gap-5"
               >
-                <div className="flex items-baseline gap-2 text-sm text-zinc-500">
-                  <span className="font-mono text-xs text-zinc-300">
+                <div className="flex items-baseline gap-2 text-sm text-muted-foreground">
+                  <span className="font-mono text-xs text-subtle-2">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <span>{group.label}</span>
                 </div>
 
-                <div className="flex flex-wrap gap-x-1 gap-y-1 text-sm leading-6 text-zinc-600">
+                <div className="flex flex-wrap gap-x-1 gap-y-1 text-sm leading-6 text-muted-foreground">
                   {group.items.map((item) => (
                     <Tech key={item.name} color={item.color} url={item.url}>
                       {item.name}
@@ -401,9 +401,9 @@ export default function Home() {
                   />
                 )}
               </ContributionGraphCalendar>
-              <ContributionGraphFooter className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1.5">
+              <ContributionGraphFooter className="text-[10px] text-muted-foreground mt-1.5">
                 {!mounted || isLoading ? (
-                  <span className="text-zinc-500 dark:text-zinc-400 animate-pulse">
+                  <span className="text-muted-foreground animate-pulse">
                     Loading contributions...
                   </span>
                 ) : (
@@ -419,8 +419,8 @@ export default function Home() {
 
         {/* Projects Section */}
         <SectionDivider className="mb-6" />
-        <section className="mb-12 border-b border-zinc-100 pb-8">
-          <h2 className="mb-3 text-sm font-normal text-zinc-600">Projects</h2>
+        <section className="mb-12 border-b border-border pb-8">
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">Projects</h2>
           <div className="space-y-3 flex flex-col">
             {featuredProjects.map((project, index) => (
               <ProjectCard key={project.id} project={project} index={index} />
@@ -433,7 +433,7 @@ export default function Home() {
         {/* Bookmarks Peek Widget */}
         <section className="mb-12">
           <div className="flex justify-between items-baseline mb-3">
-            <h2 className="text-sm font-normal text-zinc-600">Bookmarks</h2>
+            <h2 className="text-sm font-normal text-muted-foreground">Bookmarks</h2>
           </div>
 
           <div className="flex flex-col -mx-3 pb-4">

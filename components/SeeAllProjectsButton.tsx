@@ -136,7 +136,7 @@ export default function SeeAllProjectsButton({
         setIsHovered(false);
         setIsExiting(true);
       }}
-      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-zinc-100/70 transition-colors group select-none overflow-hidden gap-0 text-xs text-zinc-400 hover:text-zinc-800 font-medium"
+      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-surface-hover transition-colors group select-none overflow-hidden gap-0 text-xs text-subtle hover:text-foreground/80 font-medium"
     >
       <motion.div
         animate={{ opacity: isExiting ? 0 : 1 }}
@@ -200,7 +200,7 @@ export default function SeeAllProjectsButton({
                   zIndex: index + 1,
                   marginLeft: index > 0 ? -itemOverlap : 0,
                 }}
-                className="relative w-4 h-4 flex items-center justify-center shrink-0 bg-[#fefefe] rounded-sm border border-zinc-100 overflow-hidden"
+                className="relative w-4 h-4 flex items-center justify-center shrink-0 bg-background rounded-sm border border-border overflow-hidden"
               >
                 <motion.div
                   initial={{ opacity: 0 }}

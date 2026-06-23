@@ -9,7 +9,7 @@ interface FaviconProps {
 // Falls back to a Globe icon if the server couldn't fetch the favicon.
 export default function Favicon({ src, title }: FaviconProps) {
   if (!src) {
-    return <Globe className="w-4 h-4 text-zinc-400" />;
+    return <Globe className="w-4 h-4 text-subtle" />;
   }
 
   return (

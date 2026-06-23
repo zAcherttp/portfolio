@@ -50,21 +50,21 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
       rel="noopener noreferrer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="flex flex-col gap-1.5 p-4 rounded-xl border border-zinc-100/70 hover:bg-zinc-50/40 hover:border-zinc-200/50 transition-all duration-300 group/p cursor-pointer"
+      className="flex flex-col gap-1.5 p-4 rounded-xl border border-border hover:bg-surface-hover transition-all duration-300 group/p cursor-pointer"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-zinc-400">
+          <span className="font-mono text-xs text-subtle">
             {String(index + 1).padStart(2, "0")}
           </span>
-          <h3 className="font-medium text-sm text-zinc-900">{project.title}</h3>
+          <h3 className="font-medium text-sm text-foreground">{project.title}</h3>
         </div>
-        <div className="inline-flex items-center gap-0.5 text-xs text-zinc-400 group-hover/p:text-zinc-950 transition-colors">
+        <div className="inline-flex items-center gap-0.5 text-xs text-subtle group-hover/p:text-foreground transition-colors">
           <span>{project.urlLabel}</span>
           <RotatingArrow isHovered={isHovered} />
         </div>
       </div>
-      <p className="text-sm text-zinc-500 max-w-xl leading-relaxed">
+      <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
         {project.description}
       </p>
       <div className="flex flex-wrap gap-1.5 mt-1">
@@ -72,7 +72,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
         {project.languages.map((lang) => (
           <span
             key={lang}
-            className="inline-flex items-center gap-1.5 text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md"
+            className="inline-flex items-center gap-1.5 text-[10px] font-mono py-0.5 px-2 bg-muted text-muted-foreground rounded-md"
           >
             {renderLanguageIcon(lang)}
             {lang}
@@ -82,7 +82,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
         {project.tags.map((tag) => (
           <span
             key={tag}
-            className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md"
+            className="text-[10px] font-mono py-0.5 px-2 bg-muted text-muted-foreground rounded-md"
           >
             {tag}
           </span>
