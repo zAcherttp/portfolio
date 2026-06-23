@@ -39,11 +39,11 @@ export default function BookmarksPage() {
         {/* Header */}
         <header className="mb-8">
           <h1 className="text-xl font-bold tracking-tight text-zinc-900 mb-2">
-            Bookmarks
+            Saves
           </h1>
           <p className="text-sm text-zinc-500 max-w-2xl leading-relaxed">
-            A curated directory of tools, articles, design inspiration, and cool
-            resources that I have saved over the years.
+            A small list of tools, articles, design inspiration, and other cool
+            things I keep coming back to.
           </p>
         </header>
 
@@ -65,7 +65,7 @@ export default function BookmarksPage() {
           ))}
         </div>
 
-        {/* Bookmarks List */}
+        {/* Saves List */}
         {filteredBookmarks.length > 0 ? (
           <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
             {filteredBookmarks.map((bookmark) => (
@@ -79,7 +79,7 @@ export default function BookmarksPage() {
         ) : (
           <div className="text-center py-20 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
             <p className="text-zinc-500 font-medium">
-              No bookmarks found matching your criteria.
+              No saves found matching your criteria.
             </p>
           </div>
         )}

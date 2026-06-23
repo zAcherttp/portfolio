@@ -26,19 +26,20 @@ export const bookmarksData: Bookmark[] = [
   },
   {
     id: "3",
+    
+    title: "Excalidraw",
+    description: "Collaborative virtual whiteboard.",
+    url: "https://excalidraw.com/",
+    category: "Dev Tools",
+    tags: ["Whiteboard", "Collaboration", "Tool"],
+  },
+  {
+    id: "4",
     title: "Vercel",
     description: "Frontend deployment platform.",
     url: "https://vercel.com",
     category: "Dev Tools",
     tags: ["Hosting", "Cloud", "DX"],
-  },
-  {
-    id: "4",
-    title: "Fonts in Use",
-    description: "Typography archive in use cases.",
-    url: "https://fontsinuse.com",
-    category: "Inspiration",
-    tags: ["Typography", "Archive", "Design"],
   },
   {
     id: "5",
@@ -74,11 +75,11 @@ export const bookmarksData: Bookmark[] = [
   },
   {
     id: "10",
-    title: "Excalidraw",
-    description: "Collaborative virtual whiteboard.",
-    url: "https://excalidraw.com/",
-    category: "Dev Tools",
-    tags: ["Whiteboard", "Collaboration", "Tool"],
+    title: "Fonts in Use",
+    description: "Typography archive in use cases.",
+    url: "https://fontsinuse.com",
+    category: "Inspiration",
+    tags: ["Typography", "Archive", "Design"],
   },
   {
     id: "11",
