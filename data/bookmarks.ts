@@ -10,6 +10,14 @@ export interface Bookmark {
 export const bookmarksData: Bookmark[] = [
   {
     id: "1",
+    title: "Animations.dev",
+    description: "High-performance web animation course.",
+    url: "https://animations.dev/",
+    category: "Resources",
+    tags: ["Animation", "Interactive", "Course"],
+  },
+  {
+    id: "2",
     title: "Linear",
     description: "Issue tracker built for speed.",
     url: "https://linear.app",
@@ -17,7 +25,7 @@ export const bookmarksData: Bookmark[] = [
     tags: ["Productivity", "UI/UX", "App"],
   },
   {
-    id: "2",
+    id: "3",
     title: "Vercel",
     description: "Frontend deployment platform.",
     url: "https://vercel.com",
@@ -25,20 +33,12 @@ export const bookmarksData: Bookmark[] = [
     tags: ["Hosting", "Cloud", "DX"],
   },
   {
-    id: "3",
+    id: "4",
     title: "Fonts in Use",
     description: "Typography archive in use cases.",
     url: "https://fontsinuse.com",
     category: "Inspiration",
     tags: ["Typography", "Archive", "Design"],
-  },
-  {
-    id: "4",
-    title: "Animations.dev",
-    description: "High-performance web animation course.",
-    url: "https://animations.dev/",
-    category: "Resources",
-    tags: ["Animation", "Interactive", "Course"],
   },
   {
     id: "5",
@@ -63,14 +63,6 @@ export const bookmarksData: Bookmark[] = [
     url: "https://paper.design/",
     category: "Design",
     tags: ["Productivity", "UI/UX", "Product"],
-  },
-  {
-    id: "8",
-    title: "LiftKit",
-    description: "Tailwind UI framework for details.",
-    url: "https://www.chainlift.io/liftkit",
-    category: "Dev Tools",
-    tags: ["UI Framework", "Tailwind", "Components"],
   },
   {
     id: "9",
@@ -145,14 +137,6 @@ export const bookmarksData: Bookmark[] = [
     tags: ["SVG", "Logos", "Library"],
   },
   {
-    id: "18",
-    title: "Diode",
-    description: "Browser-based hardware simulator.",
-    url: "https://www.withdiode.com/",
-    category: "Dev Tools",
-    tags: ["Simulation", "Electronics", "Tool"],
-  },
-  {
     id: "19",
     title: "Interface Craft",
     description: "Interactive high-fidelity UI library.",
@@ -191,5 +175,13 @@ export const bookmarksData: Bookmark[] = [
     url: "https://www.danielpetho.com/",
     category: "Inspiration",
     tags: ["Portfolio", "Design Engineer", "UI"],
+  },
+  {
+    id: "24",
+    title: "Recent Design",
+    description: "Recent design trends and inspiration.",
+    url: "https://recent.design/",
+    category: "Inspiration",
+    tags: ["UI", "Design Systems", "Details"],
   },
 ];

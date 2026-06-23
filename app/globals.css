@@ -18,12 +18,21 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Globally override Tailwind transition durations to 0s via cascade */
+/* Globally override Tailwind transition durations: 100ms on hover out (idle), 0s on hover in */
 .transition,
 .transition-all,
 .transition-colors,
 .transition-opacity,
 .transition-shadow,
 .transition-transform {
+  transition-duration: 100ms;
+}
+
+.transition:hover,
+.transition-all:hover,
+.transition-colors:hover,
+.transition-opacity:hover,
+.transition-shadow:hover,
+.transition-transform:hover {
   transition-duration: 0s;
 }

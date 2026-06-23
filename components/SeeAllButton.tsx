@@ -119,7 +119,7 @@ export default function SeeAllButton({ remaining }: SeeAllButtonProps) {
         setIsHovered(false);
         setIsExiting(true);
       }}
-      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-zinc-100/70 group select-none overflow-hidden gap-0 text-xs text-zinc-400 hover:text-zinc-800 font-medium"
+      className="relative flex items-center justify-end h-9 px-3 rounded-lg hover:bg-zinc-100/70 transition-colors group select-none overflow-hidden gap-0 text-xs text-zinc-400 hover:text-zinc-800 font-medium"
     >
       {/* Sliding Content Wrapper that controls exit fadeout and resets in-place */}
       <motion.div
