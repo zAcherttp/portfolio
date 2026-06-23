@@ -1,7 +1,7 @@
 "use client";
 
 import { Mail, MapPin, Phone, User } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, type Variants } from "motion/react";
 import BookmarkRow from "../components/BookmarkRow";
 import SeeAllButton from "../components/SeeAllButton";
 import { GitHub, LinkedIn } from "../components/ui/icons";
@@ -12,7 +12,7 @@ const MotionPhone = motion.create(Phone);
 const MotionMail = motion.create(Mail);
 const MotionUser = motion.create(User);
 
-const iconBounceVariants = {
+const iconBounceVariants: Variants = {
   normal: { y: 0 },
   animate: {
     y: [0, -2, 0.25, 0],
