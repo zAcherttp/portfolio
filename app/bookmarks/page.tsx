@@ -3,23 +3,25 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import BookmarkRow from "../../components/BookmarkRow";
 import Footer from "../../components/Footer";
-import SaveRow from "../../components/SaveRow";
-import { savesData } from "../../data/saves";
+import { bookmarksData, getSortedBookmarks } from "../../data/bookmarks";
 import { useFavicons } from "../../hooks/useFavicons";
 import { getDomainName } from "../../utils/url";
 
-export default function SavesPage() {
+export default function BookmarksPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const { data: faviconMap } = useFavicons();
 
   const categories = [
     "All",
-    ...Array.from(new Set(savesData.map((b) => b.category))).sort(),
+    ...Array.from(new Set(bookmarksData.map((b) => b.category))).sort(),
   ];
 
-  const filteredSaves = savesData.filter(
-    (save) => selectedCategory === "All" || save.category === selectedCategory,
+  const sortedBookmarks = getSortedBookmarks();
+  const filteredBookmarks = sortedBookmarks.filter(
+    (bookmark) =>
+      selectedCategory === "All" || bookmark.category === selectedCategory,
   );
 
   return (
@@ -38,7 +40,7 @@ export default function SavesPage() {
         {/* Header */}
         <header className="mb-8">
           <h1 className="text-xl font-bold tracking-tight text-zinc-900 mb-2">
-            Saves
+            Bookmarks
           </h1>
           <p className="text-sm text-zinc-500 max-w-2xl leading-relaxed">
             A small list of tools, articles, design inspiration, and other cool
@@ -64,21 +66,21 @@ export default function SavesPage() {
           ))}
         </div>
 
-        {/* Saves List */}
-        {filteredSaves.length > 0 ? (
+        {/* Bookmarks List */}
+        {filteredBookmarks.length > 0 ? (
           <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
-            {filteredSaves.map((save) => (
-              <SaveRow
-                key={save.id}
-                save={save}
-                faviconSrc={faviconMap?.[getDomainName(save.url)] ?? null}
+            {filteredBookmarks.map((bookmark) => (
+              <BookmarkRow
+                key={bookmark.url}
+                bookmark={bookmark}
+                faviconSrc={faviconMap?.[getDomainName(bookmark.url)] ?? null}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-20 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
             <p className="text-zinc-500 font-medium">
-              No saves found matching your criteria.
+              No bookmarks found matching your criteria.
             </p>
           </div>
         )}

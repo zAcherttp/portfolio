@@ -5,6 +5,7 @@ import { formatISO, subDays } from "date-fns";
 import { Mail, MapPin, Phone, User } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import { useEffect, useState } from "react";
+import BookmarkRow from "../components/BookmarkRow";
 import Footer from "../components/Footer";
 import type { Activity } from "../components/kibo-ui/contribution-graph";
 import {
@@ -16,14 +17,13 @@ import {
   ContributionGraphTotalCount,
 } from "../components/kibo-ui/contribution-graph";
 import ProjectCard from "../components/ProjectCard";
-import SaveRow from "../components/SaveRow";
 import SectionDivider from "../components/SectionDivider";
 import SeeAllButton from "../components/SeeAllButton";
 import SeeAllProjectsButton from "../components/SeeAllProjectsButton";
 import StackIcon from "../components/StackIcon";
 import { GitHub, LinkedIn } from "../components/ui/icons";
+import { bookmarksData, getSortedBookmarks } from "../data/bookmarks";
 import { projectsData } from "../data/projects";
-import { savesData } from "../data/saves";
 import { useFavicons } from "../hooks/useFavicons";
 import { getDomainName } from "../utils/url";
 
@@ -187,8 +187,9 @@ export default function Home() {
     setDummyData(generateDummyData(new Date()));
   }, []);
 
-  // Show only first 3 saves / projects in the peek window
-  const featuredSaves = savesData.slice(0, 3);
+  // Show only first 3 bookmarks / projects in the peek window
+  const sortedBookmarks = getSortedBookmarks();
+  const featuredBookmarks = sortedBookmarks.slice(0, 3);
   const featuredProjects = projectsData.slice(0, 3);
 
   // Load live contribution graph via TanStack Query (Layer 1 cache)
@@ -429,23 +430,23 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Saves Peek Widget */}
+        {/* Bookmarks Peek Widget */}
         <section className="mb-12">
           <div className="flex justify-between items-baseline mb-3">
-            <h2 className="text-sm font-normal text-zinc-600">Saves</h2>
+            <h2 className="text-sm font-normal text-zinc-600">Bookmarks</h2>
           </div>
 
           <div className="flex flex-col -mx-3 border-b border-zinc-100 pb-4">
-            {featuredSaves.map((save) => (
-              <SaveRow
-                key={save.id}
-                save={save}
-                faviconSrc={faviconMap?.[getDomainName(save.url)] ?? null}
+            {featuredBookmarks.map((bookmark) => (
+              <BookmarkRow
+                key={bookmark.url}
+                bookmark={bookmark}
+                faviconSrc={faviconMap?.[getDomainName(bookmark.url)] ?? null}
               />
             ))}
 
             <SeeAllButton
-              remaining={savesData.slice(3)}
+              remaining={sortedBookmarks.slice(3)}
               faviconMap={faviconMap ?? {}}
             />
           </div>

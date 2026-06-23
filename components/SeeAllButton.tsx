@@ -5,21 +5,13 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { DURATIONS, EASINGS, getStaggerDelay } from "../constants/easings";
+import type { Bookmark } from "../data/bookmarks";
 import { getDomainName } from "../utils/url";
 import Favicon from "./Favicon";
 import RotatingArrow from "./ui/RotatingArrow";
 
-interface Save {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  category: string;
-  tags: string[];
-}
-
 interface SeeAllButtonProps {
-  remaining: Save[];
+  remaining: Bookmark[];
   faviconMap?: Record<string, string | null>;
 }
 
@@ -108,7 +100,7 @@ export default function SeeAllButton({
   return (
     <Link
       ref={linkRef}
-      href="/saves"
+      href="/bookmarks"
       onMouseEnter={() => {
         setIsHovered(true);
         setIsExiting(false);
@@ -154,13 +146,13 @@ export default function SeeAllButton({
           }
           className="flex items-center overflow-hidden shrink-0"
         >
-          {itemsToRender.map((save, index) => {
+          {itemsToRender.map((bookmark, index) => {
             const itemRevealed = getRevealedWidth(index);
             const itemOverlap = index > 0 ? ICON_WIDTH - itemRevealed : 0;
 
             return (
               <motion.div
-                key={save.id}
+                key={bookmark.url}
                 initial={{ x: 32, opacity: 0 }}
                 animate={{
                   x: isHovered || isExiting ? 0 : 32,
@@ -205,8 +197,8 @@ export default function SeeAllButton({
                   className="w-full h-full flex items-center justify-center"
                 >
                   <Favicon
-                    src={faviconMap[getDomainName(save.url)] ?? null}
-                    title={save.title}
+                    src={faviconMap[getDomainName(bookmark.url)] ?? null}
+                    title={bookmark.title}
                   />
                 </motion.div>
               </motion.div>
