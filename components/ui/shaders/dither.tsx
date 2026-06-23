@@ -1,12 +1,7 @@
 "use client";
 
 /* eslint-disable react/no-unknown-property */
-import {
-  Canvas,
-  type ThreeEvent,
-  useFrame,
-  useThree,
-} from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, wrapEffect } from "@react-three/postprocessing";
 import { Effect } from "postprocessing";
 import { forwardRef, useEffect, useRef } from "react";
@@ -27,13 +22,18 @@ const waveFragmentShader = `
 precision highp float;
 uniform vec2 resolution;
 uniform float time;
-uniform float waveSpeed;
-uniform float waveFrequency;
-uniform float waveAmplitude;
-uniform vec3 waveColor;
-uniform vec2 mousePos;
-uniform int enableMouseInteraction;
-uniform float mouseRadius;
+uniform float fireSpeed;
+uniform vec2 noiseScale;
+uniform float flameHeight;
+uniform float noiseStrength;
+uniform float burnProgress;
+uniform vec2 mouseNDC;
+uniform vec2 mouseVelocity;
+uniform float windStrength;
+uniform vec2 blowNDC;
+uniform float blowProgress;
+uniform float blowRadius;
+uniform float blowForce;
 
 vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -68,38 +68,64 @@ float cnoise(vec2 P) {
   return 2.3 * mix(n_x.x, n_x.y, fade_xy.y);
 }
 
-const int OCTAVES = 4;
 float fbm(vec2 p) {
   float value = 0.0;
-  float amp = 1.0;
-  float freq = waveFrequency;
-  for (int i = 0; i < OCTAVES; i++) {
+  float amp = 0.5;
+  vec2 shift = vec2(100.0);
+  for (int i = 0; i < 4; i++) {
     value += amp * abs(cnoise(p));
-    p *= freq;
-    amp *= waveAmplitude;
+    p = p * 2.0 + shift;
+    amp *= 0.5;
   }
   return value;
 }
 
-float pattern(vec2 p) {
-  vec2 p2 = p - time * waveSpeed;
-  return fbm(p + fbm(p2)); 
-}
-
 void main() {
-  vec2 uv = gl_FragCoord.xy / resolution.xy;
-  uv -= 0.5;
-  uv.x *= resolution.x / resolution.y;
-  float f = pattern(uv);
-  if (enableMouseInteraction == 1) {
-    vec2 mouseNDC = (mousePos / resolution - 0.5) * vec2(1.0, -1.0);
-    mouseNDC.x *= resolution.x / resolution.y;
-    float dist = length(uv - mouseNDC);
-    float effect = 1.0 - smoothstep(0.0, mouseRadius, dist);
-    f -= 0.5 * effect;
+  vec2 screenUv = gl_FragCoord.xy / resolution.xy;
+  
+  // Aspect-ratio-independent noise coordinate mapping
+  vec2 noiseUv = screenUv;
+  noiseUv.x *= resolution.x / resolution.y;
+  
+  // Cursor wind gust calculation
+  float mouseDist = length(screenUv - mouseNDC);
+  float mouseInfluence = smoothstep(0.4, 0.0, mouseDist);
+  vec2 windPush = mouseVelocity * mouseInfluence * windStrength;
+  
+  // Click blow splat calculation
+  float blowDist = length(screenUv - blowNDC);
+  float waveFront = blowProgress * blowRadius;
+  float waveInfluence = smoothstep(0.12, 0.0, abs(blowDist - waveFront)) * (1.0 - blowProgress);
+  vec2 blowPush = vec2(0.0);
+  if (blowDist > 0.001) {
+    blowPush = normalize(screenUv - blowNDC) * waveInfluence * blowForce;
   }
-  vec3 col = mix(vec3(0.0), waveColor, f);
-  gl_FragColor = vec4(col, 1.0);
+  
+  // Apply physics coordinate displacements to noise
+  noiseUv.x -= windPush.x + blowPush.x;
+  noiseUv.y -= windPush.y + blowPush.y;
+  
+  vec2 p = noiseUv * noiseScale;
+  p.y -= time * fireSpeed;
+  
+  float n = fbm(p);
+  
+  // Base fireplace shape bounds (fade out on left/right/top edges)
+  float horizontalFade = smoothstep(0.0, 0.15, screenUv.x) * smoothstep(1.0, 0.85, screenUv.x);
+  float verticalFade = smoothstep(flameHeight, 0.0, screenUv.y);
+  
+  float fire = (verticalFade * 0.7 + n * noiseStrength) * horizontalFade;
+  
+  // Apply burnProgress height limit
+  float currentHeightLimit = burnProgress;
+  float heightMask = smoothstep(currentHeightLimit, currentHeightLimit - 0.25, screenUv.y);
+  fire *= heightMask;
+  
+  // Epicenter click-blow suppression
+  float centerSuppression = (1.0 - smoothstep(0.0, waveFront, blowDist)) * (1.0 - blowProgress) * 0.9;
+  fire = clamp(fire - centerSuppression, 0.0, 1.0);
+  
+  gl_FragColor = vec4(1.0, 1.0, 1.0, fire);
 }
 `;
 
@@ -107,6 +133,8 @@ const ditherFragmentShader = `
 precision highp float;
 uniform float colorNum;
 uniform float pixelSize;
+uniform vec3 waveColor;
+
 const float bayerMatrix8x8[64] = float[64](
   0.0/64.0, 48.0/64.0, 12.0/64.0, 60.0/64.0,  3.0/64.0, 51.0/64.0, 15.0/64.0, 63.0/64.0,
   32.0/64.0,16.0/64.0, 44.0/64.0, 28.0/64.0, 35.0/64.0,19.0/64.0, 47.0/64.0, 31.0/64.0,
@@ -134,32 +162,38 @@ void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
   vec2 normalizedPixelSize = pixelSize / resolution;
   vec2 uvPixel = normalizedPixelSize * floor(uv / normalizedPixelSize);
   vec4 color = texture2D(inputBuffer, uvPixel);
-  color.rgb = dither(uv, color.rgb);
-  outputColor = color;
+  
+  // Dither the alpha channel (fire intensity)
+  float ditheredA = dither(uv, vec3(color.a)).r;
+  
+  if (ditheredA > 0.15) {
+    outputColor = vec4(waveColor, 1.0);
+  } else {
+    outputColor = vec4(0.0, 0.0, 0.0, 0.0);
+  }
 }
 `;
 
-type RetroUniformName = "colorNum" | "pixelSize";
-
 class RetroEffectImpl extends Effect {
-  public uniforms: Map<RetroUniformName, THREE.Uniform<number>>;
+  // biome-ignore lint/suspicious/noExplicitAny: base class Effect requires Map<string, Uniform<any>>
+  public uniforms: Map<string, THREE.Uniform<any>>;
 
   constructor() {
-    const uniforms = new Map<RetroUniformName, THREE.Uniform<number>>([
+    // biome-ignore lint/suspicious/noExplicitAny: base class Effect requires Map<string, Uniform<any>>
+    const uniforms = new Map<string, THREE.Uniform<any>>([
       ["colorNum", new THREE.Uniform(4.0)],
       ["pixelSize", new THREE.Uniform(2.0)],
+      ["waveColor", new THREE.Uniform(new THREE.Color(0, 0, 0))],
     ]);
     super("RetroEffect", ditherFragmentShader, { uniforms });
     this.uniforms = uniforms;
   }
 
-  private getUniform(name: RetroUniformName) {
+  private getUniform(name: string) {
     const uniform = this.uniforms.get(name);
-
     if (!uniform) {
       throw new Error(`Missing RetroEffect uniform: ${name}`);
     }
-
     return uniform;
   }
 
@@ -178,16 +212,34 @@ class RetroEffectImpl extends Effect {
   get pixelSize(): number {
     return this.getUniform("pixelSize").value;
   }
+
+  set waveColor(value: THREE.Color | [number, number, number]) {
+    const u = this.getUniform("waveColor");
+    if (Array.isArray(value)) {
+      u.value.setRGB(value[0], value[1], value[2]);
+    } else {
+      u.value.copy(value);
+    }
+  }
+
+  get waveColor(): THREE.Color {
+    return this.getUniform("waveColor").value;
+  }
 }
 
 const RetroEffect = forwardRef<
   RetroEffectImpl,
-  { colorNum: number; pixelSize: number }
+  { colorNum: number; pixelSize: number; waveColor: [number, number, number] }
 >((props, ref) => {
-  const { colorNum, pixelSize } = props;
+  const { colorNum, pixelSize, waveColor } = props;
   const WrappedRetroEffect = wrapEffect(RetroEffectImpl);
   return (
-    <WrappedRetroEffect ref={ref} colorNum={colorNum} pixelSize={pixelSize} />
+    <WrappedRetroEffect
+      ref={ref}
+      colorNum={colorNum}
+      pixelSize={pixelSize}
+      waveColor={waveColor}
+    />
   );
 });
 
@@ -197,52 +249,75 @@ interface WaveUniforms {
   [key: string]: THREE.Uniform<number | THREE.Vector2 | THREE.Color>;
   time: THREE.Uniform<number>;
   resolution: THREE.Uniform<THREE.Vector2>;
-  waveSpeed: THREE.Uniform<number>;
-  waveFrequency: THREE.Uniform<number>;
-  waveAmplitude: THREE.Uniform<number>;
-  waveColor: THREE.Uniform<THREE.Color>;
-  mousePos: THREE.Uniform<THREE.Vector2>;
-  enableMouseInteraction: THREE.Uniform<number>;
-  mouseRadius: THREE.Uniform<number>;
+  fireSpeed: THREE.Uniform<number>;
+  noiseScale: THREE.Uniform<THREE.Vector2>;
+  flameHeight: THREE.Uniform<number>;
+  noiseStrength: THREE.Uniform<number>;
+  burnProgress: THREE.Uniform<number>;
+  mouseNDC: THREE.Uniform<THREE.Vector2>;
+  mouseVelocity: THREE.Uniform<THREE.Vector2>;
+  windStrength: THREE.Uniform<number>;
+  blowNDC: THREE.Uniform<THREE.Vector2>;
+  blowProgress: THREE.Uniform<number>;
+  blowRadius: THREE.Uniform<number>;
+  blowForce: THREE.Uniform<number>;
 }
 
 interface DitheredWavesProps {
-  waveSpeed: number;
-  waveFrequency: number;
-  waveAmplitude: number;
-  waveColor: [number, number, number];
+  fireSpeed: number;
+  noiseScale: [number, number];
+  flameHeight: number;
+  noiseStrength: number;
+  burnProgress: number;
+  windStrength: number;
+  blowRadius: number;
+  blowForce: number;
   colorNum: number;
   pixelSize: number;
+  waveColor: [number, number, number];
   disableAnimation: boolean;
-  enableMouseInteraction: boolean;
-  mouseRadius: number;
 }
 
 function DitheredWaves({
-  waveSpeed,
-  waveFrequency,
-  waveAmplitude,
-  waveColor,
+  fireSpeed,
+  noiseScale,
+  flameHeight,
+  noiseStrength,
+  burnProgress,
+  windStrength,
+  blowRadius,
+  blowForce,
   colorNum,
   pixelSize,
+  waveColor,
   disableAnimation,
-  enableMouseInteraction,
-  mouseRadius,
 }: DitheredWavesProps) {
   const mesh = useRef<THREE.Mesh>(null);
-  const mouseRef = useRef(new THREE.Vector2());
   const { viewport, size, gl } = useThree();
+
+  const mouseNDCRef = useRef(new THREE.Vector2(0.5, -1.0)); // Default below viewport
+  const lastMouseRef = useRef(new THREE.Vector2(0.5, -1.0));
+  const velocityRef = useRef(new THREE.Vector2(0, 0));
+  const lastTimeRef = useRef(performance.now());
+
+  const blowNDCRef = useRef(new THREE.Vector2(0.5, -1.0));
+  const blowProgressRef = useRef(1.0); // 1.0 means inactive
 
   const waveUniformsRef = useRef<WaveUniforms>({
     time: new THREE.Uniform(0),
     resolution: new THREE.Uniform(new THREE.Vector2(0, 0)),
-    waveSpeed: new THREE.Uniform(waveSpeed),
-    waveFrequency: new THREE.Uniform(waveFrequency),
-    waveAmplitude: new THREE.Uniform(waveAmplitude),
-    waveColor: new THREE.Uniform(new THREE.Color(...waveColor)),
-    mousePos: new THREE.Uniform(new THREE.Vector2(0, 0)),
-    enableMouseInteraction: new THREE.Uniform(enableMouseInteraction ? 1 : 0),
-    mouseRadius: new THREE.Uniform(mouseRadius),
+    fireSpeed: new THREE.Uniform(fireSpeed),
+    noiseScale: new THREE.Uniform(new THREE.Vector2(...noiseScale)),
+    flameHeight: new THREE.Uniform(flameHeight),
+    noiseStrength: new THREE.Uniform(noiseStrength),
+    burnProgress: new THREE.Uniform(burnProgress),
+    mouseNDC: new THREE.Uniform(new THREE.Vector2(0.5, -1.0)),
+    mouseVelocity: new THREE.Uniform(new THREE.Vector2(0, 0)),
+    windStrength: new THREE.Uniform(windStrength),
+    blowNDC: new THREE.Uniform(new THREE.Vector2(0.5, -1.0)),
+    blowProgress: new THREE.Uniform(1.0),
+    blowRadius: new THREE.Uniform(blowRadius),
+    blowForce: new THREE.Uniform(blowForce),
   });
 
   useEffect(() => {
@@ -255,7 +330,55 @@ function DitheredWaves({
     }
   }, [size, gl]);
 
-  const prevColor = useRef([...waveColor]);
+  // Window-level cursor tracking to bypass pointer-events restrictions
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = 1.0 - (e.clientY - rect.top) / rect.height;
+
+      mouseNDCRef.current.set(x, y);
+
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTimeRef.current);
+      lastTimeRef.current = now;
+
+      const dx = x - lastMouseRef.current.x;
+      const dy = y - lastMouseRef.current.y;
+      lastMouseRef.current.set(x, y);
+
+      // Track velocity and scale for responsiveness
+      velocityRef.current.x += (dx / dt) * 12.0;
+      velocityRef.current.y += (dy / dt) * 12.0;
+      velocityRef.current.clampLength(0.0, 1.2);
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      if (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = 1.0 - (e.clientY - rect.top) / rect.height;
+
+        blowNDCRef.current.set(x, y);
+        blowProgressRef.current = 0.0; // Start click blow animation
+      }
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [gl]);
+
   useFrame(({ clock }) => {
     const u = waveUniformsRef.current;
 
@@ -263,34 +386,39 @@ function DitheredWaves({
       u.time.value = clock.getElapsedTime();
     }
 
-    if (u.waveSpeed.value !== waveSpeed) u.waveSpeed.value = waveSpeed;
-    if (u.waveFrequency.value !== waveFrequency)
-      u.waveFrequency.value = waveFrequency;
-    if (u.waveAmplitude.value !== waveAmplitude)
-      u.waveAmplitude.value = waveAmplitude;
-
-    if (!prevColor.current.every((v, i) => v === waveColor[i])) {
-      u.waveColor.value.set(...waveColor);
-      prevColor.current = [...waveColor];
+    // Dynamic props updates
+    if (u.fireSpeed.value !== fireSpeed) u.fireSpeed.value = fireSpeed;
+    if (
+      u.noiseScale.value.x !== noiseScale[0] ||
+      u.noiseScale.value.y !== noiseScale[1]
+    ) {
+      u.noiseScale.value.set(...noiseScale);
     }
+    if (u.flameHeight.value !== flameHeight) u.flameHeight.value = flameHeight;
+    if (u.noiseStrength.value !== noiseStrength)
+      u.noiseStrength.value = noiseStrength;
+    if (u.burnProgress.value !== burnProgress)
+      u.burnProgress.value = burnProgress;
+    if (u.windStrength.value !== windStrength)
+      u.windStrength.value = windStrength;
+    if (u.blowRadius.value !== blowRadius) u.blowRadius.value = blowRadius;
+    if (u.blowForce.value !== blowForce) u.blowForce.value = blowForce;
 
-    u.enableMouseInteraction.value = enableMouseInteraction ? 1 : 0;
-    u.mouseRadius.value = mouseRadius;
+    // Decay pointer velocity exponentially
+    velocityRef.current.multiplyScalar(0.93);
+    u.mouseVelocity.value.copy(velocityRef.current);
+    u.mouseNDC.value.copy(mouseNDCRef.current);
 
-    if (enableMouseInteraction) {
-      u.mousePos.value.copy(mouseRef.current);
+    // Animate click blow
+    if (blowProgressRef.current < 1.0) {
+      blowProgressRef.current += 0.045; // complete in ~22 frames
+      if (blowProgressRef.current > 1.0) {
+        blowProgressRef.current = 1.0;
+      }
     }
+    u.blowProgress.value = blowProgressRef.current;
+    u.blowNDC.value.copy(blowNDCRef.current);
   });
-
-  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
-    if (!enableMouseInteraction) return;
-    const rect = gl.domElement.getBoundingClientRect();
-    const dpr = gl.getPixelRatio();
-    mouseRef.current.set(
-      (e.clientX - rect.left) * dpr,
-      (e.clientY - rect.top) * dpr,
-    );
-  };
 
   return (
     <>
@@ -300,48 +428,49 @@ function DitheredWaves({
           vertexShader={waveVertexShader}
           fragmentShader={waveFragmentShader}
           uniforms={waveUniformsRef.current}
+          transparent={true}
         />
       </mesh>
 
       <EffectComposer>
-        <RetroEffect colorNum={colorNum} pixelSize={pixelSize} />
+        <RetroEffect
+          colorNum={colorNum}
+          pixelSize={pixelSize}
+          waveColor={waveColor}
+        />
       </EffectComposer>
-
-      <mesh
-        onPointerMove={handlePointerMove}
-        position={[0, 0, 0.01]}
-        scale={[viewport.width, viewport.height, 1]}
-        visible={false}
-      >
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh>
     </>
   );
 }
 
 interface DitherProps {
-  waveSpeed?: number;
-  waveFrequency?: number;
-  waveAmplitude?: number;
-  waveColor?: [number, number, number];
+  fireSpeed?: number;
+  noiseScale?: [number, number];
+  flameHeight?: number;
+  noiseStrength?: number;
+  burnProgress?: number;
+  windStrength?: number;
+  blowRadius?: number;
+  blowForce?: number;
   colorNum?: number;
   pixelSize?: number;
+  waveColor?: [number, number, number];
   disableAnimation?: boolean;
-  enableMouseInteraction?: boolean;
-  mouseRadius?: number;
 }
 
 export default function Dither({
-  waveSpeed = 0.05,
-  waveFrequency = 3,
-  waveAmplitude = 0.3,
-  waveColor = [0.5, 0.5, 0.5],
+  fireSpeed = 0.55,
+  noiseScale = [3.5, 2.8],
+  flameHeight = 0.85,
+  noiseStrength = 0.42,
+  burnProgress = 0.0,
+  windStrength = 0.55,
+  blowRadius = 0.5,
+  blowForce = 0.65,
   colorNum = 4,
-  pixelSize = 2,
+  pixelSize = 3,
+  waveColor = [0.0, 0.0, 0.0],
   disableAnimation = false,
-  enableMouseInteraction = true,
-  mouseRadius = 1,
 }: DitherProps) {
   return (
     <Canvas
@@ -349,18 +478,21 @@ export default function Dither({
       camera={{ position: [0, 0, 6] }}
       dpr={1}
       frameloop="always"
-      gl={{ antialias: true, preserveDrawingBuffer: true, alpha: true }}
+      gl={{ antialias: false, preserveDrawingBuffer: true, alpha: true }}
     >
       <DitheredWaves
-        waveSpeed={waveSpeed}
-        waveFrequency={waveFrequency}
-        waveAmplitude={waveAmplitude}
-        waveColor={waveColor}
+        fireSpeed={fireSpeed}
+        noiseScale={noiseScale}
+        flameHeight={flameHeight}
+        noiseStrength={noiseStrength}
+        burnProgress={burnProgress}
+        windStrength={windStrength}
+        blowRadius={blowRadius}
+        blowForce={blowForce}
         colorNum={colorNum}
         pixelSize={pixelSize}
+        waveColor={waveColor}
         disableAnimation={disableAnimation}
-        enableMouseInteraction={enableMouseInteraction}
-        mouseRadius={mouseRadius}
       />
     </Canvas>
   );
