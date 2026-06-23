@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 interface FaviconProps {
@@ -20,10 +21,12 @@ export default function Favicon({ domain, title }: FaviconProps) {
   }
 
   return (
-    // biome-ignore lint/performance/noImgElement: Google favicon fetcher requires raw img tag with onError fallback
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+    <Image
+      src={`/api/favicon?domain=${domain}`}
       alt={`${title} favicon`}
+      width={16}
+      height={16}
+      unoptimized
       className="w-4 h-4 rounded-xs object-contain"
       onError={() => setError(true)}
     />

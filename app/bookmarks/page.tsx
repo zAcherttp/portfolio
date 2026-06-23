@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import BookmarkRow from "../../components/BookmarkRow";
+import Footer from "../../components/Footer";
 import { bookmarksData } from "../../data/bookmarks";
 
 export default function BookmarksPage() {
@@ -77,11 +78,7 @@ export default function BookmarksPage() {
         )}
 
         {/* Footer/Framing Placeholder */}
-        <footer className="pt-6 text-xs text-zinc-400">
-          <p>
-            © {new Date().getFullYear()} — Built with Next.js and Tailwind CSS
-          </p>
-        </footer>
+        <Footer />
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Mail, MapPin, Phone, User } from "lucide-react";
 import { motion, type Variants } from "motion/react";
-import { useMemo } from "react";
 import BookmarkRow from "../components/BookmarkRow";
+import Footer from "../components/Footer";
 import type { Activity } from "../components/kibo-ui/contribution-graph";
 import {
   ContributionGraph,
@@ -33,50 +34,20 @@ const iconBounceVariants: Variants = {
   },
 };
 
-// Generate realistic mock contribution graph activity data for the past 365 days
-const generateMockActivityData = (): Activity[] => {
-  const data: Activity[] = [];
-  const today = new Date();
-  for (let i = 370; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    const dateString = date.toISOString().split("T")[0];
-
-    const dayOfWeek = date.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-    let prob = isWeekend ? 0.15 : 0.65;
-    const dayOfYear = 370 - i;
-    const wave = Math.sin((dayOfYear / 370) * Math.PI * 4);
-    prob += wave * 0.25;
-
-    const hasActivity = Math.random() < prob;
-    let count = 0;
-    let level = 0;
-
-    if (hasActivity) {
-      count = Math.floor(Math.random() * 8) + 1;
-      if (count <= 2) level = 1;
-      else if (count <= 4) level = 2;
-      else if (count <= 6) level = 3;
-      else level = 4;
-    }
-
-    data.push({
-      date: dateString,
-      count,
-      level,
-    });
-  }
-  return data;
-};
-
 export default function Home() {
   // Show only first 3 bookmarks in the peek window
   const featuredBookmarks = bookmarksData.slice(0, 3);
 
-  // Memoize activity data to prevent regeneration on page re-renders
-  const activityData = useMemo(() => generateMockActivityData(), []);
+  // Load live contribution graph via TanStack Query (Layer 1 cache)
+  const { data: activityData, isLoading } = useQuery<Activity[]>({
+    queryKey: ["github-contributions"],
+    queryFn: async () => {
+      const res = await fetch("/api/github-contributions");
+      if (!res.ok) throw new Error("Failed to fetch contributions");
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 60, // Client Layer 1: Keep stale (cached in memory) for 1 hour
+  });
 
   return (
     <div className="min-h-screen bg-[#fefefe] text-zinc-900 font-sans antialiased">
@@ -164,30 +135,36 @@ export default function Home() {
 
           {/* Contribution Graph */}
           <div className="mb-6 -mx-2 max-w-full overflow-hidden">
-            <ContributionGraph
-              data={activityData}
-              blockSize={8}
-              blockMargin={2}
-              fontSize={10}
-              weekStart={1}
-              labels={{
-                totalCount: "{{count}} contributions in the last year",
-              }}
-            >
-              <ContributionGraphCalendar>
-                {({ activity, dayIndex, weekIndex }) => (
-                  <ContributionGraphBlock
-                    activity={activity}
-                    dayIndex={dayIndex}
-                    weekIndex={weekIndex}
-                  />
-                )}
-              </ContributionGraphCalendar>
-              <ContributionGraphFooter className="text-[10px] text-zinc-400 mt-1.5">
-                <ContributionGraphTotalCount />
-                <ContributionGraphLegend />
-              </ContributionGraphFooter>
-            </ContributionGraph>
+            {isLoading || !activityData ? (
+              <div className="h-[96px] w-full bg-zinc-50/50 animate-pulse rounded-md border border-dashed border-zinc-200/50 flex items-center justify-center text-[10px] text-zinc-400">
+                Loading contributions...
+              </div>
+            ) : (
+              <ContributionGraph
+                data={activityData}
+                blockSize={8}
+                blockMargin={2}
+                fontSize={10}
+                weekStart={1}
+                labels={{
+                  totalCount: "{{count}} contributions in the last year",
+                }}
+              >
+                <ContributionGraphCalendar>
+                  {({ activity, dayIndex, weekIndex }) => (
+                    <ContributionGraphBlock
+                      activity={activity}
+                      dayIndex={dayIndex}
+                      weekIndex={weekIndex}
+                    />
+                  )}
+                </ContributionGraphCalendar>
+                <ContributionGraphFooter className="text-[10px] text-zinc-400 mt-1.5">
+                  <ContributionGraphTotalCount />
+                  <ContributionGraphLegend />
+                </ContributionGraphFooter>
+              </ContributionGraph>
+            )}
           </div>
 
           {/* Social Buttons Row */}
@@ -229,11 +206,7 @@ export default function Home() {
         </section>
 
         {/* Footer/Framing Placeholder */}
-        <footer className="pt-6 text-xs text-zinc-400">
-          <p>
-            © {new Date().getFullYear()} — Built with Next.js and Tailwind CSS
-          </p>
-        </footer>
+        <Footer />
       </div>
     </div>
   );
