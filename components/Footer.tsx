@@ -6,7 +6,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="relative pt-12 pb-20 border-t border-zinc-100 mt-12 z-10">
+    <footer className="relative pt-12 border-t border-zinc-100 mt-12 z-10">
       <div className="flex flex-col items-center gap-3.5 text-center text-xs text-zinc-500 py-2">
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <span>Crafted by</span>
