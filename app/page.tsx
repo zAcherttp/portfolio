@@ -20,6 +20,7 @@ import SectionDivider from "../components/SectionDivider";
 import SeeAllButton from "../components/SeeAllButton";
 import StackIcon from "../components/StackIcon";
 import { GitHub, LinkedIn } from "../components/ui/icons";
+import { projectsData } from "../data/projects";
 import { savesData } from "../data/saves";
 import { useFavicons } from "../hooks/useFavicons";
 import { getDomainName } from "../utils/url";
@@ -341,7 +342,7 @@ export default function Home() {
         </section>
 
         {/* Stack Section */}
-        <section className="mb-12 border-b border-zinc-100 pb-6">
+        <section className="mb-6">
           <h2 className="mb-3 text-sm font-normal text-zinc-600">Stack</h2>
           <p className="mb-4 max-w-2xl text-pretty text-sm leading-6 text-zinc-500">
             Things I&apos;ve worked with enough to comfortably read, debug, and
@@ -416,216 +417,48 @@ export default function Home() {
         <SectionDivider className="mb-6" />
         <section className="mb-12 border-b border-zinc-100 pb-8">
           <h2 className="mb-6 text-sm font-normal text-zinc-600">Projects</h2>
-          <div className="space-y-10">
-            {/* Project 1: Terminal Visualizer */}
-            <div className="flex flex-col gap-3 group/p1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-zinc-400">01</span>
-                  <h3 className="font-medium text-sm text-zinc-900">
-                    git-trace
-                  </h3>
-                </div>
-                <a
-                  href="https://github.com/zAcherttp/git-trace"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-950 transition-colors"
-                >
-                  <span>github.com</span>
-                  <span className="inline-block transition-transform duration-200 group-hover/p1:translate-x-0.5 group-hover/p1:-translate-y-0.5">
-                    ↗
-                  </span>
-                </a>
-              </div>
-              <p className="text-sm text-zinc-500 max-w-xl leading-relaxed">
-                A terminal-first tracing tool built in Rust to visualize Git DAG
-                commits, check reflog anomalies, and audit git history.
-              </p>
-              {/* Terminal Emulator */}
-              <div className="w-full bg-zinc-950 text-zinc-100 font-mono text-[11px] p-4 rounded-lg border border-zinc-900 shadow-xs leading-relaxed select-none">
-                {/* Window Controls */}
-                <div className="flex items-center justify-between pb-3 border-b border-zinc-900 mb-3">
-                  <div className="flex gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+          <div className="space-y-5">
+            {projectsData.map((project, index) => (
+              <div
+                key={project.id}
+                className="flex flex-col gap-2.5 p-4 rounded-xl border border-zinc-100/70 hover:bg-zinc-50/40 hover:border-zinc-200/50 transition-all duration-300 group/p"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-zinc-400">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <h3 className="font-medium text-sm text-zinc-900">
+                      {project.title}
+                    </h3>
                   </div>
-                  <span className="text-[10px] text-zinc-600 font-medium">
-                    bash
-                  </span>
-                  <span className="w-10" />
+                  <a
+                    href={project.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-950 transition-colors"
+                  >
+                    <span>{project.urlLabel}</span>
+                    <span className="inline-block transition-transform duration-200 group-hover/p:translate-x-0.5 group-hover/p:-translate-y-0.5">
+                      ↗
+                    </span>
+                  </a>
                 </div>
-                <div className="space-y-1 text-zinc-400">
-                  <div className="flex gap-2">
-                    <span className="text-zinc-600">$</span>
-                    <span>git-trace --visualize -n 3</span>
-                  </div>
-                  <div className="text-emerald-400 font-medium mt-1">
-                    ▲ Trace OK: visual tree compiled
-                  </div>
-                  <div className="pl-2 border-l border-zinc-800 space-y-0.5 font-mono text-[10px] mt-1.5 text-zinc-500">
-                    <div>
-                      <span className="text-violet-400 font-bold">*</span>{" "}
-                      <span className="text-zinc-300">[890221e]</span>{" "}
-                      <span className="text-zinc-400">(HEAD -{">"} master)</span>{" "}
-                      refactor: rename bookmarks to saves
-                    </div>
-                    <div>
-                      <span className="text-violet-400">|</span>{" "}
-                      <span className="text-violet-400">\</span>
-                    </div>
-                    <div>
-                      <span className="text-violet-400">|</span>{" "}
-                      <span className="text-violet-400">*</span>{" "}
-                      <span className="text-zinc-300">[8fb8894]</span> config:
-                      pin packageManager to pnpm@11.8.0
-                    </div>
-                    <div>
-                      <span className="text-violet-400">*</span>{" "}
-                      <span className="text-zinc-300">[1a42b9c]</span> feat: add
-                      saves hover interaction dim
-                    </div>
-                  </div>
+                <p className="text-sm text-zinc-500 max-w-xl leading-relaxed">
+                  {project.description}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {project.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md"
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <div className="flex gap-1.5 mt-1">
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  Rust
-                </span>
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  Git API
-                </span>
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  CLI
-                </span>
-              </div>
-            </div>
-
-            {/* Project 2: Color Palette */}
-            <div className="flex flex-col gap-3 group/p2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-zinc-400">02</span>
-                  <h3 className="font-medium text-sm text-zinc-900">
-                    oklch.fyi
-                  </h3>
-                </div>
-                <a
-                  href="https://oklch.fyi"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-950 transition-colors"
-                >
-                  <span>oklch.fyi</span>
-                  <span className="inline-block transition-transform duration-200 group-hover/p2:translate-x-0.5 group-hover/p2:-translate-y-0.5">
-                    ↗
-                  </span>
-                </a>
-              </div>
-              <p className="text-sm text-zinc-500 max-w-xl leading-relaxed">
-                A visual, high-accuracy OKLCH color generator and contrast
-                validator designed for crafting accessible theme systems.
-              </p>
-              {/* Swatch Bar */}
-              <div className="flex w-full h-12 rounded-lg overflow-hidden border border-zinc-200/50 shadow-xs">
-                <div className="flex-1 hover:flex-[1.4] bg-[#7c3aed] transition-all duration-300 cursor-pointer flex items-end p-1.5 group/sw1 relative">
-                  <span className="font-mono text-[9px] text-white opacity-0 group-hover/sw1:opacity-100 transition-opacity duration-200 truncate">
-                    #7c3aed
-                  </span>
-                </div>
-                <div className="flex-1 hover:flex-[1.4] bg-[#a78bfa] transition-all duration-300 cursor-pointer flex items-end p-1.5 group/sw2">
-                  <span className="font-mono text-[9px] text-white opacity-0 group-hover/sw2:opacity-100 transition-opacity duration-200 truncate">
-                    #a78bfa
-                  </span>
-                </div>
-                <div className="flex-1 hover:flex-[1.4] bg-[#ec4899] transition-all duration-300 cursor-pointer flex items-end p-1.5 group/sw3">
-                  <span className="font-mono text-[9px] text-white opacity-0 group-hover/sw3:opacity-100 transition-opacity duration-200 truncate">
-                    #ec4899
-                  </span>
-                </div>
-                <div className="flex-1 hover:flex-[1.4] bg-[#f97316] transition-all duration-300 cursor-pointer flex items-end p-1.5 group/sw4">
-                  <span className="font-mono text-[9px] text-white opacity-0 group-hover/sw4:opacity-100 transition-opacity duration-200 truncate">
-                    #f97316
-                  </span>
-                </div>
-                <div className="flex-1 hover:flex-[1.4] bg-[#facc15] transition-all duration-300 cursor-pointer flex items-end p-1.5 group/sw5">
-                  <span className="font-mono text-[9px] text-zinc-950 opacity-0 group-hover/sw5:opacity-100 transition-opacity duration-200 truncate">
-                    #facc15
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-1.5 mt-1">
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  TypeScript
-                </span>
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  OKLCH
-                </span>
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  Design System
-                </span>
-              </div>
-            </div>
-
-            {/* Project 3: Editorial Typography */}
-            <div className="flex flex-col gap-3 group/p3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-zinc-400">03</span>
-                  <h3 className="font-medium text-sm text-zinc-900">
-                    Paper Notes
-                  </h3>
-                </div>
-                <a
-                  href="https://paper.design"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-950 transition-colors"
-                >
-                  <span>paper.design</span>
-                  <span className="inline-block transition-transform duration-200 group-hover/p3:translate-x-0.5 group-hover/p3:-translate-y-0.5">
-                    ↗
-                  </span>
-                </a>
-              </div>
-              <p className="text-sm text-zinc-500 max-w-xl leading-relaxed">
-                A minimal typography reader and markdown editor centered around
-                readable line-lengths, custom font scales, and fluid spacing.
-              </p>
-              {/* Visual Editorial Preview */}
-              <div className="w-full bg-zinc-50/75 hover:bg-zinc-100/40 border border-zinc-100 rounded-lg p-4 flex flex-col gap-3 transition-all duration-300">
-                <div className="flex items-baseline justify-between text-[11px] text-zinc-400 font-mono">
-                  <span>ARTICLE PREVIEW</span>
-                  <span>3 MIN READ</span>
-                </div>
-                <div className="space-y-1.5">
-                  <h4 className="text-sm font-semibold text-zinc-800 leading-snug">
-                    The Craft of Spacing in UI Design
-                  </h4>
-                  <p className="text-xs text-zinc-500 leading-relaxed max-w-lg line-clamp-2">
-                    White space is not empty space; it is active space. It forms
-                    the structure of the layout and defines how information is
-                    processed by the reader.
-                  </p>
-                </div>
-                {/* Animated Progress Bar */}
-                <div className="w-full h-1 bg-zinc-200/60 rounded-full overflow-hidden mt-1">
-                  <div className="bg-zinc-800 h-full w-1/3 group-hover/p3:w-full transition-all duration-1000 ease-out" />
-                </div>
-              </div>
-              <div className="flex gap-1.5 mt-1">
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  Next.js
-                </span>
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  Lexical
-                </span>
-                <span className="text-[10px] font-mono py-0.5 px-2 bg-zinc-100 text-zinc-600 rounded-md">
-                  Tailwind
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
