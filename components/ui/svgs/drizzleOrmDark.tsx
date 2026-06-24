@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 const DrizzleOrmDark = (props: SVGProps<SVGSVGElement>) => (
   <svg {...props} fill="none" viewBox="0 0 160 160">
+    <title>Drizzle ORM</title>
     <rect
       width="9.631"
       height="40.852"

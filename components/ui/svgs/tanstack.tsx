@@ -6,6 +6,7 @@ const Tanstack = (props: SVGProps<SVGSVGElement>) => (
     xmlnsXlink="http://www.w3.org/1999/xlink"
     viewBox="0 0 633 633"
   >
+    <title>Tanstack</title>
     <defs>
       <linearGradient id="tanstack__b" x1="50%" x2="50%" y1="0%" y2="71.65%">
         <stop offset="0%" stopColor="#6BDAFF" />

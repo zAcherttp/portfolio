@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 const Convex = (props: SVGProps<SVGSVGElement>) => (
   <svg {...props} viewBox="28 28 128 132" fill="none">
+    <title>Convex</title>
     <path
       fill="#F3B01C"
       d="M108.092 130.021c18.166-2.018 35.293-11.698 44.723-27.854-4.466 39.961-48.162 65.218-83.83 49.711-3.286-1.425-6.115-3.796-8.056-6.844-8.016-12.586-10.65-28.601-6.865-43.135 10.817 18.668 32.81 30.111 54.028 28.122Z"

@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 const GithubLight = (props: SVGProps<SVGSVGElement>) => (
   <svg {...props} viewBox="0 0 1024 1024" fill="none">
+    <title>GitHub</title>
     <path
       fill="#1b1f23"
       fillRule="evenodd"

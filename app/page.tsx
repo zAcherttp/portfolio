@@ -22,7 +22,7 @@ import SeeAllButton from "../components/SeeAllButton";
 import SeeAllProjectsButton from "../components/SeeAllProjectsButton";
 import StackIcon from "../components/StackIcon";
 import { GitHub, LinkedIn } from "../components/ui/icons";
-import { bookmarksData, getSortedBookmarks } from "../data/bookmarks";
+import { getSortedBookmarks } from "../data/bookmarks";
 import { projectsData } from "../data/projects";
 import { useFavicons } from "../hooks/useFavicons";
 import { getDomainName } from "../utils/url";

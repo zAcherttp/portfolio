@@ -6,6 +6,7 @@ const Nodejs = (props: SVGProps<SVGSVGElement>) => (
     viewBox="0 0 256 292"
     xmlnsXlink="http://www.w3.org/1999/xlink"
   >
+    <title>Node.js</title>
     <defs>
       <linearGradient
         id="nodejs__a"

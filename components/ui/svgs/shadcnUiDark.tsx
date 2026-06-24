@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 const ShadcnUiDark = (props: SVGProps<SVGSVGElement>) => (
   <svg {...props} viewBox="0 0 256 256">
+    <title>Shadcn UI</title>
     <path fill="none" d="M0 0h256v256H0z" />
     <path
       fill="none"

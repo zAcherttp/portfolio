@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 const BetterAuthDark = (props: SVGProps<SVGSVGElement>) => (
   <svg {...props} fill="none" viewBox="0 0 500 500">
+    <title>BetterAuth</title>
     <path fill="#fff" d="M0 0h500v500H0z" />
     <path fill="#000" d="M69 121h86.988v259H69zM337.575 121H430v259h-92.425z" />
     <path

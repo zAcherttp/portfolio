@@ -6,6 +6,7 @@ const ReactLight = (props: SVGProps<SVGSVGElement>) => (
     viewBox="0 0 569 512"
     xmlnsXlink="http://www.w3.org/1999/xlink"
   >
+    <title>React</title>
     <g fill="none" fillRule="evenodd">
       <g fill="#087EA4" fillRule="nonzero">
         <path

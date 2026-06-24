@@ -6,6 +6,7 @@ const ReactDark = (props: SVGProps<SVGSVGElement>) => (
     viewBox="0 0 569 512"
     xmlnsXlink="http://www.w3.org/1999/xlink"
   >
+    <title>React</title>
     <g fill="none" fillRule="evenodd">
       <g transform="translate(-227, -256)" fill="#58C4DC" fillRule="nonzero">
         <g transform="translate(227, 256)">

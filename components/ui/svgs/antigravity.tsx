@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 const Antigravity = (props: SVGProps<SVGSVGElement>) => (
   <svg {...props} viewBox="0 0 16 15" fill="none">
+    <title>Antigravity</title>
     <mask
       id="mask0_111_52"
       style={{ maskType: "alpha" }}
