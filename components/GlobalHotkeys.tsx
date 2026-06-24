@@ -28,10 +28,12 @@ export default function GlobalHotkeys() {
   useHotkey(
     "D",
     (event) => {
-      // Ignore intermediate IME composition keystrokes (e.g. Telex Vietnamese
-      // input: each "đ" requires two "d" presses; isComposing is true during
-      // the pending phase so we never fire on the in-progress sequence).
-      if (event.isComposing) return;
+      // Windows Telex IME doesn't use browser composition APIs (isComposing is
+      // always false). Instead it synthesises raw keydown events when replaying
+      // buffered input — these synthetic events have an empty `code` string.
+      // Real physical keystrokes always carry a non-empty code (e.g. "KeyD").
+      // Bailing on empty code cleanly filters out all Telex phantom events.
+      if (!event.code) return;
       toggleTheme();
     },
     {
