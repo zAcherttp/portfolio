@@ -4,7 +4,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, wrapEffect } from "@react-three/postprocessing";
 import { Effect } from "postprocessing";
-import { forwardRef, useEffect, useRef } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 const waveVertexShader = `
@@ -300,7 +300,70 @@ const RetroEffect = forwardRef<
 
 RetroEffect.displayName = "RetroEffect";
 
-import { useMemo } from "react";
+function isRendererContextReady(gl: THREE.WebGLRenderer) {
+  const context = gl.getContext();
+  const attributes = gl.getContextAttributes() as
+    | WebGLContextAttributes
+    | null
+    | undefined;
+
+  return Boolean(
+    gl.domElement?.isConnected && attributes && !context.isContextLost(),
+  );
+}
+
+function GuardedEffectComposer({
+  colorNum,
+  pixelSize,
+  ditherOpacity,
+  waveColor,
+}: {
+  colorNum: number;
+  pixelSize: number;
+  ditherOpacity: [number, number];
+  waveColor: [number, number, number];
+}) {
+  const { gl } = useThree();
+  const [canCompose, setCanCompose] = useState(false);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    let frameId = 0;
+
+    const updateComposerState = () => {
+      setCanCompose(isRendererContextReady(gl));
+    };
+    const handleContextLost = () => {
+      setCanCompose(false);
+    };
+
+    updateComposerState();
+    frameId = window.requestAnimationFrame(updateComposerState);
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", updateComposerState);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      canvas.removeEventListener("webglcontextlost", handleContextLost);
+      canvas.removeEventListener("webglcontextrestored", updateComposerState);
+    };
+  }, [gl]);
+
+  if (!canCompose) {
+    return null;
+  }
+
+  return (
+    <EffectComposer>
+      <RetroEffect
+        colorNum={colorNum}
+        pixelSize={pixelSize}
+        ditherOpacity={ditherOpacity}
+        waveColor={waveColor}
+      />
+    </EffectComposer>
+  );
+}
 
 interface DitheredWavesProps {
   fireSpeed: number;
@@ -506,14 +569,12 @@ function DitheredWaves({
       </mesh>
 
       {mode !== "fire" && (
-        <EffectComposer>
-          <RetroEffect
-            colorNum={colorNum}
-            pixelSize={pixelSize}
-            ditherOpacity={ditherOpacity}
-            waveColor={waveColor}
-          />
-        </EffectComposer>
+        <GuardedEffectComposer
+          colorNum={colorNum}
+          pixelSize={pixelSize}
+          ditherOpacity={ditherOpacity}
+          waveColor={waveColor}
+        />
       )}
     </>
   );
@@ -561,6 +622,16 @@ export default function Dither({
   flameHeatPower = 1.0,
   flamePositionBias = 0.15,
 }: DitherProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
+
   return (
     <Canvas
       className="w-full h-full relative"
