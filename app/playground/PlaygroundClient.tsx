@@ -36,40 +36,43 @@ const playClickSound = () => {
 
 export default function PlaygroundClient() {
   const [animatedProgress, setAnimatedProgress] = useState(1.0);
+  const [animatedFlameHeight, setAnimatedFlameHeight] = useState(0.8);
+  const [animatedFireSpeed, setAnimatedFireSpeed] = useState(0.8);
+  const [animatedNoiseStrength, setAnimatedNoiseStrength] = useState(0.5);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Leva controls for shader parameters
   const [values, set] = useControls(() => ({
     fireSpeed: {
-      value: 0.55,
+      value: 0.8,
       min: 0.0,
       max: 2.0,
       step: 0.05,
       label: "Fire Speed",
     },
     noiseScaleX: {
-      value: 3.5,
+      value: 4.0,
       min: 0.5,
       max: 10.0,
       step: 0.1,
       label: "Noise Scale X",
     },
     noiseScaleY: {
-      value: 2.8,
+      value: 2.0,
       min: 0.5,
       max: 10.0,
       step: 0.1,
       label: "Noise Scale Y",
     },
     flameHeight: {
-      value: 0.85,
+      value: 0.8,
       min: 0.1,
       max: 1.2,
       step: 0.05,
       label: "Flame Height",
     },
     noiseStrength: {
-      value: 0.42,
+      value: 0.5,
       min: 0.0,
       max: 1.0,
       step: 0.02,
@@ -82,28 +85,15 @@ export default function PlaygroundClient() {
       step: 0.01,
       label: "Burn Progress",
     },
-    windStrength: {
-      value: 0.55,
+    fireRange: {
+      value: [0.2, 1.0],
       min: 0.0,
-      max: 2.0,
-      step: 0.05,
-      label: "Wind Strength",
+      max: 1.0,
+      step: 0.01,
+      label: "Fire Range",
     },
-    blowRadius: {
-      value: 0.5,
-      min: 0.1,
-      max: 1.5,
-      step: 0.05,
-      label: "Blow Radius",
-    },
-    blowForce: {
-      value: 0.65,
-      min: 0.0,
-      max: 2.0,
-      step: 0.05,
-      label: "Blow Force",
-    },
-    colorNum: { value: 2, min: 2, max: 8, step: 1, label: "Dither Colors" },
+
+    colorNum: { value: 3, min: 2, max: 8, step: 1, label: "Dither Colors" },
     pixelSize: { value: 3, min: 1, max: 10, step: 1, label: "Pixel Size" },
     themeOverride: {
       value: "dark",
@@ -115,29 +105,60 @@ export default function PlaygroundClient() {
     "Trigger Elastic Nudge": button(() => {
       playClickSound();
       setIsAnimating(true);
-      set({ burnProgress: 0.0 });
-      setAnimatedProgress(0.0);
+      set({
+        burnProgress: 0.35,
+        flameHeight: 0.1,
+        fireSpeed: 0.8,
+        noiseStrength: 0.5,
+        fireRange: [0.2, 1.0],
+      });
+      setAnimatedProgress(0.35);
+      setAnimatedFlameHeight(0.1);
+      setAnimatedFireSpeed(0.8);
+      setAnimatedNoiseStrength(0.5);
     }),
   }));
 
-  // Handle burnProgress height animation when Trigger is clicked
+  // Cozy wuthering animation over 1500ms when Trigger is clicked
   useEffect(() => {
     if (!isAnimating) return;
 
     let frameId: number;
-    let current = 0.0;
+    const startTime = performance.now();
+    const duration = 1500; // 1500ms cozy warm-up duration
 
-    const animate = () => {
-      current += 0.022; // ~45 frames to reach stable fireplace flame
-      if (current > 1.0) {
-        current = 1.0;
-        setIsAnimating(false);
-        set({ burnProgress: 1.0 });
-        setAnimatedProgress(1.0);
-      } else {
-        set({ burnProgress: Number(current.toFixed(3)) });
-        setAnimatedProgress(current);
+    const targetFlameHeight = 0.8;
+    const targetFireSpeed = 0.8;
+    const targetNoiseStrength = 0.5;
+
+    const animate = (time: number) => {
+      const elapsed = time - startTime;
+      const progress = Math.min(1.0, elapsed / duration);
+
+      // Easing curves matching custom starting/final values
+      const easedProgress = 1.0 - (1.0 - progress) ** 3; // both start fast, end slow (ease-out)
+      const currentProgress = 0.35 + easedProgress * (1.0 - 0.35);
+      const currentHeight = 0.1 + easedProgress * (targetFlameHeight - 0.1);
+      const currentSpeed = 0.8 + progress * (targetFireSpeed - 0.8);
+      const currentNoiseStr = 0.5 + progress * (targetNoiseStrength - 0.5);
+
+      setAnimatedProgress(currentProgress);
+      setAnimatedFlameHeight(currentHeight);
+      setAnimatedFireSpeed(currentSpeed);
+      setAnimatedNoiseStrength(currentNoiseStr);
+
+      // Sync with Leva panel in real-time
+      set({
+        burnProgress: Number(currentProgress.toFixed(3)),
+        flameHeight: Number(currentHeight.toFixed(3)),
+        fireSpeed: Number(currentSpeed.toFixed(3)),
+        noiseStrength: Number(currentNoiseStr.toFixed(3)),
+      });
+
+      if (progress < 1.0) {
         frameId = requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
       }
     };
 
@@ -145,17 +166,46 @@ export default function PlaygroundClient() {
     return () => cancelAnimationFrame(frameId);
   }, [isAnimating, set]);
 
-  // Synchronize manual slider change with local animated progress state when not animating
+  // Synchronize manual slider change with local animated states when not animating
   useEffect(() => {
     if (!isAnimating) {
       setAnimatedProgress(values.burnProgress);
+      setAnimatedFlameHeight(values.flameHeight);
+      setAnimatedFireSpeed(values.fireSpeed);
+      setAnimatedNoiseStrength(values.noiseStrength);
     }
-  }, [values.burnProgress, isAnimating]);
+  }, [
+    values.burnProgress,
+    values.flameHeight,
+    values.fireSpeed,
+    values.noiseStrength,
+    isAnimating,
+  ]);
 
   const isDark = values.themeOverride === "dark";
   const waveColor: [number, number, number] = isDark
-    ? [0.985, 0.985, 0.985] // zinc-50
-    : [0.047, 0.047, 0.047]; // zinc-900
+    ? [0.9804, 0.9804, 0.9804] // oklch(0.985 0 0) -> rgb(250, 250, 250) -> [0.9804, 0.9804, 0.9804]
+    : [0.0392, 0.0392, 0.0392]; // oklch(0.145 0 0) -> rgb(10, 10, 10) -> [0.0392, 0.0392, 0.0392] - matches Tuấn Phát name text color in light mode
+
+  const blueFlameColors: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ] = [
+    [0.0, 0.565, 1.0],
+    [0.0, 0.753, 1.0],
+    [0.941, 0.98, 1.0],
+  ];
+
+  const orangeFlameColors: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ] = [
+    [1.0, 0.141, 0.0],
+    [1.0, 0.431, 0.0],
+    [1.0, 0.788, 0.118],
+  ];
 
   return (
     <div
@@ -190,51 +240,196 @@ export default function PlaygroundClient() {
       </header>
 
       {/* Center Interactive Instructions Info */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center z-10 pointer-events-none">
-        <div className="max-w-md space-y-4">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 flex flex-col justify-start gap-8 z-10 pointer-events-auto">
+        <div className="text-center space-y-3">
           <div
-            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono ${
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] font-mono tracking-wide uppercase ${
               isDark
-                ? "bg-zinc-900/60 border-zinc-800 text-zinc-400"
-                : "bg-zinc-100/60 border-zinc-200 text-zinc-600"
+                ? "bg-zinc-900/60 border-zinc-800 text-zinc-400 shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+                : "bg-zinc-100/60 border-zinc-200 text-zinc-600 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
             }`}
           >
-            Interactive Features Active
+            Decoupled Pipeline Visualization
           </div>
           <div
-            className={`text-sm space-y-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}
+            className={`text-sm flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 ${
+              isDark ? "text-zinc-400" : "text-zinc-500"
+            }`}
           >
-            <p>👋 Move cursor over bottom area to create wind gusts</p>
-            <p>💥 Click/tap inside bottom area to blow & disperse fire</p>
-            <p>
-              🎹 Trigger Nudge in Leva to preview elastic activation sequence
-            </p>
+            <span>🔥 Non-interactive cozy fireplace simulation</span>
+            <span className="hidden sm:inline opacity-30">•</span>
+            <span>🎹 Trigger Nudge in Leva to run elastic scroll sequence</span>
+          </div>
+        </div>
+
+        {/* 3-Canvas Stack Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full mt-2">
+          {/* 1. Dither Pass */}
+          <div
+            className={`flex flex-col rounded-2xl border overflow-hidden backdrop-blur-md transition-all duration-300 ${
+              isDark
+                ? "bg-zinc-900/20 border-zinc-800 hover:border-zinc-700 shadow-[0_8px_30px_rgb(0,0,0,0.3)]"
+                : "bg-zinc-50/20 border-zinc-200 hover:border-zinc-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+            }`}
+          >
+            <div
+              className={`px-5 py-4 border-b flex flex-col gap-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono tracking-wider uppercase opacity-50">
+                  Pass 01
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[9px] font-mono ${
+                    isDark
+                      ? "bg-zinc-800 text-zinc-300"
+                      : "bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  Dither Pass
+                </span>
+              </div>
+              <h2 className="text-sm font-bold tracking-tight">
+                01. Bayer Dither
+              </h2>
+              <p
+                className={`text-xs leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}
+              >
+                Bayer 8x8 matrix dithering a static vertical gradient.
+              </p>
+            </div>
+            <div className="h-70 w-full relative bg-transparent overflow-hidden">
+              <Dither
+                mode="dither"
+                fireSpeed={animatedFireSpeed}
+                noiseScale={[values.noiseScaleX, values.noiseScaleY]}
+                flameHeight={animatedFlameHeight}
+                noiseStrength={animatedNoiseStrength}
+                burnProgress={animatedProgress}
+                fireRange={values.fireRange}
+                colorNum={values.colorNum}
+                pixelSize={values.pixelSize}
+                ditherOpacity={isDark ? [1.0, 1.0] : [0.42, 0.94]}
+                waveColor={waveColor}
+                flameColors={isDark ? blueFlameColors : orangeFlameColors}
+                flameBodyHeat={isDark ? 0.5 : 0.7}
+                flameHeatPower={isDark ? 1.0 : 1.18}
+                flamePositionBias={isDark ? 0.15 : 0.2}
+              />
+            </div>
+          </div>
+
+          {/* 2. Fire Pass */}
+          <div
+            className={`flex flex-col rounded-2xl border overflow-hidden backdrop-blur-md transition-all duration-300 ${
+              isDark
+                ? "bg-zinc-900/20 border-zinc-800 hover:border-zinc-700 shadow-[0_8px_30px_rgb(0,0,0,0.3)]"
+                : "bg-zinc-50/20 border-zinc-200 hover:border-zinc-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+            }`}
+          >
+            <div
+              className={`px-5 py-4 border-b flex flex-col gap-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono tracking-wider uppercase opacity-50">
+                  Pass 02
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[9px] font-mono ${
+                    isDark
+                      ? "bg-zinc-800 text-zinc-300"
+                      : "bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  Fire Simulation
+                </span>
+              </div>
+              <h2 className="text-sm font-bold tracking-tight">
+                02. FBM Noise Fire
+              </h2>
+              <p
+                className={`text-xs leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}
+              >
+                Smooth Perlin FBM fireplace simulation with physics trail.
+              </p>
+            </div>
+            <div className="h-70 w-full relative bg-transparent overflow-hidden">
+              <Dither
+                mode="fire"
+                fireSpeed={animatedFireSpeed}
+                noiseScale={[values.noiseScaleX, values.noiseScaleY]}
+                flameHeight={animatedFlameHeight}
+                noiseStrength={animatedNoiseStrength}
+                burnProgress={animatedProgress}
+                fireRange={values.fireRange}
+                colorNum={values.colorNum}
+                pixelSize={values.pixelSize}
+                ditherOpacity={isDark ? [1.0, 1.0] : [0.42, 0.94]}
+                waveColor={waveColor}
+                flameColors={isDark ? blueFlameColors : orangeFlameColors}
+                flameBodyHeat={isDark ? 0.5 : 0.7}
+                flameHeatPower={isDark ? 1.0 : 1.18}
+                flamePositionBias={isDark ? 0.15 : 0.2}
+              />
+            </div>
+          </div>
+
+          {/* 3. Combined Result */}
+          <div
+            className={`flex flex-col rounded-2xl border overflow-hidden backdrop-blur-md transition-all duration-300 ${
+              isDark
+                ? "bg-zinc-900/20 border-zinc-800 hover:border-zinc-700 shadow-[0_8px_30px_rgb(0,0,0,0.3)]"
+                : "bg-zinc-50/20 border-zinc-200 hover:border-zinc-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+            }`}
+          >
+            <div
+              className={`px-5 py-4 border-b flex flex-col gap-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono tracking-wider uppercase opacity-50">
+                  Pass 03
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[9px] font-mono ${
+                    isDark
+                      ? "bg-zinc-800 text-zinc-300"
+                      : "bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  Final Output
+                </span>
+              </div>
+              <h2 className="text-sm font-bold tracking-tight">
+                03. Combined Result
+              </h2>
+              <p
+                className={`text-xs leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}
+              >
+                The pixelated fireplace dither shader combining both passes.
+              </p>
+            </div>
+            <div className="h-70 w-full relative bg-transparent overflow-hidden">
+              <Dither
+                mode="combined"
+                fireSpeed={animatedFireSpeed}
+                noiseScale={[values.noiseScaleX, values.noiseScaleY]}
+                flameHeight={animatedFlameHeight}
+                noiseStrength={animatedNoiseStrength}
+                burnProgress={animatedProgress}
+                fireRange={values.fireRange}
+                colorNum={values.colorNum}
+                pixelSize={values.pixelSize}
+                ditherOpacity={isDark ? [1.0, 1.0] : [0.42, 0.94]}
+                waveColor={waveColor}
+                flameColors={isDark ? blueFlameColors : orangeFlameColors}
+                flameBodyHeat={isDark ? 0.5 : 0.7}
+                flameHeatPower={isDark ? 1.0 : 1.18}
+                flamePositionBias={isDark ? 0.15 : 0.2}
+              />
+            </div>
           </div>
         </div>
       </main>
-
-      {/* Bottom Shader preview zone */}
-      <div
-        className={`w-full h-[180px] relative overflow-hidden border-t pointer-events-auto ${
-          isDark
-            ? "border-zinc-900 bg-zinc-950/20"
-            : "border-zinc-100 bg-zinc-50/20"
-        }`}
-      >
-        <Dither
-          fireSpeed={values.fireSpeed}
-          noiseScale={[values.noiseScaleX, values.noiseScaleY]}
-          flameHeight={values.flameHeight}
-          noiseStrength={values.noiseStrength}
-          burnProgress={animatedProgress}
-          windStrength={values.windStrength}
-          blowRadius={values.blowRadius}
-          blowForce={values.blowForce}
-          colorNum={values.colorNum}
-          pixelSize={values.pixelSize}
-          waveColor={waveColor}
-        />
-      </div>
     </div>
   );
 }

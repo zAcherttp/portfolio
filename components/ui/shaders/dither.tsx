@@ -27,18 +27,17 @@ uniform vec2 noiseScale;
 uniform float flameHeight;
 uniform float noiseStrength;
 uniform float burnProgress;
-uniform float windStrength;
-
-// Click blow splat uniforms
-uniform vec2 blowNDC;
-uniform float blowProgress;
-uniform float blowRadius;
-uniform float blowForce;
-
-// Localized wind trail uniforms (8 points)
-uniform vec2 pointerPos[8];
-uniform vec2 pointerVel[8];
-uniform float pointerAge[8];
+uniform vec2 fireRange;
+// Flat color used when flameMode == 0 (dark mode monochrome)
+uniform vec3 waveColor;
+// Flame gradient stops (flameMode == 1)
+uniform int flameMode;    // 0 = flat waveColor, 1 = gradient
+uniform vec3 flameColorA; // cool outer edge  (#00a4db)
+uniform vec3 flameColorB; // mid heat         (#d6fdff)
+uniform vec3 flameBgColor; // background / fade-out color (#fefefe)
+uniform float flameBodyHeat;
+uniform float flameHeatPower;
+uniform float flamePositionBias;
 
 vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -92,56 +91,6 @@ void main() {
   vec2 noiseUv = screenUv;
   noiseUv.x *= resolution.x / resolution.y;
   
-  // Accumulate wind trail displacement and swirling vortices
-  vec2 totalWind = vec2(0.0);
-  for (int i = 0; i < 8; i++) {
-    float age = pointerAge[i];
-    if (age >= 1.0) continue;
-    
-    vec2 pPos = pointerPos[i];
-    vec2 pVel = pointerVel[i];
-    
-    // Scale positions to aspect ratio for accurate circular vortices
-    vec2 aspectScreenUv = screenUv;
-    aspectScreenUv.x *= resolution.x / resolution.y;
-    vec2 aspectPPos = pPos;
-    aspectPPos.x *= resolution.x / resolution.y;
-    
-    float dist = length(aspectScreenUv - aspectPPos);
-    
-    // Influence decreases with distance and age
-    float spatialInfluence = smoothstep(0.4, 0.0, dist);
-    float ageInfluence = 1.0 - age;
-    float totalInfluence = spatialInfluence * ageInfluence;
-    
-    // 1. Direct directional push (shears/bends the fire)
-    totalWind += pVel * totalInfluence * windStrength * 0.15;
-    
-    // 2. Swirling vortex (rotates the fire coordinates around the trail point)
-    if (dist > 0.001) {
-      vec2 dir = aspectScreenUv - aspectPPos;
-      vec2 swirl = vec2(-dir.y, dir.x) / dist; // Tangent vector
-      
-      // Swirl intensity based on movement direction and speed
-      float swirlIntensity = pVel.x * (-dir.y) + pVel.y * dir.x;
-      
-      totalWind += swirl * swirlIntensity * totalInfluence * windStrength * 1.5;
-    }
-  }
-  
-  // Click blow splat calculation
-  float blowDist = length(screenUv - blowNDC);
-  float waveFront = blowProgress * blowRadius;
-  float waveInfluence = smoothstep(0.12, 0.0, abs(blowDist - waveFront)) * (1.0 - blowProgress);
-  vec2 blowPush = vec2(0.0);
-  if (blowDist > 0.001) {
-    blowPush = normalize(screenUv - blowNDC) * waveInfluence * blowForce;
-  }
-  
-  // Apply displacements to noise coordinates
-  noiseUv.x -= totalWind.x + blowPush.x;
-  noiseUv.y -= totalWind.y + blowPush.y;
-  
   vec2 p = noiseUv * noiseScale;
   p.y -= time * fireSpeed;
   
@@ -158,11 +107,47 @@ void main() {
   float heightMask = smoothstep(currentHeightLimit, currentHeightLimit - 0.25, screenUv.y);
   fire *= heightMask;
   
-  // Epicenter click-blow suppression
-  float centerSuppression = (1.0 - smoothstep(0.0, waveFront, blowDist)) * (1.0 - blowProgress) * 0.95;
-  fire = clamp(fire - centerSuppression, 0.0, 1.0);
+  if (fire < fireRange.x || fire > fireRange.y) {
+    fire = 0.0;
+  }
+
+  // --- Color output ---
+  vec3 outColor;
+  if (flameMode == 1) {
+    // Physics-based flame gradient:
+    //   heat 0.0 -> flameColorA  sparse outer strands
+    //   heat flameBodyHeat -> flameColorB  saturated flame body
+    //   heat 1.0 -> flameBgColor hot inner core
+    //
+    // Position bias: canvas bottom (y=0) is hotter → pushes toward core color.
+    // Canvas top (y=1) has no bias → stays in deep-blue strand territory.
+    float positionBias = 1.0 - screenUv.y; // 1 at bottom (hot), 0 at top (cool)
+    float heat = clamp(fire * (1.0 - flamePositionBias) + positionBias * flamePositionBias, 0.0, 1.0);
+    heat = pow(heat, flameHeatPower);
+
+    if (heat < flameBodyHeat) {
+      outColor = mix(flameColorA, flameColorB, heat / flameBodyHeat);
+    } else {
+      outColor = mix(flameColorB, flameBgColor, (heat - flameBodyHeat) / (1.0 - flameBodyHeat));
+    }
+  } else {
+    // Flat monochrome mode (dark mode)
+    outColor = waveColor;
+  }
   
-  gl_FragColor = vec4(1.0, 1.0, 1.0, fire);
+  gl_FragColor = vec4(outColor, fire);
+}
+`;
+
+const gradientFragmentShader = `
+precision highp float;
+uniform vec2 resolution;
+uniform vec3 waveColor;
+
+void main() {
+  vec2 screenUv = gl_FragCoord.xy / resolution.xy;
+  float grad = 1.0 - screenUv.y;
+  gl_FragColor = vec4(waveColor, grad);
 }
 `;
 
@@ -170,6 +155,9 @@ const ditherFragmentShader = `
 precision highp float;
 uniform float colorNum;
 uniform float pixelSize;
+uniform float ditherAlphaMin;
+uniform float ditherAlphaMax;
+// waveColor retained for uniform binding compatibility but not used for color output
 uniform vec3 waveColor;
 
 const float bayerMatrix8x8[64] = float[64](
@@ -183,28 +171,33 @@ const float bayerMatrix8x8[64] = float[64](
   42.0/64.0,26.0/64.0, 38.0/64.0, 22.0/64.0, 41.0/64.0,25.0/64.0, 37.0/64.0, 21.0/64.0
 );
 
-vec3 dither(vec2 uv, vec3 color) {
+// Bayer-dither a scalar value [0,1]
+float ditherAlpha(vec2 uv, float value) {
   vec2 scaledCoord = floor(uv * resolution / pixelSize);
   int x = int(mod(scaledCoord.x, 8.0));
   int y = int(mod(scaledCoord.y, 8.0));
-  float threshold = bayerMatrix8x8[y * 8 + x] - 0.25;
-  float step = 1.0 / (colorNum - 1.0);
-  color += threshold * step;
-  float bias = 0.2;
-  color = clamp(color - bias, 0.0, 1.0);
-  return floor(color * (colorNum - 1.0) + 0.5) / (colorNum - 1.0);
+  float threshold = bayerMatrix8x8[y * 8 + x];
+  return step(threshold, value);
 }
 
 void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
   vec2 normalizedPixelSize = pixelSize / resolution;
   vec2 uvPixel = normalizedPixelSize * floor(uv / normalizedPixelSize);
   vec4 color = texture2D(inputBuffer, uvPixel);
+
+  // Early exit: no fire at all — discard to avoid Bayer (0,0) dot-grid artifact
+  if (color.a < 0.01) {
+    outputColor = vec4(0.0, 0.0, 0.0, 0.0);
+    return;
+  }
   
-  // Dither the alpha channel (fire intensity)
-  float ditheredA = dither(uv, vec3(color.a)).r;
+  // Use the alpha channel as fire intensity for the dither mask.
+  // The rgb carries the gradient color computed in the wave shader.
+  float mask = ditherAlpha(uv, color.a);
   
-  if (ditheredA > 0.15) {
-    outputColor = vec4(waveColor, 1.0);
+  if (mask > 0.5) {
+    float dotAlpha = mix(ditherAlphaMin, ditherAlphaMax, smoothstep(0.2, 0.95, color.a));
+    outputColor = vec4(color.rgb, dotAlpha);
   } else {
     outputColor = vec4(0.0, 0.0, 0.0, 0.0);
   }
@@ -220,6 +213,8 @@ class RetroEffectImpl extends Effect {
     const uniforms = new Map<string, THREE.Uniform<any>>([
       ["colorNum", new THREE.Uniform(4.0)],
       ["pixelSize", new THREE.Uniform(2.0)],
+      ["ditherAlphaMin", new THREE.Uniform(1.0)],
+      ["ditherAlphaMax", new THREE.Uniform(1.0)],
       ["waveColor", new THREE.Uniform(new THREE.Color(0, 0, 0))],
     ]);
     super("RetroEffect", ditherFragmentShader, { uniforms });
@@ -250,10 +245,26 @@ class RetroEffectImpl extends Effect {
     return this.getUniform("pixelSize").value;
   }
 
+  set ditherAlphaMin(value: number) {
+    this.getUniform("ditherAlphaMin").value = value;
+  }
+
+  get ditherAlphaMin(): number {
+    return this.getUniform("ditherAlphaMin").value;
+  }
+
+  set ditherAlphaMax(value: number) {
+    this.getUniform("ditherAlphaMax").value = value;
+  }
+
+  get ditherAlphaMax(): number {
+    return this.getUniform("ditherAlphaMax").value;
+  }
+
   set waveColor(value: THREE.Color | [number, number, number]) {
     const u = this.getUniform("waveColor");
     if (Array.isArray(value)) {
-      u.value.setRGB(value[0], value[1], value[2]);
+      u.value.setRGB(value[0], value[1], value[2], THREE.SRGBColorSpace);
     } else {
       u.value.copy(value);
     }
@@ -266,15 +277,22 @@ class RetroEffectImpl extends Effect {
 
 const RetroEffect = forwardRef<
   RetroEffectImpl,
-  { colorNum: number; pixelSize: number; waveColor: [number, number, number] }
+  {
+    colorNum: number;
+    pixelSize: number;
+    ditherOpacity: [number, number];
+    waveColor: [number, number, number];
+  }
 >((props, ref) => {
-  const { colorNum, pixelSize, waveColor } = props;
+  const { colorNum, pixelSize, ditherOpacity, waveColor } = props;
   const WrappedRetroEffect = wrapEffect(RetroEffectImpl);
   return (
     <WrappedRetroEffect
       ref={ref}
       colorNum={colorNum}
       pixelSize={pixelSize}
+      ditherAlphaMin={ditherOpacity[0]}
+      ditherAlphaMax={ditherOpacity[1]}
       waveColor={waveColor}
     />
   );
@@ -290,13 +308,22 @@ interface DitheredWavesProps {
   flameHeight: number;
   noiseStrength: number;
   burnProgress: number;
-  windStrength: number;
-  blowRadius: number;
-  blowForce: number;
+  fireRange: [number, number];
   colorNum: number;
   pixelSize: number;
+  ditherOpacity: [number, number];
   waveColor: [number, number, number];
   disableAnimation: boolean;
+  mode: "dither" | "fire" | "combined";
+  /** When set, enables gradient flame mode with the given [colorA, colorB, bgColor] stops */
+  flameColors?: [
+    [number, number, number], // colorA - outer strands
+    [number, number, number], // colorB - saturated body
+    [number, number, number], // bgColor - hot core
+  ];
+  flameBodyHeat: number;
+  flameHeatPower: number;
+  flamePositionBias: number;
 }
 
 function DitheredWaves({
@@ -305,28 +332,22 @@ function DitheredWaves({
   flameHeight,
   noiseStrength,
   burnProgress,
-  windStrength,
-  blowRadius,
-  blowForce,
+  fireRange,
   colorNum,
   pixelSize,
+  ditherOpacity,
   waveColor,
   disableAnimation,
+  mode,
+  flameColors,
+  flameBodyHeat,
+  flameHeatPower,
+  flamePositionBias,
 }: DitheredWavesProps) {
+  const flameMode = flameColors ? 1 : 0;
   const mesh = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { viewport, size, gl } = useThree();
-
-  const lastMouseRef = useRef(new THREE.Vector2(0.5, -1.0));
-  const lastTimeRef = useRef(performance.now());
-
-  const blowNDCRef = useRef(new THREE.Vector2(0.5, -1.0));
-  const blowProgressRef = useRef(1.0); // 1.0 means inactive
-
-  // Trail history on CPU: keeps last 8 points
-  const trailRef = useRef<
-    Array<{ x: number; y: number; vx: number; vy: number; age: number }>
-  >([]);
 
   // Stable initial uniforms object for three.js material compilation
   // biome-ignore lint/correctness/useExhaustiveDependencies: uniforms must be initialized only once to prevent shader recompilation
@@ -339,20 +360,43 @@ function DitheredWaves({
       flameHeight: { value: flameHeight },
       noiseStrength: { value: noiseStrength },
       burnProgress: { value: burnProgress },
-      windStrength: { value: windStrength },
-      blowNDC: { value: new THREE.Vector2(0.5, -1.0) },
-      blowProgress: { value: 1.0 },
-      blowRadius: { value: blowRadius },
-      blowForce: { value: blowForce },
-      pointerPos: {
-        value: Array.from({ length: 8 }, () => new THREE.Vector2(0.5, -1.0)),
+      fireRange: { value: new THREE.Vector2(...fireRange) },
+      waveColor: {
+        value: new THREE.Color().setRGB(
+          waveColor[0],
+          waveColor[1],
+          waveColor[2],
+          THREE.SRGBColorSpace,
+        ),
       },
-      pointerVel: {
-        value: Array.from({ length: 8 }, () => new THREE.Vector2(0.0, 0.0)),
+      flameMode: { value: flameMode },
+      // Use THREE.Vector3 (not THREE.Color) to pass raw sRGB [0-1] values
+      // without color-space linearisation — preserves full vibrancy after
+      // the composer's sRGB gamma-encode output step.
+      flameColorA: {
+        value: new THREE.Vector3(
+          flameColors?.[0][0] ?? 0,
+          flameColors?.[0][1] ?? 0,
+          flameColors?.[0][2] ?? 0,
+        ),
       },
-      pointerAge: {
-        value: new Float32Array(8).fill(1.0),
+      flameColorB: {
+        value: new THREE.Vector3(
+          flameColors?.[1][0] ?? 0,
+          flameColors?.[1][1] ?? 0,
+          flameColors?.[1][2] ?? 0,
+        ),
       },
+      flameBgColor: {
+        value: new THREE.Vector3(
+          flameColors?.[2][0] ?? 1,
+          flameColors?.[2][1] ?? 1,
+          flameColors?.[2][2] ?? 1,
+        ),
+      },
+      flameBodyHeat: { value: flameBodyHeat },
+      flameHeatPower: { value: flameHeatPower },
+      flamePositionBias: { value: flamePositionBias },
     }),
     [],
   );
@@ -366,61 +410,6 @@ function DitheredWaves({
       mat.uniforms.resolution.value.set(newWidth, newHeight);
     }
   }, [size, gl]);
-
-  // Window-level cursor tracking to bypass pointer-events restrictions
-  useEffect(() => {
-    const canvas = gl.domElement;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = 1.0 - (e.clientY - rect.top) / rect.height;
-
-      const now = performance.now();
-      const dt = Math.max(1, now - lastTimeRef.current);
-      lastTimeRef.current = now;
-
-      const dx = x - lastMouseRef.current.x;
-      const dy = y - lastMouseRef.current.y;
-
-      const vx = (dx / dt) * 12.0;
-      const vy = (dy / dt) * 12.0;
-
-      lastMouseRef.current.set(x, y);
-
-      // Add to trail if we moved significantly
-      const dist = Math.hypot(dx, dy);
-      if (dist > 0.01) {
-        trailRef.current.push({ x, y, vx, vy, age: 0 });
-        if (trailRef.current.length > 8) {
-          trailRef.current.shift();
-        }
-      }
-    };
-
-    const handlePointerDown = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      if (
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
-      ) {
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = 1.0 - (e.clientY - rect.top) / rect.height;
-
-        blowNDCRef.current.set(x, y);
-        blowProgressRef.current = 0.0; // Start click blow animation
-      }
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [gl]);
 
   useFrame(({ clock }) => {
     const mat = materialRef.current;
@@ -449,66 +438,83 @@ function DitheredWaves({
     if (mat.uniforms.burnProgress.value !== burnProgress) {
       mat.uniforms.burnProgress.value = burnProgress;
     }
-    if (mat.uniforms.windStrength.value !== windStrength) {
-      mat.uniforms.windStrength.value = windStrength;
+    if (
+      mat.uniforms.fireRange.value.x !== fireRange[0] ||
+      mat.uniforms.fireRange.value.y !== fireRange[1]
+    ) {
+      mat.uniforms.fireRange.value.set(...fireRange);
     }
-    if (mat.uniforms.blowRadius.value !== blowRadius) {
-      mat.uniforms.blowRadius.value = blowRadius;
+    if (mat.uniforms.waveColor) {
+      mat.uniforms.waveColor.value.setRGB(
+        waveColor[0],
+        waveColor[1],
+        waveColor[2],
+        THREE.SRGBColorSpace,
+      );
     }
-    if (mat.uniforms.blowForce.value !== blowForce) {
-      mat.uniforms.blowForce.value = blowForce;
+    // Gradient flame uniforms — use .set() on Vector3 for direct sRGB passthrough
+    if (mat.uniforms.flameMode) {
+      mat.uniforms.flameMode.value = flameMode;
     }
-
-    // Increment age of trail points
-    for (const pt of trailRef.current) {
-      pt.age += 0.02; // Point expires in ~0.8s
+    if (flameColors && mat.uniforms.flameColorA) {
+      mat.uniforms.flameColorA.value.set(
+        flameColors[0][0],
+        flameColors[0][1],
+        flameColors[0][2],
+      );
+      mat.uniforms.flameColorB.value.set(
+        flameColors[1][0],
+        flameColors[1][1],
+        flameColors[1][2],
+      );
+      mat.uniforms.flameBgColor.value.set(
+        flameColors[2][0],
+        flameColors[2][1],
+        flameColors[2][2],
+      );
     }
-
-    // Push active trail points to uniforms
-    for (let i = 0; i < 8; i++) {
-      const pt = trailRef.current[i];
-      if (pt && pt.age < 1.0) {
-        mat.uniforms.pointerPos.value[i].set(pt.x, pt.y);
-        mat.uniforms.pointerVel.value[i].set(pt.vx, pt.vy);
-        mat.uniforms.pointerAge.value[i] = pt.age;
-      } else {
-        mat.uniforms.pointerPos.value[i].set(0.5, -1.0);
-        mat.uniforms.pointerVel.value[i].set(0.0, 0.0);
-        mat.uniforms.pointerAge.value[i] = 1.0;
-      }
+    if (mat.uniforms.flameBodyHeat.value !== flameBodyHeat) {
+      mat.uniforms.flameBodyHeat.value = flameBodyHeat;
     }
-
-    // Animate click blow
-    if (blowProgressRef.current < 1.0) {
-      blowProgressRef.current += 0.045; // complete in ~22 frames
-      if (blowProgressRef.current > 1.0) {
-        blowProgressRef.current = 1.0;
-      }
+    if (mat.uniforms.flameHeatPower.value !== flameHeatPower) {
+      mat.uniforms.flameHeatPower.value = flameHeatPower;
     }
-    mat.uniforms.blowProgress.value = blowProgressRef.current;
-    mat.uniforms.blowNDC.value.copy(blowNDCRef.current);
+    if (mat.uniforms.flamePositionBias.value !== flamePositionBias) {
+      mat.uniforms.flamePositionBias.value = flamePositionBias;
+    }
   });
+
+  const activeFragmentShader = useMemo(() => {
+    if (mode === "dither") {
+      return gradientFragmentShader;
+    }
+    return waveFragmentShader;
+  }, [mode]);
 
   return (
     <>
       <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
         <planeGeometry args={[1, 1]} />
         <shaderMaterial
+          key={mode}
           ref={materialRef}
           vertexShader={waveVertexShader}
-          fragmentShader={waveFragmentShader}
+          fragmentShader={activeFragmentShader}
           uniforms={initialUniforms}
           transparent={true}
         />
       </mesh>
 
-      <EffectComposer>
-        <RetroEffect
-          colorNum={colorNum}
-          pixelSize={pixelSize}
-          waveColor={waveColor}
-        />
-      </EffectComposer>
+      {mode !== "fire" && (
+        <EffectComposer>
+          <RetroEffect
+            colorNum={colorNum}
+            pixelSize={pixelSize}
+            ditherOpacity={ditherOpacity}
+            waveColor={waveColor}
+          />
+        </EffectComposer>
+      )}
     </>
   );
 }
@@ -519,28 +525,41 @@ interface DitherProps {
   flameHeight?: number;
   noiseStrength?: number;
   burnProgress?: number;
-  windStrength?: number;
-  blowRadius?: number;
-  blowForce?: number;
+  fireRange?: [number, number];
   colorNum?: number;
   pixelSize?: number;
+  ditherOpacity?: [number, number];
   waveColor?: [number, number, number];
   disableAnimation?: boolean;
+  mode?: "dither" | "fire" | "combined";
+  /** Enables physics-based gradient flame. Tuple of [colorA, colorB, bgColor] as linear sRGB [0–1] arrays. */
+  flameColors?: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ];
+  flameBodyHeat?: number;
+  flameHeatPower?: number;
+  flamePositionBias?: number;
 }
 
 export default function Dither({
-  fireSpeed = 0.55,
-  noiseScale = [3.5, 2.8],
+  fireSpeed = 0.8,
+  noiseScale = [4.0, 2.0],
   flameHeight = 0.85,
   noiseStrength = 0.42,
   burnProgress = 0.0,
-  windStrength = 0.55,
-  blowRadius = 0.5,
-  blowForce = 0.65,
-  colorNum = 4,
+  fireRange = [0.0, 1.0],
+  colorNum = 3,
   pixelSize = 3,
+  ditherOpacity = [1.0, 1.0],
   waveColor = [0.0, 0.0, 0.0],
   disableAnimation = false,
+  mode = "combined",
+  flameColors,
+  flameBodyHeat = 0.5,
+  flameHeatPower = 1.0,
+  flamePositionBias = 0.15,
 }: DitherProps) {
   return (
     <Canvas
@@ -556,13 +575,17 @@ export default function Dither({
         flameHeight={flameHeight}
         noiseStrength={noiseStrength}
         burnProgress={burnProgress}
-        windStrength={windStrength}
-        blowRadius={blowRadius}
-        blowForce={blowForce}
+        fireRange={fireRange}
         colorNum={colorNum}
         pixelSize={pixelSize}
+        ditherOpacity={ditherOpacity}
         waveColor={waveColor}
         disableAnimation={disableAnimation}
+        mode={mode}
+        flameColors={flameColors}
+        flameBodyHeat={flameBodyHeat}
+        flameHeatPower={flameHeatPower}
+        flamePositionBias={flamePositionBias}
       />
     </Canvas>
   );
