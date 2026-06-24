@@ -21,12 +21,17 @@ export default function GlobalHotkeys() {
       colorThemeRef.current = nextTheme;
       setTheme(nextTheme);
     },
-    { wait: 100 },
+    // 300 ms gives Telex IME (d → dd → đ) time to settle before toggling
+    { wait: 300 },
   );
 
   useHotkey(
     "D",
-    () => {
+    (event) => {
+      // Ignore intermediate IME composition keystrokes (e.g. Telex Vietnamese
+      // input: each "đ" requires two "d" presses; isComposing is true during
+      // the pending phase so we never fire on the in-progress sequence).
+      if (event.isComposing) return;
       toggleTheme();
     },
     {
