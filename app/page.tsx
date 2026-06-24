@@ -316,18 +316,20 @@ export default function Home() {
         {/* About Section */}
         <SectionDivider className="mb-6" />
         <section className="mb-12 border-b border-border pb-6">
-          <h2 className="mb-3 text-sm font-normal text-muted-foreground">About</h2>
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">
+            About
+          </h2>
           <div className="max-w-2xl space-y-4 text-pretty text-sm leading-6 text-muted-foreground">
             <p>
               I like building full-stack products with{" "}
               <span className="font-medium text-foreground">React</span>,{" "}
               <span className="font-medium text-foreground">Next.js</span>,{" "}
-              <span className="font-medium text-foreground">TypeScript</span>, and
-              backend systems with{" "}
+              <span className="font-medium text-foreground">TypeScript</span>,
+              and backend systems with{" "}
               <span className="font-medium text-foreground">Hono</span>,{" "}
               <span className="font-medium text-foreground">Docker</span>, and a
-              bit of <span className="font-medium text-foreground">Go</span> when
-              I want to try something lower-level.
+              bit of <span className="font-medium text-foreground">Go</span>{" "}
+              when I want to try something lower-level.
             </p>
             <p>
               I&apos;m drawn to design engineering: polished UI, small
@@ -347,7 +349,9 @@ export default function Home() {
 
         {/* Stack Section */}
         <section className="mb-6">
-          <h2 className="mb-3 text-sm font-normal text-muted-foreground">Stack</h2>
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">
+            Stack
+          </h2>
           <p className="mb-4 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
             Things I&apos;ve worked with enough to comfortably read, debug, and
             build small features in. Some are daily drivers, others are tools I
@@ -420,7 +424,9 @@ export default function Home() {
         {/* Projects Section */}
         <SectionDivider className="mb-6" />
         <section className="mb-12 border-b border-border pb-8">
-          <h2 className="mb-3 text-sm font-normal text-muted-foreground">Projects</h2>
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">
+            Projects
+          </h2>
           <div className="space-y-3 flex flex-col">
             {featuredProjects.map((project, index) => (
               <ProjectCard key={project.id} project={project} index={index} />
@@ -433,7 +439,9 @@ export default function Home() {
         {/* Bookmarks Peek Widget */}
         <section className="mb-12">
           <div className="flex justify-between items-baseline mb-3">
-            <h2 className="text-sm font-normal text-muted-foreground">Bookmarks</h2>
+            <h2 className="text-sm font-normal text-muted-foreground">
+              Bookmarks
+            </h2>
           </div>
 
           <div className="flex flex-col -mx-3 pb-4">

@@ -57,7 +57,9 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
           <span className="font-mono text-xs text-subtle">
             {String(index + 1).padStart(2, "0")}
           </span>
-          <h3 className="font-medium text-sm text-foreground">{project.title}</h3>
+          <h3 className="font-medium text-sm text-foreground">
+            {project.title}
+          </h3>
         </div>
         <div className="inline-flex items-center gap-0.5 text-xs text-subtle group-hover/p:text-foreground transition-colors">
           <span>{project.urlLabel}</span>
