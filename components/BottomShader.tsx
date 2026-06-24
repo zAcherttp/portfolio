@@ -129,22 +129,27 @@ export default function BottomShader() {
     };
 
     let touchStartY = 0;
+    let touchStartScrollY = 0;
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         touchStartY = e.touches[0].clientY;
+        // Capture scroll position at the moment the finger lands
+        touchStartScrollY = window.scrollY;
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         const touchY = e.touches[0].clientY;
-        const deltaY = touchStartY - touchY; // positive means swipe up (scrolling down)
-        const threshold = 5;
-        const isAtBottom =
-          window.scrollY + window.innerHeight >=
-          document.documentElement.scrollHeight - threshold;
+        const deltaY = touchStartY - touchY; // positive = swiping up (scrolling down)
 
-        if (isAtBottom && deltaY > 30) {
+        const threshold = 5;
+        const maxScroll =
+          document.documentElement.scrollHeight - window.innerHeight;
+        // Check if the gesture *started* at the bottom, not the current position
+        const startedAtBottom = touchStartScrollY >= maxScroll - threshold;
+
+        if (startedAtBottom && deltaY > 30) {
           playClickSound();
           setIsActive(true);
         }
