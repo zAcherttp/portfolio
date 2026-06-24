@@ -230,6 +230,26 @@ const getMonthLabels = (
     });
 };
 
+const getFixedViewportBounds = () => {
+  const viewport = window.visualViewport;
+
+  if (!viewport) {
+    return {
+      left: 0,
+      top: 0,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  }
+
+  return {
+    left: viewport.offsetLeft,
+    top: viewport.offsetTop,
+    width: viewport.width,
+    height: viewport.height,
+  };
+};
+
 export type ContributionGraphProps = HTMLAttributes<HTMLDivElement> & {
   data: Activity[];
   blockMargin?: number;
@@ -458,27 +478,31 @@ export const ContributionGraphCalendar = ({
       const dateStr = format(parseISO(activity.date), "MMM d, yyyy");
       tooltip.textContent = `${countStr} on ${dateStr}`;
 
-      // All positions are viewport-space (fixed coordinates).
-      // rect is already viewport-relative so scroll position is
-      // automatically accounted for — no extra scroll math needed.
+      // Fixed overlays on iOS pinch zoom are positioned against the layout
+      // viewport, while the visible viewport can be panned inside it.
+      const fixedViewport = getFixedViewportBounds();
       const scale = rect.width / width;
       const scaleY = rect.height / height;
 
       // Highlight: exact cell position in viewport space
-      const highlightLeft = `${rect.left + rectX * scale}px`;
-      const highlightTop = `${rect.top + rectY * scaleY}px`;
+      const highlightLeft = `${fixedViewport.left + rect.left + rectX * scale}px`;
+      const highlightTop = `${fixedViewport.top + rect.top + rectY * scaleY}px`;
       const highlightW = `${blockSize * scale}px`;
       const highlightH = `${blockSize * scaleY}px`;
 
       // Tooltip: centered above cell, clamped to viewport edges
-      const tooltipCenterX = rect.left + cellCenterX * scale;
+      const tooltipCenterX =
+        fixedViewport.left + rect.left + cellCenterX * scale;
       const tooltipHalfW = tooltip.offsetWidth / 2;
       const clampedLeft = Math.max(
-        tooltipHalfW + 8,
-        Math.min(tooltipCenterX, window.innerWidth - tooltipHalfW - 8),
+        fixedViewport.left + tooltipHalfW + 8,
+        Math.min(
+          tooltipCenterX,
+          fixedViewport.left + fixedViewport.width - tooltipHalfW - 8,
+        ),
       );
       const tooltipLeft = `${clampedLeft}px`;
-      const tooltipTop = `${rect.top + rectY * scaleY}px`;
+      const tooltipTop = `${fixedViewport.top + rect.top + rectY * scaleY}px`;
 
       if (!isVisibleRef.current) {
         // Snap instantly to the initial cell when first shown
