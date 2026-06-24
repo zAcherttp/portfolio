@@ -27,13 +27,18 @@ uniform vec2 noiseScale;
 uniform float flameHeight;
 uniform float noiseStrength;
 uniform float burnProgress;
-uniform vec2 mouseNDC;
-uniform vec2 mouseVelocity;
 uniform float windStrength;
+
+// Click blow splat uniforms
 uniform vec2 blowNDC;
 uniform float blowProgress;
 uniform float blowRadius;
 uniform float blowForce;
+
+// Localized wind trail uniforms (8 points)
+uniform vec2 pointerPos[8];
+uniform vec2 pointerVel[8];
+uniform float pointerAge[8];
 
 vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -87,10 +92,42 @@ void main() {
   vec2 noiseUv = screenUv;
   noiseUv.x *= resolution.x / resolution.y;
   
-  // Cursor wind gust calculation
-  float mouseDist = length(screenUv - mouseNDC);
-  float mouseInfluence = smoothstep(0.4, 0.0, mouseDist);
-  vec2 windPush = mouseVelocity * mouseInfluence * windStrength;
+  // Accumulate wind trail displacement and swirling vortices
+  vec2 totalWind = vec2(0.0);
+  for (int i = 0; i < 8; i++) {
+    float age = pointerAge[i];
+    if (age >= 1.0) continue;
+    
+    vec2 pPos = pointerPos[i];
+    vec2 pVel = pointerVel[i];
+    
+    // Scale positions to aspect ratio for accurate circular vortices
+    vec2 aspectScreenUv = screenUv;
+    aspectScreenUv.x *= resolution.x / resolution.y;
+    vec2 aspectPPos = pPos;
+    aspectPPos.x *= resolution.x / resolution.y;
+    
+    float dist = length(aspectScreenUv - aspectPPos);
+    
+    // Influence decreases with distance and age
+    float spatialInfluence = smoothstep(0.4, 0.0, dist);
+    float ageInfluence = 1.0 - age;
+    float totalInfluence = spatialInfluence * ageInfluence;
+    
+    // 1. Direct directional push (shears/bends the fire)
+    totalWind += pVel * totalInfluence * windStrength * 0.15;
+    
+    // 2. Swirling vortex (rotates the fire coordinates around the trail point)
+    if (dist > 0.001) {
+      vec2 dir = aspectScreenUv - aspectPPos;
+      vec2 swirl = vec2(-dir.y, dir.x) / dist; // Tangent vector
+      
+      // Swirl intensity based on movement direction and speed
+      float swirlIntensity = pVel.x * (-dir.y) + pVel.y * dir.x;
+      
+      totalWind += swirl * swirlIntensity * totalInfluence * windStrength * 1.5;
+    }
+  }
   
   // Click blow splat calculation
   float blowDist = length(screenUv - blowNDC);
@@ -101,9 +138,9 @@ void main() {
     blowPush = normalize(screenUv - blowNDC) * waveInfluence * blowForce;
   }
   
-  // Apply physics coordinate displacements to noise
-  noiseUv.x -= windPush.x + blowPush.x;
-  noiseUv.y -= windPush.y + blowPush.y;
+  // Apply displacements to noise coordinates
+  noiseUv.x -= totalWind.x + blowPush.x;
+  noiseUv.y -= totalWind.y + blowPush.y;
   
   vec2 p = noiseUv * noiseScale;
   p.y -= time * fireSpeed;
@@ -122,7 +159,7 @@ void main() {
   fire *= heightMask;
   
   // Epicenter click-blow suppression
-  float centerSuppression = (1.0 - smoothstep(0.0, waveFront, blowDist)) * (1.0 - blowProgress) * 0.9;
+  float centerSuppression = (1.0 - smoothstep(0.0, waveFront, blowDist)) * (1.0 - blowProgress) * 0.95;
   fire = clamp(fire - centerSuppression, 0.0, 1.0);
   
   gl_FragColor = vec4(1.0, 1.0, 1.0, fire);
@@ -280,13 +317,16 @@ function DitheredWaves({
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { viewport, size, gl } = useThree();
 
-  const mouseNDCRef = useRef(new THREE.Vector2(0.5, -1.0)); // Default below viewport
   const lastMouseRef = useRef(new THREE.Vector2(0.5, -1.0));
-  const velocityRef = useRef(new THREE.Vector2(0, 0));
   const lastTimeRef = useRef(performance.now());
 
   const blowNDCRef = useRef(new THREE.Vector2(0.5, -1.0));
   const blowProgressRef = useRef(1.0); // 1.0 means inactive
+
+  // Trail history on CPU: keeps last 8 points
+  const trailRef = useRef<
+    Array<{ x: number; y: number; vx: number; vy: number; age: number }>
+  >([]);
 
   // Stable initial uniforms object for three.js material compilation
   // biome-ignore lint/correctness/useExhaustiveDependencies: uniforms must be initialized only once to prevent shader recompilation
@@ -299,13 +339,20 @@ function DitheredWaves({
       flameHeight: { value: flameHeight },
       noiseStrength: { value: noiseStrength },
       burnProgress: { value: burnProgress },
-      mouseNDC: { value: new THREE.Vector2(0.5, -1.0) },
-      mouseVelocity: { value: new THREE.Vector2(0, 0) },
       windStrength: { value: windStrength },
       blowNDC: { value: new THREE.Vector2(0.5, -1.0) },
       blowProgress: { value: 1.0 },
       blowRadius: { value: blowRadius },
       blowForce: { value: blowForce },
+      pointerPos: {
+        value: Array.from({ length: 8 }, () => new THREE.Vector2(0.5, -1.0)),
+      },
+      pointerVel: {
+        value: Array.from({ length: 8 }, () => new THREE.Vector2(0.0, 0.0)),
+      },
+      pointerAge: {
+        value: new Float32Array(8).fill(1.0),
+      },
     }),
     [],
   );
@@ -329,20 +376,26 @@ function DitheredWaves({
       const x = (e.clientX - rect.left) / rect.width;
       const y = 1.0 - (e.clientY - rect.top) / rect.height;
 
-      mouseNDCRef.current.set(x, y);
-
       const now = performance.now();
       const dt = Math.max(1, now - lastTimeRef.current);
       lastTimeRef.current = now;
 
       const dx = x - lastMouseRef.current.x;
       const dy = y - lastMouseRef.current.y;
+
+      const vx = (dx / dt) * 12.0;
+      const vy = (dy / dt) * 12.0;
+
       lastMouseRef.current.set(x, y);
 
-      // Track velocity and scale for responsiveness
-      velocityRef.current.x += (dx / dt) * 12.0;
-      velocityRef.current.y += (dy / dt) * 12.0;
-      velocityRef.current.clampLength(0.0, 1.2);
+      // Add to trail if we moved significantly
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.01) {
+        trailRef.current.push({ x, y, vx, vy, age: 0 });
+        if (trailRef.current.length > 8) {
+          trailRef.current.shift();
+        }
+      }
     };
 
     const handlePointerDown = (e: PointerEvent) => {
@@ -406,10 +459,24 @@ function DitheredWaves({
       mat.uniforms.blowForce.value = blowForce;
     }
 
-    // Decay pointer velocity exponentially
-    velocityRef.current.multiplyScalar(0.93);
-    mat.uniforms.mouseVelocity.value.copy(velocityRef.current);
-    mat.uniforms.mouseNDC.value.copy(mouseNDCRef.current);
+    // Increment age of trail points
+    for (const pt of trailRef.current) {
+      pt.age += 0.02; // Point expires in ~0.8s
+    }
+
+    // Push active trail points to uniforms
+    for (let i = 0; i < 8; i++) {
+      const pt = trailRef.current[i];
+      if (pt && pt.age < 1.0) {
+        mat.uniforms.pointerPos.value[i].set(pt.x, pt.y);
+        mat.uniforms.pointerVel.value[i].set(pt.vx, pt.vy);
+        mat.uniforms.pointerAge.value[i] = pt.age;
+      } else {
+        mat.uniforms.pointerPos.value[i].set(0.5, -1.0);
+        mat.uniforms.pointerVel.value[i].set(0.0, 0.0);
+        mat.uniforms.pointerAge.value[i] = 1.0;
+      }
+    }
 
     // Animate click blow
     if (blowProgressRef.current < 1.0) {
