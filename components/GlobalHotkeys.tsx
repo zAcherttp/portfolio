@@ -4,6 +4,7 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { useThrottledCallback } from "@tanstack/react-pacer/throttler";
 import { useTheme } from "next-themes";
 import { useEffect, useRef } from "react";
+import { playRandomPopSound } from "@/utils/playPopSound";
 
 export default function GlobalHotkeys() {
   const { theme, setTheme, systemTheme } = useTheme();
@@ -20,9 +21,10 @@ export default function GlobalHotkeys() {
       const nextTheme = colorThemeRef.current === "dark" ? "light" : "dark";
       colorThemeRef.current = nextTheme;
       setTheme(nextTheme);
+      playRandomPopSound();
     },
-    // 300 ms gives Telex IME (d → dd → đ) time to settle before toggling
-    { wait: 300 },
+    // 50 ms gives a nice performance while still allowing for rapid toggling without feeling sluggish.
+    { wait: 50 },
   );
 
   useHotkey(

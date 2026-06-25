@@ -4,40 +4,12 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { playPopSound } from "@/utils/playPopSound";
 
 const Dither = dynamic(() => import("./ui/shaders/dither"), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-transparent" />,
 });
-
-// Synthesizes a mechanical pop/click sound dynamically using the Web Audio API
-const playClickSound = () => {
-  try {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as Window & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.04);
-
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.05);
-  } catch (error) {
-    console.warn("Web Audio API click sound blocked or failed:", error);
-  }
-};
 
 export default function BottomShader() {
   const pathname = usePathname();
@@ -122,7 +94,7 @@ export default function BottomShader() {
         }, 300);
 
         if (accumulatedDelta >= 35) {
-          playClickSound();
+          playPopSound();
           setIsActive(true);
         }
       }
@@ -150,7 +122,7 @@ export default function BottomShader() {
         const startedAtBottom = touchStartScrollY >= maxScroll - threshold;
 
         if (startedAtBottom && deltaY > 30) {
-          playClickSound();
+          playPopSound();
           setIsActive(true);
         }
       }
