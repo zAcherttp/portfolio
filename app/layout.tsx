@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import BottomShader from "../components/BottomShader";
 import Providers from "../components/Providers";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
           {children}
           <BottomShader />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
