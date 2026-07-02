@@ -230,21 +230,28 @@ const getMonthLabels = (
     });
 };
 
-const getFixedViewportBounds = () => {
+type ViewportBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+const getVisibleDocumentBounds = (): ViewportBounds => {
   const viewport = window.visualViewport;
 
   if (!viewport) {
     return {
-      left: 0,
-      top: 0,
+      left: window.scrollX,
+      top: window.scrollY,
       width: window.innerWidth,
       height: window.innerHeight,
     };
   }
 
   return {
-    left: viewport.offsetLeft,
-    top: viewport.offsetTop,
+    left: viewport.pageLeft,
+    top: viewport.pageTop,
     width: viewport.width,
     height: viewport.height,
   };
@@ -417,10 +424,40 @@ export const ContributionGraphCalendar = ({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const isVisibleRef = useRef(false);
+  const activeCellRef = useRef("");
+  const activeTooltipTextRef = useRef("");
+  const tooltipWidthRef = useRef(0);
+  const viewportBoundsRef = useRef<ViewportBounds>({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const updateViewportBounds = () => {
+      viewportBoundsRef.current = getVisibleDocumentBounds();
+      activeCellRef.current = "";
+    };
+
+    updateViewportBounds();
     setMounted(true);
+
+    const viewport = window.visualViewport;
+    const options = { passive: true };
+
+    window.addEventListener("resize", updateViewportBounds);
+    window.addEventListener("scroll", updateViewportBounds, options);
+    viewport?.addEventListener("resize", updateViewportBounds);
+    viewport?.addEventListener("scroll", updateViewportBounds, options);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportBounds);
+      window.removeEventListener("scroll", updateViewportBounds);
+      viewport?.removeEventListener("resize", updateViewportBounds);
+      viewport?.removeEventListener("scroll", updateViewportBounds);
+    };
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -465,6 +502,12 @@ export const ContributionGraphCalendar = ({
     const isValid = activity && !activity.missing && activity.date;
 
     if (isValid) {
+      const cellKey = `${weekIndex}-${dayIndex}`;
+
+      if (isVisibleRef.current && activeCellRef.current === cellKey) {
+        return;
+      }
+
       const rectX = weekIndex * (blockSize + blockMargin);
       const rectY = labelHeight + dayIndex * (blockSize + blockMargin);
       const cellCenterX = rectX + blockSize / 2;
@@ -476,33 +519,39 @@ export const ContributionGraphCalendar = ({
               activity.count === 1 ? "contribution" : "contributions"
             }`;
       const dateStr = format(parseISO(activity.date), "MMM d, yyyy");
-      tooltip.textContent = `${countStr} on ${dateStr}`;
+      const tooltipText = `${countStr} on ${dateStr}`;
 
-      // Fixed overlays on iOS pinch zoom are positioned against the layout
-      // viewport, while the visible viewport can be panned inside it.
-      const fixedViewport = getFixedViewportBounds();
+      if (activeTooltipTextRef.current !== tooltipText) {
+        tooltip.textContent = tooltipText;
+        activeTooltipTextRef.current = tooltipText;
+        tooltipWidthRef.current = tooltip.offsetWidth;
+      }
+
+      // Keep overlay coordinates in document space so iOS pinch zoom does not
+      // push fixed-position portal elements away from the tapped cell.
+      const visibleDocument = viewportBoundsRef.current;
       const scale = rect.width / width;
       const scaleY = rect.height / height;
 
       // Highlight: exact cell position in viewport space
-      const highlightLeft = `${fixedViewport.left + rect.left + rectX * scale}px`;
-      const highlightTop = `${fixedViewport.top + rect.top + rectY * scaleY}px`;
+      const highlightLeft = `${visibleDocument.left + rect.left + rectX * scale}px`;
+      const highlightTop = `${visibleDocument.top + rect.top + rectY * scaleY}px`;
       const highlightW = `${blockSize * scale}px`;
       const highlightH = `${blockSize * scaleY}px`;
 
       // Tooltip: centered above cell, clamped to viewport edges
       const tooltipCenterX =
-        fixedViewport.left + rect.left + cellCenterX * scale;
-      const tooltipHalfW = tooltip.offsetWidth / 2;
+        visibleDocument.left + rect.left + cellCenterX * scale;
+      const tooltipHalfW = (tooltipWidthRef.current || tooltip.offsetWidth) / 2;
       const clampedLeft = Math.max(
-        fixedViewport.left + tooltipHalfW + 8,
+        visibleDocument.left + tooltipHalfW + 8,
         Math.min(
           tooltipCenterX,
-          fixedViewport.left + fixedViewport.width - tooltipHalfW - 8,
+          visibleDocument.left + visibleDocument.width - tooltipHalfW - 8,
         ),
       );
       const tooltipLeft = `${clampedLeft}px`;
-      const tooltipTop = `${fixedViewport.top + rect.top + rectY * scaleY}px`;
+      const tooltipTop = `${visibleDocument.top + rect.top + rectY * scaleY}px`;
 
       if (!isVisibleRef.current) {
         // Snap instantly to the initial cell when first shown
@@ -529,6 +578,7 @@ export const ContributionGraphCalendar = ({
         highlight.style.opacity = "1";
 
         isVisibleRef.current = true;
+        activeCellRef.current = cellKey;
       } else {
         tooltip.style.left = tooltipLeft;
         tooltip.style.top = tooltipTop;
@@ -537,6 +587,7 @@ export const ContributionGraphCalendar = ({
         highlight.style.top = highlightTop;
         highlight.style.width = highlightW;
         highlight.style.height = highlightH;
+        activeCellRef.current = cellKey;
       }
     } else {
       hideTooltip();
@@ -552,6 +603,7 @@ export const ContributionGraphCalendar = ({
       tooltip.style.opacity = "0";
       highlight.style.opacity = "0";
       isVisibleRef.current = false;
+      activeCellRef.current = "";
     }
   };
 
@@ -609,7 +661,7 @@ export const ContributionGraphCalendar = ({
         createPortal(
           <div
             ref={highlightRef}
-            className="pointer-events-none fixed z-9998 rounded-xs border border-subtle-2/80 opacity-0 transition-opacity duration-150"
+            className="pointer-events-none absolute z-9998 rounded-xs border border-subtle-2/80 opacity-0 transition-opacity duration-150"
             style={{ left: 0, top: 0, width: 0, height: 0 }}
           />,
           document.body,
@@ -619,7 +671,7 @@ export const ContributionGraphCalendar = ({
         createPortal(
           <div
             ref={tooltipRef}
-            className="pointer-events-none fixed z-9999 rounded bg-zinc-900 px-2 py-1 text-[10px] font-medium text-zinc-50 shadow-md -translate-x-1/2 -translate-y-[calc(100%+6px)] whitespace-nowrap opacity-0 transition-opacity duration-150"
+            className="pointer-events-none absolute z-9999 rounded bg-zinc-900 px-2 py-1 text-[10px] font-medium text-zinc-50 shadow-md -translate-x-1/2 -translate-y-[calc(100%+6px)] whitespace-nowrap opacity-0 transition-opacity duration-150"
             style={{ left: 0, top: 0 }}
           />,
           document.body,
