@@ -124,7 +124,6 @@ export default function BottomShader() {
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
-      if (resetTimer) clearTimeout(resetTimer);
     };
   }, [isActive]);
 
