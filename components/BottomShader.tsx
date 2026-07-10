@@ -76,9 +76,6 @@ export default function BottomShader() {
   useEffect(() => {
     if (isActive) return;
 
-    let accumulatedDelta = 0;
-    let resetTimer: NodeJS.Timeout | null = null;
-
     const handleWheel = (e: WheelEvent) => {
       const threshold = 5;
       const isAtBottom =
@@ -86,17 +83,8 @@ export default function BottomShader() {
         document.documentElement.scrollHeight - threshold;
 
       if (isAtBottom && e.deltaY > 0) {
-        accumulatedDelta += e.deltaY;
-
-        if (resetTimer) clearTimeout(resetTimer);
-        resetTimer = setTimeout(() => {
-          accumulatedDelta = 0;
-        }, 300);
-
-        if (accumulatedDelta >= 35) {
-          playPopSound();
-          setIsActive(true);
-        }
+        playPopSound();
+        setIsActive(true);
       }
     };
 
@@ -121,7 +109,7 @@ export default function BottomShader() {
         // Check if the gesture *started* at the bottom, not the current position
         const startedAtBottom = touchStartScrollY >= maxScroll - threshold;
 
-        if (startedAtBottom && deltaY > 30) {
+        if (startedAtBottom && deltaY > 0) {
           playPopSound();
           setIsActive(true);
         }
