@@ -1,7 +1,7 @@
 "use client";
 
 import type { IndividualKey } from "@tanstack/react-hotkeys";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Kbd } from "@/components/ui/kbd";
 
 type PreviewKey = "ContextMenu" | "Fn";
@@ -22,7 +22,7 @@ const rows: KeyDefinition[][] = [
       .map((key) => ({ label: key, keyName: key as IndividualKey })),
     { label: "-", keyName: "-" },
     { label: "=", keyName: "=" },
-    { label: "Backspace", keyName: "Backspace", units: 2.25 },
+    { label: "Backspace", keyName: "Backspace", units: 2.5 },
   ],
   [
     { label: "Tab", keyName: "Tab", units: 1.5 },
@@ -53,14 +53,14 @@ const rows: KeyDefinition[][] = [
     { id: "right-shift", label: "Shift", keyName: "Shift", units: 2.75 },
   ],
   [
-    { id: "left-control", label: "Ctrl", keyName: "Control", units: 1.25 },
-    { label: "Meta", keyName: "Meta", units: 1.25 },
+    { id: "left-control", label: "Ctrl", keyName: "Control", units: 1.5 },
+    { label: "Meta", keyName: "Meta", units: 1.5 },
     { id: "left-alt", label: "Alt", keyName: "Alt", units: 1.25 },
     { label: "Space", keyName: "Space", units: 6.25 },
     { id: "right-alt", label: "Alt", keyName: "Alt", units: 1.25 },
     { label: "Fn", previewKey: "Fn", units: 1.25 },
-    { label: "Menu", previewKey: "ContextMenu", units: 1.25 },
-    { id: "right-control", label: "Ctrl", keyName: "Control", units: 1.25 },
+    { label: "Menu", previewKey: "ContextMenu", units: 1.5 },
+    { id: "right-control", label: "Ctrl", keyName: "Control", units: 1.5 },
   ],
 ];
 
@@ -88,6 +88,7 @@ function KeyboardKey({
 }
 
 export function Keyboard60Preview() {
+  const menuInvocationUntilRef = useRef(0);
   const [pressedKeys, setPressedKeys] = useState<ReadonlySet<PreviewKey>>(
     new Set(),
   );
@@ -97,7 +98,11 @@ export function Keyboard60Preview() {
 
   useEffect(() => {
     const resolvePreviewKey = (event: KeyboardEvent): PreviewKey | null => {
-      if (event.key === "ContextMenu" || event.code === "ContextMenu") {
+      if (
+        event.key === "ContextMenu" ||
+        event.code === "ContextMenu" ||
+        (event.key === "F10" && event.shiftKey)
+      ) {
         return "ContextMenu";
       }
       if (event.key === "Fn" || event.code === "Fn") return "Fn";
@@ -116,7 +121,10 @@ export function Keyboard60Preview() {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = resolvePreviewKey(event);
       if (!key) return;
-      if (key === "ContextMenu") event.preventDefault();
+      if (key === "ContextMenu") {
+        menuInvocationUntilRef.current = performance.now() + 250;
+        event.preventDefault();
+      }
       setPressed(key, true);
     };
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -124,13 +132,19 @@ export function Keyboard60Preview() {
       if (key) setPressed(key, false);
     };
     const handleBlur = () => setPressedKeys(new Set());
+    const handleContextMenu = (event: MouseEvent) => {
+      if (performance.now() > menuInvocationUntilRef.current) return;
+      event.preventDefault();
+    };
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("keyup", handleKeyUp);
+    document.addEventListener("contextmenu", handleContextMenu);
     window.addEventListener("blur", handleBlur);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("keyup", handleKeyUp);
+      document.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("blur", handleBlur);
     };
   }, []);
@@ -142,15 +156,17 @@ export function Keyboard60Preview() {
       data-testid="keyboard-60"
     >
       <div
-        className="mx-auto grid w-90 min-w-90 gap-1"
+        className="mx-auto grid w-96 min-w-96 gap-1"
         style={{ gridTemplateRows: `repeat(${rows.length}, 1.25rem)` }}
       >
         {rows.map((row, rowIndex) => (
           <div
             className={
               rowIndex === 0
-                ? "grid grid-cols-[repeat(62,minmax(0,1fr))] gap-1"
-                : "grid grid-cols-60 gap-1"
+                ? "grid grid-cols-[repeat(63,minmax(0,1fr))] gap-1"
+                : rowIndex === rows.length - 1
+                  ? "grid grid-cols-[repeat(64,minmax(0,1fr))] gap-1"
+                  : "grid grid-cols-60 gap-1"
             }
             key={row[0].label}
           >
