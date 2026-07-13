@@ -10,6 +10,7 @@ import {
   VirtualTooltip,
 } from "@/components/registry/floating-tooltip";
 import { Kbd } from "@/components/ui/kbd";
+import { Keyboard60Preview } from "./keyboard-60-preview";
 
 const tooltipData = [
   {
@@ -175,6 +176,7 @@ const previewRegistry = {
   "contribution-graph": GitHubPreview,
   "dither-footer": DitherPreview,
   "theme-hotkey": ThemeHotkeyPreview,
+  kbd: Keyboard60Preview,
 } satisfies Record<string, ComponentType>;
 
 export function ComponentPreview({ slug }: { slug: string }) {

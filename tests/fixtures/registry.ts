@@ -19,6 +19,7 @@ import {
   TooltipScrollFixture,
   TooltipVirtualTargetsFixture,
 } from "./floating-tooltip";
+import { KbdKeyboardFixture, KbdStatesFixture } from "./kbd";
 import {
   ThemeHotkeyDefaultFixture,
   ThemeHotkeyInputFixture,
@@ -141,6 +142,21 @@ export const fixtureRegistry: FixtureRegistry = {
         id: "rapid",
         name: "Rapid fire",
         component: ThemeHotkeyRapidFixture,
+      },
+    ],
+  },
+  kbd: {
+    slug: "kbd",
+    cases: [
+      {
+        id: "keyboard",
+        name: "60% keyboard",
+        component: KbdKeyboardFixture,
+      },
+      {
+        id: "states",
+        name: "States",
+        component: KbdStatesFixture,
       },
     ],
   },

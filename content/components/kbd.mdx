@@ -1,0 +1,38 @@
+## Usage
+
+Static keys do not subscribe to keyboard state. Enable held-state visualization only where it communicates live input.
+
+```tsx title="shortcut.tsx" {4}
+<KbdGroup>
+  <Kbd>Ctrl</Kbd>
+  <span>+</span>
+  <Kbd keyName="K" reactive>K</Kbd>
+</KbdGroup>
+```
+
+Use `pressed` when another component owns the state.
+
+```tsx title="controlled.tsx"
+<Kbd pressed={recording}>Space</Kbd>
+```
+
+## API reference
+
+<ApiTable
+  rows={[
+    { prop: "reactive", type: "boolean", defaultValue: "false" },
+    { prop: "keyName", type: "IndividualKey", defaultValue: "-" },
+    { prop: "pressed", type: "boolean", defaultValue: "false" },
+    { prop: "className", type: "string", defaultValue: "-" },
+  ]}
+/>
+
+## Credits
+
+- Visual foundation follows the shadcn/ui KBD primitive.
+- Reactive state uses TanStack Hotkeys.
+
+## References
+
+- [TanStack key-state tracking](https://tanstack.com/hotkeys/latest/docs/framework/react/guides/key-state-tracking)
+- [KeyboardEvent.key](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key)

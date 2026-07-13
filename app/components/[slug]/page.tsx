@@ -11,6 +11,7 @@ const docs = {
     import("@/content/components/contribution-graph.mdx"),
   "dither-footer": () => import("@/content/components/dither-footer.mdx"),
   "theme-hotkey": () => import("@/content/components/theme-hotkey.mdx"),
+  kbd: () => import("@/content/components/kbd.mdx"),
 } as const;
 
 type Props = { params: Promise<{ slug: string }> };

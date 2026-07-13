@@ -136,6 +136,28 @@ export const componentRegistry = [
 </ThemeProvider>`,
     },
   },
+  {
+    slug: "kbd",
+    name: "KBD",
+    category: "Input",
+    description:
+      "A keyboard key primitive with opt-in held-state visualization powered by TanStack Hotkeys.",
+    status: "exploring",
+    files: ["components/ui/kbd.tsx"],
+    dependencies: ["@tanstack/react-hotkeys"],
+    registryDependencies: [],
+    usage: {
+      title: "shortcut.tsx",
+      language: "tsx",
+      code: `import { Kbd, KbdGroup } from "@/components/ui/kbd";
+
+<KbdGroup>
+  <Kbd>Ctrl</Kbd>
+  <span>+</span>
+  <Kbd keyName="K" reactive>K</Kbd>
+</KbdGroup>`,
+    },
+  },
 ] as const satisfies readonly RegistryEntry[];
 
 export type ComponentSlug = (typeof componentRegistry)[number]["slug"];
