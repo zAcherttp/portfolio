@@ -31,6 +31,9 @@ test.describe("KBD", () => {
     }));
     expect(edgeWidths.escape).toBeGreaterThan(26);
     expect(edgeWidths.backspace).toBeGreaterThan(57);
+    const backspace = keyboard.locator('kbd[data-key="Backspace"]');
+    await expect(backspace).toHaveAttribute("aria-label", "Backspace");
+    await expect(backspace.locator("svg")).toBeVisible();
 
     const bottomWidths = await keyboard.evaluate((element) => ({
       leftControl: element
@@ -56,32 +59,52 @@ test.describe("KBD", () => {
 
   test("visualizes keydown, keyup, and blur on the 60% keyboard", async ({
     page,
-  }) => {
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium");
     await page.goto("/dev/components/kbd");
     const keyboard = page.getByTestId("keyboard-60");
     const key = keyboard.locator('kbd[data-key="A"]');
 
     await expect(keyboard).toHaveAttribute("data-ready", "true");
     await expect(key).toHaveAttribute("data-state", "idle");
-    const idleColors = await key.evaluate((element) => {
+    await expect(keyboard).toHaveAttribute("data-capture-state", "static");
+    await page.keyboard.press("a");
+    await expect(key).toHaveAttribute("data-state", "idle");
+    await page.getByRole("button", { name: "Enable keyboard capture" }).click();
+    await expect(keyboard).toHaveAttribute("data-capture-state", "enabled");
+    const idleVisual = await key.evaluate((element) => {
       const style = getComputedStyle(element);
-      return { background: style.backgroundColor, color: style.color };
+      return {
+        background: style.backgroundColor,
+        color: style.color,
+        shadow: style.boxShadow,
+      };
     });
     await page.keyboard.down("a");
     await expect(key).toHaveAttribute("data-state", "pressed");
     await expect(key).toHaveCSS("filter", "brightness(0.9)");
-    expect(
-      await key.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return { background: style.backgroundColor, color: style.color };
-      }),
-    ).toEqual(idleColors);
+    const pressedVisual = await key.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        background: style.backgroundColor,
+        color: style.color,
+        shadow: style.boxShadow,
+        transitionDuration: style.transitionDuration,
+        transitionProperty: style.transitionProperty,
+      };
+    });
+    expect(pressedVisual.background).toBe(idleVisual.background);
+    expect(pressedVisual.color).toBe(idleVisual.color);
+    expect(pressedVisual.shadow).not.toBe(idleVisual.shadow);
+    expect(pressedVisual.transitionDuration).toBe("0.1s");
+    expect(pressedVisual.transitionProperty).toContain("translate");
     await page.keyboard.up("a");
     await expect(key).toHaveAttribute("data-state", "idle");
 
     await page.keyboard.down("a");
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(key).toHaveAttribute("data-state", "idle");
+    await expect(keyboard).toHaveAttribute("data-capture-state", "static");
     await page.keyboard.up("a");
   });
 
@@ -106,14 +129,34 @@ test.describe("KBD", () => {
     await expect(reactive).toHaveAttribute("data-state", "idle");
   });
 
-  test("owns preview-only keys without taking browser navigation", async ({
+  test("removes key transitions when reduced motion is requested", async ({
     page,
   }) => {
-    await page.goto("/components/kbd");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/dev/components/kbd?case=reduced-motion");
+
+    const fixture = page.getByTestId("kbd-reduced-motion");
+    await expect(fixture).toBeVisible();
+    await expect(page.getByTestId("kbd-motion-idle")).toHaveCSS(
+      "transition-property",
+      "none",
+    );
+    await expect(page.getByTestId("kbd-motion-pressed")).toHaveAttribute(
+      "data-state",
+      "pressed",
+    );
+  });
+
+  test("owns preview-only keys without taking browser navigation", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium");
+    await page.goto("/dev/components/kbd");
     const keyboard = page.getByTestId("keyboard-60");
     const menu = keyboard.getByText("Menu", { exact: true });
     const fn = keyboard.getByText("Fn", { exact: true });
     await expect(keyboard).toHaveAttribute("data-ready", "true");
+    await page.getByRole("button", { name: "Enable keyboard capture" }).click();
 
     const nativeBehavior = await page.evaluate(() => {
       const dispatchKey = (key: string, code: string) => {
@@ -136,12 +179,14 @@ test.describe("KBD", () => {
         contextMenu: contextMenu.defaultPrevented,
         menuKey,
         navigation: dispatchKey("Tab", "Tab"),
+        space: dispatchKey(" ", "Space"),
       };
     });
 
     expect(nativeBehavior.menuKey).toBe(true);
     expect(nativeBehavior.contextMenu).toBe(true);
-    expect(nativeBehavior.navigation).toBe(false);
+    expect(nativeBehavior.navigation).toBe(true);
+    expect(nativeBehavior.space).toBe(true);
     await expect(menu).toHaveAttribute("data-state", "pressed");
 
     await page.evaluate(() => {
@@ -186,6 +231,40 @@ test.describe("KBD", () => {
     ).toBe(initialTheme);
   });
 
+  test("offers down and up key-size profiles with adjustable volume", async ({
+    page,
+  }) => {
+    await page.goto("/dev/components/kbd?case=sound-profiles");
+    const lab = page.getByTestId("kbd-sound-lab");
+
+    await expect(lab).toBeVisible();
+    await expect(lab.locator("[data-sound-character]")).toHaveCount(2);
+    await expect(lab.locator('[data-sound-character="down"]')).toBeVisible();
+    await expect(lab.locator('[data-sound-character="up"]')).toBeVisible();
+    await expect(lab.locator("[data-sound-profile]")).toHaveCount(6);
+    const analysis = page.getByTestId("thock-profile-analysis");
+    await expect(analysis.locator("[data-analysis-profile]")).toHaveCount(6);
+    for (const profile of ["normal", "wide", "space"]) {
+      for (const event of ["down", "up"]) {
+        await expect(
+          analysis.locator(`[data-analysis-profile="${profile}-${event}"]`),
+        ).toBeVisible();
+      }
+    }
+    await expect(analysis.locator("svg")).toHaveCount(6);
+    await expect(analysis).toContainText("1,626 Hz");
+
+    const volume = page.getByTestId("thock-volume");
+    await expect(volume).toHaveValue("100");
+    await volume.fill("150");
+    await expect(lab.locator("output")).toHaveText("150%");
+
+    await lab.getByRole("button", { name: "Play Up Space" }).click();
+    await expect(
+      analysis.locator('[data-analysis-profile="space-up"]'),
+    ).toBeVisible();
+  });
+
   test("keeps the keyboard inspectable on a narrow viewport", async ({
     page,
   }) => {
@@ -200,5 +279,22 @@ test.describe("KBD", () => {
       dimensions.clientWidth,
     );
     await expect(keyboard.locator("kbd").first()).toBeVisible();
+  });
+
+  test("keeps unsupported touch mobile static without consent controls", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium");
+    await page.goto("/components/kbd");
+
+    const keyboard = page.getByTestId("keyboard-60");
+    await expect(keyboard).toHaveAttribute("data-ready", "true");
+    await expect(keyboard).toHaveAttribute("data-capture-state", "static");
+    await expect(page.getByTestId("keyboard-capture-consent")).toHaveCount(0);
+    await page.keyboard.press("a");
+    await expect(keyboard.locator('kbd[data-key="A"]')).toHaveAttribute(
+      "data-state",
+      "idle",
+    );
   });
 });

@@ -19,7 +19,12 @@ import {
   TooltipScrollFixture,
   TooltipVirtualTargetsFixture,
 } from "./floating-tooltip";
-import { KbdKeyboardFixture, KbdStatesFixture } from "./kbd";
+import {
+  KbdKeyboardFixture,
+  KbdReducedMotionFixture,
+  KbdSoundProfilesFixture,
+  KbdStatesFixture,
+} from "./kbd";
 import {
   ThemeHotkeyDefaultFixture,
   ThemeHotkeyInputFixture,
@@ -157,6 +162,16 @@ export const fixtureRegistry: FixtureRegistry = {
         id: "states",
         name: "States",
         component: KbdStatesFixture,
+      },
+      {
+        id: "reduced-motion",
+        name: "Reduced motion",
+        component: KbdReducedMotionFixture,
+      },
+      {
+        id: "sound-profiles",
+        name: "Sound profiles",
+        component: KbdSoundProfilesFixture,
       },
     ],
   },

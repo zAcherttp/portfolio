@@ -1,3 +1,5 @@
+import { getAudioContext } from "@/utils/audioContext";
+
 type PopSoundConfig = {
   type?: OscillatorType;
   startFrequency?: number;
@@ -47,23 +49,7 @@ const POP_SOUND_PRESETS = [
   },
 ] satisfies PopSoundConfig[];
 
-let audioCtx: AudioContext | null = null;
 let lastPresetIndex = -1;
-
-function getAudioContext() {
-  if (typeof window === "undefined") return null;
-
-  const AudioContextClass =
-    window.AudioContext ||
-    (window as Window & { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-
-  if (!AudioContextClass) return null;
-
-  audioCtx ??= new AudioContextClass();
-
-  return audioCtx;
-}
 
 function finiteOr(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;

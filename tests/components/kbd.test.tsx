@@ -57,6 +57,7 @@ describe("Kbd", () => {
 
     expect(hotkey.useKeyHold).toHaveBeenCalledWith("D");
     expect(screen.getByText("D")).toHaveAttribute("data-state", "idle");
+    expect(screen.getByText("D")).not.toHaveAttribute("reactive");
 
     hotkey.held = true;
     rerender(

@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Single Thock Inverse Synth</title>
+<style>
+  :root { color-scheme: dark; --bg:#0e1116; --panel:#171b22; --panel-2:#11161d; --line:#2a303b; --text:#eef2f7; --muted:#9ca8b8; --accent:#81b6ff; --original:#c8d0dc; --synth:#82b8ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:linear-gradient(145deg,#0a0d12,#151a22); color:var(--text); font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif; }
+  main { width:min(1120px,calc(100% - 28px)); margin:28px auto; }
+  h1 { margin:0 0 4px; font-size:clamp(25px,4vw,38px); letter-spacing:0; }
+  .sub { margin:0 0 20px; color:var(--muted); }
+  .panel { background:rgba(23,27,34,.92); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 16px 50px rgba(0,0,0,.24); margin-bottom:14px; }
+  .buttons { display:flex; flex-wrap:wrap; gap:9px; }
+  button { appearance:none; border:1px solid #3a4352; background:#202631; color:var(--text); border-radius:9px; padding:10px 14px; font:600 14px inherit; cursor:pointer; }
+  button:hover { border-color:#6680a4; background:#27303d; }
+  button.primary { background:#d8e9ff; color:#0b1625; border-color:#d8e9ff; }
+  button:disabled { opacity:.55; cursor:wait; }
+  button.running { border-color:var(--accent); box-shadow:0 0 0 1px rgba(129,182,255,.25) inset; }
+  .voice-picker { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+  select { border:1px solid #3a4352; background:#202631; color:var(--text); border-radius:9px; padding:9px 12px; font:600 14px inherit; }
+  kbd { display:inline-grid; place-items:center; min-width:20px; margin-left:6px; padding:1px 5px; border:1px solid #4a5567; border-bottom-color:#303846; border-radius:5px; background:#11161d; color:#cbd8e9; font:700 11px ui-monospace,SFMono-Regular,Consolas,monospace; }
+  button.primary kbd { border-color:#9aabc1; background:#c5d9f3; color:#152237; }
+  .toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 22px; }
+  .control { display:grid; grid-template-columns:124px 1fr 64px; align-items:center; gap:10px; min-width:0; }
+  .control label { color:#d7deea; }
+  .control output { text-align:right; color:var(--accent); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:#9bc5ff; }
+  canvas,.wave-preview { width:100%; height:190px; display:block; border:1px solid var(--line); border-radius:8px; background:#0d1117; }
+  .wave-grid line { stroke:#252d38; stroke-width:1; vector-effect:non-scaling-stroke; }
+  .wave-line { fill:none; stroke-width:1.5; opacity:.76; vector-effect:non-scaling-stroke; transition:opacity .12s ease,stroke-width .12s ease; }
+  .wave-line.original-trace { stroke:var(--original); }
+  .wave-line.synth-trace { stroke:var(--synth); }
+  .wave-line.is-playing { opacity:1; stroke-width:2.3; }
+  .wave-line.is-muted { opacity:.24; }
+  #wavePlayhead { stroke:#fff; stroke-width:1.5; vector-effect:non-scaling-stroke; filter:drop-shadow(0 0 3px rgba(255,255,255,.7)); }
+  .wave-time-scale { display:flex; justify-content:space-between; padding:5px 2px 0; color:var(--muted); font:11px ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .chart + .chart { margin-top:18px; }
+  .chart-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:8px; }
+  .chart-head h2 { margin:0; font-size:14px; letter-spacing:0; }
+  .chart-head span { color:var(--muted); font-size:12px; }
+  .legend { display:flex; gap:18px; color:var(--muted); font-size:13px; margin:8px 0 0; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .original { background:#bec8d6; } .synth { background:#82b8ff; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .stat { border:1px solid var(--line); border-radius:9px; padding:10px; background:#11161d; }
+  .stat strong { display:block; font-size:17px; }
+  .stat span { color:var(--muted); font-size:12px; }
+  #status { min-height:22px; color:var(--muted); margin:11px 0 0; }
+  .fit-status { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; margin-top:10px; }
+  .fit-status[hidden] { display:none; }
+  progress { width:100%; height:6px; border:0; border-radius:999px; overflow:hidden; background:#0d1117; }
+  progress::-webkit-progress-bar { background:#0d1117; }
+  progress::-webkit-progress-value { background:var(--accent); }
+  progress::-moz-progress-bar { background:var(--accent); }
+  #fitReadout { color:var(--accent); font:12px ui-monospace,SFMono-Regular,Consolas,monospace; font-variant-numeric:tabular-nums; }
+  .config-output { margin-top:10px; }
+  .config-output summary { cursor:pointer; color:var(--text); font-size:13px; }
+  .config-output textarea { width:100%; min-height:180px; margin-top:8px; resize:vertical; border:1px solid var(--line); border-radius:8px; padding:10px; background:#0d1117; color:#d5e8ff; font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .tune-group { border-top:1px solid var(--line); padding-top:16px; margin-top:16px; }
+  .tune-group:first-child { border-top:0; padding-top:0; margin-top:0; }
+  .tune-group h2 { margin:0 0 11px; color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  details { color:var(--muted); }
+  details.tune-group summary { color:var(--text); cursor:pointer; font-weight:650; }
+  details.tune-group[open] summary { margin-bottom:14px; }
+  .impact-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  .impact-card { background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:13px; }
+  .impact-card h3 { margin:0 0 11px; font-size:13px; }
+  .impact-card .control { grid-template-columns:82px 1fr 70px; margin-top:8px; }
+  .mode-wrap { overflow-x:auto; }
+  .mode-table { width:100%; border-collapse:collapse; color:var(--text); font-size:13px; }
+  .mode-table th,.mode-table td { border-bottom:1px solid var(--line); padding:7px 6px; text-align:left; }
+  .mode-table th { color:var(--muted); font-weight:600; }
+  .mode-table input { width:86px; border:1px solid var(--line); border-radius:6px; background:#0d1117; color:var(--text); padding:6px; font:inherit; font-variant-numeric:tabular-nums; }
+  .metric-compare { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:14px; }
+  .metric { border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--panel-2); }
+  .metric > span { display:block; color:var(--muted); font-size:11px; margin-bottom:6px; text-transform:uppercase; letter-spacing:.06em; }
+  .metric-pair { display:flex; justify-content:space-between; gap:8px; font-variant-numeric:tabular-nums; }
+  .metric-pair b { font-size:13px; }
+  .metric-pair b:last-child { color:var(--accent); }
+  .map { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
+  .map div { border-left:2px solid var(--line); padding-left:10px; }
+  .map strong { display:block; color:var(--text); font-size:13px; }
+  .map span { font-size:12px; }
+  code { color:#d5e8ff; }
+  @media(max-width:760px){ .grid,.impact-grid{grid-template-columns:1fr}.stats,.metric-compare{grid-template-columns:repeat(2,1fr)}.map{grid-template-columns:1fr}.control{grid-template-columns:108px 1fr 56px} }
+</style>
+</head>
+<body>
+<main>
+  <h1>Keyboard Thock Voice Lab</h1>
+  <p class="sub">Manually tune the procedural key-down thump and the fitted key-up thock. The recorded crop remains available as the Up reference.</p>
+
+  <section class="panel">
+    <div class="toolbar">
+      <div class="buttons">
+        <label class="voice-picker" for="voicePreset">Voice
+          <select id="voicePreset">
+            <option value="down" selected>Key down · thump</option>
+            <option value="up">Key up · fitted thock</option>
+          </select>
+        </label>
+        <button id="playOriginal" aria-keyshortcuts="A" title="Play recorded Up reference (A)">Play Up reference <kbd>A</kbd></button>
+        <button id="playSynth" class="primary" aria-keyshortcuts="B" title="Play procedural (B)">Play procedural <kbd>B</kbd></button>
+        <button id="playAB">Play A → B</button>
+        <button id="variation">New variation</button>
+        <button id="autoFit" aria-pressed="false">Auto fit</button>
+        <button id="copyConfig">Copy config</button>
+      </div>
+      <div class="buttons">
+        <button id="download">Export WAV</button>
+        <button id="reset">Reset match</button>
+      </div>
+    </div>
+    <div id="status">Ready. Audio starts after a button press because browsers require user interaction.</div>
+    <div id="fitStatus" class="fit-status" hidden>
+      <progress id="fitProgress" max="100" value="0" aria-label="Optimization progress"></progress>
+      <span id="fitReadout">0% · loss —</span>
+    </div>
+    <details id="configPanel" class="config-output" hidden>
+      <summary>Reproducible configuration JSON</summary>
+      <textarea id="configOutput" readonly spellcheck="false" aria-label="Reproducible configuration JSON"></textarea>
+    </details>
+
+    <div class="tune-group">
+      <h2>Transient</h2>
+      <div class="grid">
+        <div class="control"><label for="attack">Contact level</label><input data-param id="attack" type="range" min="0" max="8" step="0.01" value="0"><output></output></div>
+        <div class="control"><label for="pulseWidth">Transient width</label><input data-param id="pulseWidth" type="range" min="0.1" max="3.5" step="0.01" value="0.65"><output></output></div>
+        <div class="control"><label for="noiseAmount">Noise burst</label><input data-param id="noiseAmount" type="range" min="0" max="2" step="0.001" value="0.45"><output></output></div>
+        <div class="control"><label for="brightness">Noise color</label><input data-param id="brightness" type="range" min="0.01" max="2" step="0.01" value="0.9"><output></output></div>
+      </div>
+    </div>
+    <div class="tune-group">
+      <h2>Resonance</h2>
+      <div class="grid">
+        <div class="control"><label for="body">Low body</label><input data-param id="body" type="range" min="0" max="2" step="0.01" value="0.8"><output></output></div>
+        <div class="control"><label for="presence">Mid presence</label><input data-param id="presence" type="range" min="0" max="2" step="0.01" value="1.2"><output></output></div>
+        <div class="control"><label for="metal">Metal ring</label><input data-param id="metal" type="range" min="0" max="2" step="0.01" value="0.30" title="Use 0.30 for a standard key and taper toward 0.00 as key width increases"><output></output></div>
+        <div class="control"><label for="pitch">Pitch scale</label><input data-param id="pitch" type="range" min="0.7" max="1.35" step="0.005" value="1"><output></output></div>
+        <div class="control"><label for="decay">Decay scale</label><input data-param id="decay" type="range" min="0.08" max="1.2" step="0.01" value="0.15"><output></output></div>
+        <div class="control"><label for="dampingTilt">Damping tilt</label><input data-param id="dampingTilt" type="range" min="-1" max="1" step="0.01" value="0"><output></output></div>
+      </div>
+    </div>
+    <div class="tune-group">
+      <h2>Texture & output</h2>
+      <div class="grid">
+        <div class="control"><label for="room">Background texture</label><input data-param id="room" type="range" min="0" max="3" step="0.01" value="0.2"><output></output></div>
+        <div class="control"><label for="drive">Soft drive</label><input data-param id="drive" type="range" min="0.05" max="3" step="0.01" value="0.6"><output></output></div>
+        <div class="control"><label for="outputPeak">Output peak</label><input data-param id="outputPeak" type="range" min="0.05" max="0.98" step="0.01" value="0.21"><output></output></div>
+        <div class="control"><label for="timingShift">Timing shift</label><input data-param data-unit="ms" id="timingShift" type="range" min="-4" max="4" step="0.1" value="0"><output></output></div>
+        <div class="control"><label for="variationAmt">Variation</label><input data-param id="variationAmt" type="range" min="0" max="1" step="0.01" value="0"><output></output></div>
+      </div>
+    </div>
+    <details class="tune-group" open>
+      <summary>Strike timing and character</summary>
+      <div id="impactControls" class="impact-grid"></div>
+    </details>
+    <details class="tune-group">
+      <summary>Modal bank: frequency, level, and decay for the isolated strike</summary>
+      <div id="modeEditor" class="mode-wrap"></div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <div class="chart">
+      <div class="chart-head"><h2>Transient alignment</h2><span>min/max waveform · 0–80 ms</span></div>
+      <svg id="wave" class="wave-preview" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Live overlay of original and procedural waveforms with synchronized playback head">
+        <g class="wave-grid" aria-hidden="true">
+          <line x1="0" y1="100" x2="1000" y2="100"></line>
+          <line x1="250" y1="0" x2="250" y2="200"></line>
+          <line x1="500" y1="0" x2="500" y2="200"></line>
+          <line x1="750" y1="0" x2="750" y2="200"></line>
+        </g>
+        <polyline id="originalWaveLine" class="wave-line original-trace" points=""></polyline>
+        <polyline id="synthWaveLine" class="wave-line synth-trace" points=""></polyline>
+        <line id="wavePlayhead" x1="0" y1="0" x2="0" y2="200" visibility="hidden" aria-hidden="true"></line>
+      </svg>
+      <div class="wave-time-scale" aria-hidden="true"><span>0 ms</span><span>20 ms</span><span>40 ms</span><span>60 ms</span><span>80 ms</span></div>
+    </div>
+    <div class="chart">
+      <div class="chart-head"><h2>Spectral alignment</h2><span>single 40 ms strike window · logarithmic frequency</span></div>
+      <canvas id="spectrum" width="1080" height="250" aria-label="Original and synthesized spectra"></canvas>
+    </div>
+    <div class="legend"><span><i class="dot original"></i>original</span><span><i class="dot synth"></i>procedural</span></div>
+    <div class="metric-compare">
+      <div class="metric"><span>Centroid</span><div class="metric-pair"><b id="origCentroid">—</b><b id="synthCentroid">—</b></div></div>
+      <div class="metric"><span>85% rolloff</span><div class="metric-pair"><b id="origRolloff">—</b><b id="synthRolloff">—</b></div></div>
+      <div class="metric"><span>Mid energy</span><div class="metric-pair"><b id="origMid">—</b><b id="synthMid">—</b></div></div>
+      <div class="metric"><span>Crest factor</span><div class="metric-pair"><b id="origCrest">—</b><b id="synthCrest">—</b></div></div>
+    </div>
+  </section>
+
+  <section class="panel stats">
+    <div class="stat"><strong>60 / 78 ms</strong><span>Down / Up duration</span></div>
+    <div class="stat"><strong>1</strong><span>isolated strike</span></div>
+    <div class="stat"><strong>40 ms</strong><span>analysis window per impact</span></div>
+    <div class="stat"><strong>40 Hz–12 kHz</strong><span>spectrum comparison range</span></div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>How the reconstruction works</summary>
+      <p><strong>Key down</strong> loads the current project base: an immediate 60 ms smooth thump with five low modes, a low-passed noise transient, seed 100713, and no metal bank. <strong>Key up</strong> retains the fitted 78.4 ms preset with its strike at the recorded 34.5 ms crop position. No decoded sample data is copied into either procedural voice.</p>
+      <p>The central implementation is <code>renderProcedural()</code>. It returns a Web Audio <code>AudioBuffer</code>, so the sound can be played, changed, or exported without a server.</p>
+      <p><strong>Auto fit</strong> remains available for Key up, where the recorded crop provides a target. Key down is manual-only until a key-down recording is supplied, so the optimizer cannot silently pull the thump toward the Up reference.</p>
+      <div class="map">
+        <div><strong>Transient</strong><span>contact level and width, burst level and color</span></div>
+        <div><strong>Resonance</strong><span>body, presence, pitch, decay, and metal ring from 0.30 standard to 0.00 widest</span></div>
+        <div><strong>Strike</strong><span>onset, gain, contact, noise, decay, and pitch</span></div>
+        <div><strong>Modes</strong><span>frequency, amplitude, and decay per resonator</span></div>
+        <div><strong>Texture</strong><span>background floor and deterministic variation</span></div>
+        <div><strong>Output</strong><span>soft drive and normalized peak level</span></div>
+      </div>
+    </details>
+  </section>
+</main>
+<script>
+'use strict';
+const ORIGINAL_URL = 'data:audio/mpeg;base64,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oDmjDOGhi1K+aSnsIAG8l7yPvIi5MYXK3u+Zc1A7/y/sP3GZWX2kUSgb+87v34lEYsPxevujKqsZqymk1j3L/+xXt09v5frlLZmsaa1TVrv//////4cww+9T24fuZZ1e0vJTRQ1Koe/8f/usv/4pDE5T1Zflfw5SY95uAaz6wxGZVbpg0V0z949lAFAFZsO3RCCOZqlpjIhmHxAl7KjMsFNAKwcGpjYTw9XMaQ8DgXVVa77cQABBhGLppeAIsBZgEKZk0T5f10X0MzqyMWRUEkwAoAAo3BCBpgEBghAVtnam27Mf//9fn//ynA58fIAQ58wdE04EQtGgMQgafqVK6m4kweDhkOClHqGPooL2ChRjmCMhfoligkFRTj6MkJcwqUw9CQYzAcAlKkibYymQOLTPDhiIRX6wzWYGbpDzIIElkzOxyelcslr8xSzH42+8niMai1WC70tpbmWdyW4Um8csquGqa3nS18b2VrO/PUdnvMbFq/fsXcrk9cp+Y/+72GP3OfbvZf+sb+Fy/+73/rueNF3dbv//d/hZuVP+5vLv97/3N6y19ciaD80YhuOAAIIYskK5vhQIos6VhGVJRAc5i7jhHtZOHIrydKNcie3RgrjSkF/QLkkQE8MZdKxXOTXiXBfluB1f//YNT/5Fn/sw3DLfrvXfrDILFwSMl///+o88pYhWMhkCQSPRWNBmOx2DiALMBAgLggwaAv8wyGTFoxLXCAB/5mwgmSCsWZLk/596mv/7smQYAAcvXtBucyAASELlxcbAAAAAAaQcAAAgAAA0g4AABL3TNx/xI4AjIRomyqGv/woMgkSRUNVuuO1D3//iAMLgBAxZQWWiL+v66TOv//9AUnYvRhiZb7P9VwpqsZ////ZTIF4y5HBsTEIzKn+f78q3////rXk9yeZO47qLAQxVjMZrWsv1W//////ZPbVUlSx3HU0a45DrRWrS0ta1lrKmq0v///////aYyr5p6uHcehr25A5bM2DsMeSly7rVamxpaXLu9U3+oBh85DAPmvlhKdlj2LA0AAEAAAXxjpLwogxTLDlA7x7H8BGMws1wwSLwmB1TLpj4c6RZReL3k65X3E/749v6AUFSS/+tCnkv/xwlcFDrFf/8S2C8stzGqkxBTUUzLjEwMSAoYmV0YSAyKaqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==';
+const SINGLE_HIT_URL = 'data:audio/mpeg;base64,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';
+const TARGET_DURATION = .0784;
+const TARGET_HIT_TIME = .0345;
+const IMPACT_WINDOW = .04;
+const SINGLE_HIT_BYTE_LENGTH = 1930;
+let ctx = null;
+let originalBuffer = null;
+let variationSeed = 713;
+let drawFrame = 0;
+let drawVersion = 0;
+let fitRunning = false;
+let stopFitRequested = false;
+let lastFitLoss = null;
+const activeSources = new Set();
+const $ = id => document.getElementById(id);
+const status = msg => $('status').textContent = msg;
+let previewFrame = 0;
+let previewQueue = [];
+let previewKind = '';
+
+const UP_BASE_HITS = [{
+  t:TARGET_HIT_TIME,g:1,click:1,noise:.4,tau:.007,
+  modes:[
+    [614,.34,.018],[1036,.28,.015],[1144,.42,.014],[1548,.26,.012],[1879,.34,.011],
+    [1978,.48,.010],[2054,.52,.009],[2129,.46,.0085],[2180,.45,.008],[2245,.38,.0075],[2342,.28,.007]
+  ]
+}];
+const DOWN_BASE_HITS = [{
+  t:0,g:1,click:1,noise:1,tau:.0028,
+  modes:[
+    [105,.62,.022],[185,.46,.018],[330,.32,.014],[610,.16,.010],[910,.07,.007]
+  ]
+}];
+const VOICE_PRESETS = {
+  down:{
+    controls:{attack:0,pulseWidth:2.5,noiseAmount:1,brightness:.08,body:1,presence:1,metal:0,pitch:1,decay:.08,dampingTilt:0,room:0,drive:.5,outputPeak:.06,timingShift:0,variationAmt:0,hit1Time:0,hit1Gain:1,hit1Contact:1,hit1Noise:1,hit1Decay:1,hit1Pitch:1},
+    hits:DOWN_BASE_HITS
+  },
+  up:{
+    controls:{attack:0,pulseWidth:.65,noiseAmount:.45,brightness:.9,body:.8,presence:1.2,metal:.3,pitch:1,decay:.15,dampingTilt:0,room:.2,drive:.6,outputPeak:.21,timingShift:0,variationAmt:0,hit1Time:34.5,hit1Gain:1,hit1Contact:1,hit1Noise:.4,hit1Decay:1,hit1Pitch:1},
+    hits:UP_BASE_HITS
+  }
+};
+const cloneHits = hits => hits.map(hit=>({...hit,modes:hit.modes.map(mode=>[...mode])}));
+let voiceMode = 'down';
+let baseHits = cloneHits(DOWN_BASE_HITS);
+let modeState = baseHits.map(hit => hit.modes.map(mode => [...mode]));
+let defaults = {};
+
+function controlMarkup(id, label, min, max, step, value, unit='') {
+  return `<div class="control"><label for="${id}">${label}</label><input data-param data-unit="${unit}" id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${value}"><output></output></div>`;
+}
+
+function buildImpactControls() {
+  $('impactControls').innerHTML = baseHits.map((hit, index) => {
+    const n = index + 1;
+    return `<section class="impact-card"><h3>Isolated strike</h3>
+      ${controlMarkup(`hit${n}Time`,'Onset',0,42,.1,(hit.t*1000).toFixed(1),'ms')}
+      ${controlMarkup(`hit${n}Gain`,'Level',0,1.5,.01,hit.g)}
+      ${controlMarkup(`hit${n}Contact`,'Contact',0,2,.01,hit.click)}
+      ${controlMarkup(`hit${n}Noise`,'Noise',0,1,.005,hit.noise)}
+      ${controlMarkup(`hit${n}Decay`,'Decay',.35,2,.01,1)}
+      ${controlMarkup(`hit${n}Pitch`,'Pitch',.75,1.3,.005,1)}
+    </section>`;
+  }).join('');
+}
+
+function buildModeEditor() {
+  const rows = modeState.flatMap((modes, hitIndex) => modes.map((mode, modeIndex) => `
+    <tr><td>${hitIndex + 1}</td><td>${modeIndex + 1}</td>
+      <td><input data-mode="frequency" data-hit="${hitIndex}" data-index="${modeIndex}" type="number" min="40" max="12000" step="1" value="${mode[0]}"></td>
+      <td><input data-mode="level" data-hit="${hitIndex}" data-index="${modeIndex}" type="number" min="0" max="2" step="0.01" value="${mode[1]}"></td>
+      <td><input data-mode="decay" data-hit="${hitIndex}" data-index="${modeIndex}" type="number" min="1" max="200" step="0.1" value="${(mode[2]*1000).toFixed(1)}"></td>
+    </tr>`));
+  $('modeEditor').innerHTML = `<table class="mode-table"><thead><tr><th>Strike</th><th>Mode</th><th>Frequency (Hz)</th><th>Level</th><th>Decay (ms)</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  $('modeEditor').querySelectorAll('input[data-mode]').forEach(input => input.addEventListener('input', () => {
+    const hit = Number(input.dataset.hit), index = Number(input.dataset.index), value = Number(input.value);
+    const field = input.dataset.mode === 'frequency' ? 0 : input.dataset.mode === 'level' ? 1 : 2;
+    modeState[hit][index][field] = field === 2 ? value / 1000 : value;
+    scheduleDraw();
+  }));
+}
+
+function formatControl(input) {
+  const value = Number(input.value);
+  return input.dataset.unit === 'ms' ? `${value.toFixed(1)} ms` : value.toFixed(Number(input.step) < .01 ? 3 : 2);
+}
+
+function bindControls() {
+  document.querySelectorAll('input[data-param]').forEach(input => {
+    if(defaults[input.id]===undefined)defaults[input.id]=input.value;
+    if(input.dataset.bound)return;
+    input.dataset.bound='true';
+    const update = () => { input.nextElementSibling.value = formatControl(input); scheduleDraw(); };
+    input.addEventListener('input', update);
+    update();
+  });
+}
+
+function applyVoicePreset(mode) {
+  if(fitRunning)return;
+  voiceMode=mode;
+  const preset=VOICE_PRESETS[mode];
+  baseHits=cloneHits(preset.hits);
+  modeState=baseHits.map(hit=>hit.modes.map(mode=>[...mode]));
+  buildImpactControls();
+  buildModeEditor();
+  bindControls();
+  for(const [id,value] of Object.entries(preset.controls)){
+    const input=$(id);
+    if(!input)continue;
+    input.value=String(value);
+    input.nextElementSibling.value=formatControl(input);
+  }
+  defaults=Object.fromEntries([...document.querySelectorAll('input[data-param]')].map(input=>[input.id,input.value]));
+  variationSeed=mode==='down'?100713:713;
+  lastFitLoss=null;
+  $('voicePreset').value=mode;
+  $('autoFit').disabled=mode==='down';
+  $('autoFit').title=mode==='down'?'Auto fit needs a recorded key-down reference.':'Fit the Up voice to the recorded crop.';
+  $('configPanel').hidden=true;
+  status(mode==='down'?'Loaded the current project key-down base · five-mode smooth thump · manual tuning.':'Loaded the fitted key-up preset · recorded reference and auto fit enabled.');
+  scheduleDraw();
+}
+
+function params() {
+  return Object.fromEntries([...document.querySelectorAll('input[data-param]')].map(input => [input.id, Number(input.value)]));
+}
+
+async function getContext(resume=true) {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (resume && ctx.state === 'suspended') await ctx.resume();
+  return ctx;
+}
+
+async function loadOriginal(resume=false) {
+  const ac = await getContext(resume);
+  if (!originalBuffer) {
+    const payloadStart = SINGLE_HIT_URL.indexOf(',') + 1;
+    const payloadLength = Math.ceil(SINGLE_HIT_BYTE_LENGTH / 3) * 4;
+    const binary = atob(SINGLE_HIT_URL.slice(payloadStart,payloadStart+payloadLength));
+    const bytes = new Uint8Array(SINGLE_HIT_BYTE_LENGTH);
+    for(let i=0;i<bytes.length;i++) bytes[i]=binary.charCodeAt(i);
+    originalBuffer = await ac.decodeAudioData(bytes.buffer);
+  }
+  return originalBuffer;
+}
+
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (1664525 * s + 1013904223) >>> 0) / 4294967296);
+}
+
+function smootherstepAttack(time,duration){
+  const progress=Math.min(1,Math.max(0,time/duration));
+  return progress**3*(progress*(progress*6-15)+10);
+}
+
+function renderProcedural(sampleRate, seed=variationSeed) {
+  const p = params();
+  const duration = voiceMode==='down'?.06:TARGET_DURATION;
+  const data = new Float32Array(Math.ceil(duration * sampleRate));
+  const rand = lcg(seed);
+  const gauss = () => {
+    const u = Math.max(1e-9, rand()), v = rand();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  };
+  const hits = baseHits.map((base, index) => {
+    const n = index + 1;
+    return {
+      ...base,
+      t:(p[`hit${n}Time`] + p.timingShift) / 1000,
+      g:p[`hit${n}Gain`], click:p[`hit${n}Contact`], noise:p[`hit${n}Noise`],
+      decay:p[`hit${n}Decay`], pitch:p[`hit${n}Pitch`], modes:modeState[index]
+    };
+  });
+
+  let roomLP = 0;
+  if(voiceMode==='up'||p.room>0){
+    roomLP=gauss()*.12;
+    for (let i=0; i<data.length; i++) {
+      roomLP += .025 * (gauss() - roomLP);
+      data[i] += roomLP * .006 * p.room;
+    }
+  }
+
+  hits.forEach((h, hitIndex) => {
+    const start = Math.max(0, Math.floor(h.t * sampleRate));
+    const length = Math.floor(.044 * sampleRate);
+    const organic = p.variationAmt;
+    const detune = 1 + (rand()*2-1) * .018 * organic;
+    const gainJitter = 1 + (rand()*2-1) * .14 * organic;
+    const pulse = [1,-.92,.52,-.24,.10,-.04];
+    const pulseSamples = Math.max(2, Math.ceil(pulse.length * p.pulseWidth));
+    for (let k=0; k<pulseSamples && start+k<data.length; k++) {
+      const source = k / p.pulseWidth;
+      const a = Math.min(pulse.length-1, Math.floor(source));
+      const b = Math.min(pulse.length-1, a+1);
+      const value = pulse[a] + (pulse[b]-pulse[a]) * (source-a);
+      data[start+k] += value * h.click * h.g * p.attack * gainJitter;
+    }
+
+    if(voiceMode==='down'){
+      let low=0;
+      const color=Math.max(.01,Math.min(.95,p.brightness));
+      const fadeTime=Math.max(.0001,p.pulseWidth/1000);
+      for(let k=0;k<length&&start+k<data.length;k++){
+        const t=k/sampleRate;
+        low+=color*(gauss()-low);
+        const env=Math.exp(-t/(h.tau*p.decay*h.decay));
+        const fade=smootherstepAttack(t,fadeTime);
+        data[start+k]+=low*h.noise*h.g*p.noiseAmount*env*gainJitter*fade;
+      }
+      h.modes.forEach((mode,modeIndex)=>{
+        let [freq,amp,tau]=mode;
+        const groupGain=freq<500?p.body:freq<1500?p.presence:p.metal;
+        freq*=p.pitch*h.pitch*detune*(1+(rand()*2-1)*.006*organic);
+        tau*=p.decay*h.decay*Math.pow(Math.max(freq/500,.2),-.35*p.dampingTilt)*(1+(rand()*2-1)*.10*organic);
+        const phase=[.15,.7,1.3,2.1,2.65][modeIndex%5]+hitIndex*.35;
+        for(let k=0;k<length&&start+k<data.length;k++){
+          const t=k/sampleRate,fade=smootherstepAttack(t,fadeTime),env=Math.exp(-t/tau);
+          data[start+k]+=Math.cos(2*Math.PI*freq*t+phase)*env*amp*h.g*groupGain*gainJitter*fade;
+        }
+      });
+      return;
+    }
+
+    let low = 0, prev = 0;
+    const bright = Math.min(.72, .055 + .20 * p.brightness);
+    for (let k=0; k<length && start+k<data.length; k++) {
+      const t = k/sampleRate, white = gauss();
+      low += bright * (white-low);
+      const highPassed = low - .985*prev;
+      prev = low;
+      const env = Math.exp(-t/(h.tau*p.decay*h.decay));
+      data[start+k] += highPassed * h.noise * h.g * p.noiseAmount * p.brightness * env * gainJitter;
+    }
+
+    h.modes.forEach((mode, modeIndex) => {
+      let [freq, amp, tau] = mode;
+      const groupGain = freq < 500 ? p.body : freq < 1500 ? p.presence : p.metal;
+      freq *= p.pitch * h.pitch * detune * (1+(rand()*2-1)*.006*organic);
+      tau *= p.decay * h.decay * Math.pow(Math.max(freq/500,.2),-.35*p.dampingTilt) * (1+(rand()*2-1)*.10*organic);
+      const phase = [.2,1.1,2.2,.7,1.7,2.8,.4,1.35,2.45,.95,1.95][modeIndex%11] + hitIndex*.35;
+      for (let k=0; k<length && start+k<data.length; k++) {
+        const t = k/sampleRate;
+        const fade = Math.min(1,t/.00025), env = Math.exp(-t/tau);
+        data[start+k] += Math.cos(2*Math.PI*freq*t+phase) * env * amp * h.g * groupGain * gainJitter * fade;
+      }
+    });
+  });
+
+  let x1=0, y1=0, peak=1e-6;
+  for (let i=0; i<data.length; i++) {
+    const x=data[i];
+    let y=x-x1+.995*y1;
+    x1=x; y1=y;
+    y=Math.tanh(y*p.drive);
+    data[i]=y; peak=Math.max(peak,Math.abs(y));
+  }
+  const scale=p.outputPeak/peak;
+  for (let i=0; i<data.length; i++) data[i]*=scale;
+  const buffer=ctx.createBuffer(1,data.length,sampleRate);
+  buffer.copyToChannel(data,0);
+  return buffer;
+}
+
+function setPreviewKind(kind) {
+  if(previewKind===kind)return;
+  previewKind=kind;
+  const original=$('originalWaveLine'),synth=$('synthWaveLine');
+  original.classList.toggle('is-playing',kind==='original');
+  original.classList.toggle('is-muted',kind==='procedural');
+  synth.classList.toggle('is-playing',kind==='procedural');
+  synth.classList.toggle('is-muted',kind==='original');
+}
+
+function resetPlaybackPreview(clearQueue=true) {
+  if(clearQueue)previewQueue=[];
+  const playhead=$('wavePlayhead');
+  playhead.setAttribute('visibility','hidden');
+  playhead.setAttribute('x1','0');
+  playhead.setAttribute('x2','0');
+  setPreviewKind('');
+}
+
+function updatePlaybackPreview() {
+  previewFrame=0;
+  if(!ctx){resetPlaybackPreview();return;}
+  const now=ctx.currentTime;
+  previewQueue=previewQueue.filter(item=>now<item.end+.06);
+  const active=previewQueue.find(item=>now>=item.start&&now<item.end);
+  if(active){
+    const progress=Math.max(0,Math.min(1,(now-active.start)/(active.end-active.start))),x=(progress*1000).toFixed(2),playhead=$('wavePlayhead');
+    playhead.setAttribute('x1',x); playhead.setAttribute('x2',x); playhead.setAttribute('visibility','visible');
+    setPreviewKind(active.kind);
+  } else resetPlaybackPreview(false);
+  if(previewQueue.length)previewFrame=requestAnimationFrame(updatePlaybackPreview);
+}
+
+function queuePlaybackPreview(kind,start,duration) {
+  previewQueue.push({kind,start,end:start+duration});
+  previewQueue.sort((a,b)=>a.start-b.start);
+  if(!previewFrame)previewFrame=requestAnimationFrame(updatePlaybackPreview);
+}
+
+function stopCurrent() {
+  for (const source of activeSources) { try { source.stop(); } catch (_) {} }
+  activeSources.clear();
+  cancelAnimationFrame(previewFrame); previewFrame=0; resetPlaybackPreview();
+}
+
+function playBuffer(buffer, when=0, kind='') {
+  const source=ctx.createBufferSource();
+  source.buffer=buffer;
+  const compressor=ctx.createDynamicsCompressor();
+  compressor.threshold.value=-4; compressor.knee.value=8; compressor.ratio.value=3; compressor.attack.value=.001; compressor.release.value=.05;
+  source.connect(compressor).connect(ctx.destination);
+  const startTime=ctx.currentTime+when;
+  source.start(startTime);
+  if(kind)queuePlaybackPreview(kind,startTime,buffer.duration);
+  source.addEventListener('ended',()=>activeSources.delete(source));
+  activeSources.add(source);
+  return source;
+}
+
+$('playOriginal').addEventListener('click',async()=>{ stopCurrent(); const buffer=await loadOriginal(true); playBuffer(buffer,0,'original'); status('Playing the recorded Up reference.'); });
+$('playSynth').addEventListener('click',async()=>{ stopCurrent(); await getContext(); playBuffer(renderProcedural(ctx.sampleRate),0,'procedural'); status(`Playing the procedural key-${voiceMode} voice.`); });
+$('playAB').addEventListener('click',async()=>{ stopCurrent(); const original=await loadOriginal(true), synth=renderProcedural(ctx.sampleRate); playBuffer(original,0,'original'); playBuffer(synth,original.duration+.22,'procedural'); status(`Playing the Up reference, then the selected ${voiceMode} voice.`); });
+$('variation').addEventListener('click',async()=>{ stopCurrent(); await getContext(); variationSeed=(variationSeed+1+Math.floor(Math.random()*100000))>>>0; playBuffer(renderProcedural(ctx.sampleRate,variationSeed),0,'procedural'); status(`Playing procedural variation ${variationSeed}.`); scheduleDraw(); });
+
+document.addEventListener('keydown',event=>{
+  if(event.repeat||event.ctrlKey||event.metaKey||event.altKey)return;
+  const target=event.target;
+  const isTypingField=target&&(target.isContentEditable||/^(TEXTAREA|SELECT)$/.test(target.tagName)||(target.tagName==='INPUT'&&!['range','number'].includes(target.type)));
+  if(isTypingField)return;
+  const id=event.key.toLowerCase()==='a'?'playOriginal':event.key.toLowerCase()==='b'?'playSynth':null;
+  if(!id)return;
+  const button=$(id);
+  if(button.disabled)return;
+  event.preventDefault(); button.click();
+});
+$('reset').addEventListener('click',()=>{
+  applyVoicePreset(voiceMode);
+});
+
+function encodeWav(buffer) {
+  const samples=buffer.getChannelData(0), out=new ArrayBuffer(44+samples.length*2), view=new DataView(out);
+  const str=(offset,value)=>{ for(let i=0;i<value.length;i++) view.setUint8(offset+i,value.charCodeAt(i)); };
+  str(0,'RIFF'); view.setUint32(4,36+samples.length*2,true); str(8,'WAVE'); str(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true); view.setUint32(24,buffer.sampleRate,true);
+  view.setUint32(28,buffer.sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true); str(36,'data'); view.setUint32(40,samples.length*2,true);
+  let offset=44; for(const sample of samples){ const x=Math.max(-1,Math.min(1,sample)); view.setInt16(offset,x<0?x*32768:x*32767,true); offset+=2; }
+  return new Blob([out],{type:'audio/wav'});
+}
+
+$('download').addEventListener('click',async()=>{
+  await getContext(); const buffer=renderProcedural(ctx.sampleRate), url=URL.createObjectURL(encodeWav(buffer));
+  const link=document.createElement('a'); link.href=url; link.download='single-thock-procedural.wav'; link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000); status('Exported synthesized WAV.');
+});
+
+function fft(real,imag) {
+  const n=real.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1; for(;j&bit;bit>>=1)j^=bit; j^=bit;
+    if(i<j){ [real[i],real[j]]=[real[j],real[i]]; [imag[i],imag[j]]=[imag[j],imag[i]]; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const angle=-2*Math.PI/len, wLenR=Math.cos(angle), wLenI=Math.sin(angle);
+    for(let i=0;i<n;i+=len){
+      let wr=1,wi=0;
+      for(let j=0;j<len/2;j++){
+        const uR=real[i+j],uI=imag[i+j],vR=real[i+j+len/2]*wr-imag[i+j+len/2]*wi,vI=real[i+j+len/2]*wi+imag[i+j+len/2]*wr;
+        real[i+j]=uR+vR; imag[i+j]=uI+vI; real[i+j+len/2]=uR-vR; imag[i+j+len/2]=uI-vI;
+        const nextR=wr*wLenR-wi*wLenI; wi=wr*wLenI+wi*wLenR; wr=nextR;
+      }
+    }
+  }
+}
+
+function analyzeImpacts(data,sampleRate,centers) {
+  const n=2048, power=new Float64Array(n/2), onsetSamples=[];
+  for(const center of centers){
+    const start=Math.max(0,Math.floor((center-.001)*sampleRate)), real=new Float64Array(n), imag=new Float64Array(n);
+    const windowLength=Math.min(n,Math.floor(IMPACT_WINDOW*sampleRate));
+    for(let i=0;i<windowLength;i++){
+      const value=data[start+i]||0, taper=.5+.5*Math.cos(Math.PI*i/(windowLength-1));
+      real[i]=value*taper; onsetSamples.push(value);
+    }
+    fft(real,imag);
+    for(let i=0;i<power.length;i++) power[i]+=(real[i]*real[i]+imag[i]*imag[i])/centers.length;
+  }
+  const minBin=Math.max(1,Math.ceil(40*n/sampleRate)), maxBin=Math.min(power.length-1,Math.floor(12000*n/sampleRate));
+  let total=0,weighted=0,mid=0,maxPower=0;
+  for(let i=minBin;i<=maxBin;i++){ const hz=i*sampleRate/n; total+=power[i]; weighted+=power[i]*hz; if(hz>=500&&hz<2500)mid+=power[i]; maxPower=Math.max(maxPower,power[i]); }
+  let cumulative=0,rolloff=0;
+  for(let i=minBin;i<=maxBin;i++){ cumulative+=power[i]; if(cumulative>=total*.85){ rolloff=i*sampleRate/n; break; } }
+  let sumSq=0,peak=0;
+  for(const sample of onsetSamples){ sumSq+=sample*sample; peak=Math.max(peak,Math.abs(sample)); }
+  return {power,n,maxPower,centroid:weighted/Math.max(total,1e-12),rolloff,mid:mid/Math.max(total,1e-12),crest:peak/Math.max(Math.sqrt(sumSq/Math.max(1,onsetSamples.length)),1e-12)};
+}
+
+function transientEnvelope(data,sampleRate,bins=160) {
+  const total=Math.min(data.length,Math.floor(TARGET_DURATION*sampleRate)), envelope=new Float64Array(bins);
+  let peak=1e-12;
+  for(let bin=0;bin<bins;bin++){
+    const from=Math.floor(bin/bins*total),to=Math.max(from+1,Math.floor((bin+1)/bins*total));
+    let sum=0;
+    for(let i=from;i<to;i++) sum+=data[i]*data[i];
+    envelope[bin]=Math.sqrt(sum/(to-from)); peak=Math.max(peak,envelope[bin]);
+  }
+  for(let i=0;i<envelope.length;i++) envelope[i]/=peak;
+  return envelope;
+}
+
+function comparisonLoss(reference,candidate,sampleRate) {
+  const logMin=Math.log(40),logMax=Math.log(12000),spectralBins=96;
+  let spectral=0;
+  for(let i=0;i<spectralBins;i++){
+    const hz=Math.exp(logMin+(i/(spectralBins-1))*(logMax-logMin));
+    const refBin=Math.min(reference.analysis.power.length-1,Math.max(1,Math.round(hz*reference.analysis.n/sampleRate)));
+    const candidateBin=Math.min(candidate.analysis.power.length-1,Math.max(1,Math.round(hz*candidate.analysis.n/sampleRate)));
+    const refDb=Math.max(-60,10*Math.log10(reference.analysis.power[refBin]/Math.max(reference.analysis.maxPower,1e-20)));
+    const candidateDb=Math.max(-60,10*Math.log10(candidate.analysis.power[candidateBin]/Math.max(candidate.analysis.maxPower,1e-20)));
+    spectral+=Math.pow((refDb-candidateDb)/60,2);
+  }
+  spectral/=spectralBins;
+  let envelope=0;
+  for(let i=0;i<reference.envelope.length;i++) envelope+=Math.pow(reference.envelope[i]-candidate.envelope[i],2);
+  envelope/=reference.envelope.length;
+  const ref=reference.analysis,syn=candidate.analysis;
+  const descriptors=(Math.pow(Math.log(Math.max(1,syn.centroid)/Math.max(1,ref.centroid)),2)+
+    Math.pow(Math.log(Math.max(1,syn.rolloff)/Math.max(1,ref.rolloff)),2)+
+    Math.pow((syn.mid-ref.mid)/.35,2)+
+    Math.pow(Math.log(Math.max(.1,syn.crest)/Math.max(.1,ref.crest)),2))/4;
+  return .45*spectral+.42*envelope+.13*descriptors;
+}
+
+function candidateFeatures(data,sampleRate,centers) {
+  return {analysis:analyzeImpacts(data,sampleRate,centers),envelope:transientEnvelope(data,sampleRate)};
+}
+
+function prepareCanvas(canvas) {
+  const ratio=Math.min(2,window.devicePixelRatio||1), width=Math.max(320,canvas.clientWidth), height=canvas.clientHeight;
+  canvas.width=Math.round(width*ratio); canvas.height=Math.round(height*ratio);
+  const g=canvas.getContext('2d'); g.setTransform(ratio,0,0,ratio,0,0);
+  return {g,width,height};
+}
+
+function chartBase(canvas,xLabels) {
+  const {g,width,height}=prepareCanvas(canvas), pad={l:42,r:12,t:12,b:26}, plot={x:42,y:12,w:width-54,h:height-38};
+  g.fillStyle='#0d1117'; g.fillRect(0,0,width,height); g.strokeStyle='#252d38'; g.lineWidth=1; g.fillStyle='#718096'; g.font='11px system-ui';
+  for(const item of xLabels){ const x=plot.x+item.position*plot.w; g.beginPath(); g.moveTo(x,plot.y); g.lineTo(x,plot.y+plot.h); g.stroke(); g.fillText(item.label,x+3,height-8); }
+  return {g,width,height,plot};
+}
+
+function drawWaveform(original,synth,sampleRate) {
+  const total=Math.floor(TARGET_DURATION*sampleRate),pointCount=900;
+  let peak=1e-6;
+  for(let i=0;i<total;i++)peak=Math.max(peak,Math.abs(original[i]||0),Math.abs(synth[i]||0));
+  const points=data=>{
+    const result=[];
+    for(let i=0;i<pointCount;i++){
+      const position=i/(pointCount-1)*Math.max(0,total-1),index=Math.floor(position),fraction=position-index;
+      const value=(data[index]||0)+((data[index+1]||0)-(data[index]||0))*fraction;
+      const x=i/(pointCount-1)*1000,y=100-Math.max(-1,Math.min(1,value/peak))*86;
+      result.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+    }
+    return result.join(' ');
+  };
+  $('originalWaveLine').setAttribute('points',points(original));
+  $('synthWaveLine').setAttribute('points',points(synth));
+}
+
+function drawSpectrum(original,synth,sampleRate) {
+  const freqs=[50,100,200,500,1000,2000,5000,10000],logMin=Math.log(40),logMax=Math.log(12000);
+  const {g,plot}=chartBase($('spectrum'),freqs.map(hz=>({position:(Math.log(hz)-logMin)/(logMax-logMin),label:hz>=1000?`${hz/1000}k`:`${hz}`})));
+  for(const db of [0,-20,-40,-60]){ const y=plot.y+(-db/60)*plot.h; g.strokeStyle='#252d38'; g.beginPath(); g.moveTo(plot.x,y); g.lineTo(plot.x+plot.w,y); g.stroke(); g.fillStyle='#718096'; g.fillText(`${db} dB`,4,y+4); }
+  const paint=(analysis,color,alpha)=>{
+    g.beginPath(); g.strokeStyle=color; g.globalAlpha=alpha; g.lineWidth=1.6;
+    for(let x=0;x<plot.w;x++){
+      const hz=Math.exp(logMin+(x/Math.max(1,plot.w-1))*(logMax-logMin)),bin=Math.min(analysis.power.length-1,Math.max(1,Math.round(hz*analysis.n/sampleRate)));
+      const db=Math.max(-60,10*Math.log10(analysis.power[bin]/Math.max(analysis.maxPower,1e-20)));
+      const y=plot.y+(-db/60)*plot.h; if(x===0)g.moveTo(plot.x+x,y);else g.lineTo(plot.x+x,y);
+    }
+    g.stroke(); g.globalAlpha=1;
+  };
+  paint(original,'#c8d0dc',.7); paint(synth,'#82b8ff',.92);
+}
+
+function updateMetrics(original,synth) {
+  const values=[['Centroid',v=>`${Math.round(v)} Hz`],['Rolloff',v=>`${Math.round(v)} Hz`],['Mid',v=>`${(v*100).toFixed(1)}%`],['Crest',v=>`${v.toFixed(1)}×`]];
+  for(const [key,format] of values){ $(`orig${key}`).textContent=format(original[key.toLowerCase()]); $(`synth${key}`).textContent=format(synth[key.toLowerCase()]); }
+}
+
+function controlRef(id,sigma=.12) {
+  const input=$(id), min=Number(input.min), max=Number(input.max);
+  return {name:id,min,max,sigma,get:()=>Number(input.value),set:value=>{input.value=String(value);}};
+}
+
+function modeRef(hit,index,field,sigma) {
+  const base=baseHits[hit].modes[index][field];
+  const bounds=field===0 ? [base*.72,base*1.28] : field===1 ? [0,Math.min(2,base*3+.1)] : [Math.max(.001,base*.4),Math.min(.2,base*2.5)];
+  return {name:`mode-${hit}-${index}-${field}`,min:bounds[0],max:bounds[1],sigma,get:()=>modeState[hit][index][field],set:value=>{modeState[hit][index][field]=value;}};
+}
+
+function fitStages() {
+  const timing=[];
+  for(let n=1;n<=baseHits.length;n++){ timing.push(controlRef(`hit${n}Time`,.035),controlRef(`hit${n}Gain`,.10)); }
+  const shared=['attack','pulseWidth','noiseAmount','brightness','body','presence','metal','pitch','decay','dampingTilt','room','drive'].map(id=>controlRef(id,.12));
+  const character=[];
+  for(let n=1;n<=baseHits.length;n++) character.push(controlRef(`hit${n}Contact`,.10),controlRef(`hit${n}Noise`,.10),controlRef(`hit${n}Decay`,.10),controlRef(`hit${n}Pitch`,.06));
+  const modes=[];
+  modeState.forEach((hitModes,hit)=>hitModes.forEach((_,index)=>{ modes.push(modeRef(hit,index,0,.08),modeRef(hit,index,1,.13),modeRef(hit,index,2,.12)); }));
+  return [
+    {name:'onset & level',refs:timing,generations:8,population:18},
+    {name:'transient & spectrum',refs:shared,generations:10,population:24},
+    {name:'strike character',refs:character,generations:8,population:22},
+    {name:'modal bank',refs:modes,generations:10,population:34}
+  ];
+}
+
+function syncControlReadouts() {
+  document.querySelectorAll('input[data-param]').forEach(input=>{ input.nextElementSibling.value=formatControl(input); });
+  document.querySelectorAll('input[data-mode]').forEach(input=>{
+    const hit=Number(input.dataset.hit),index=Number(input.dataset.index),field=input.dataset.mode==='frequency'?0:input.dataset.mode==='level'?1:2;
+    const value=modeState[hit][index][field]; input.value=field===2?(value*1000).toFixed(1):field===0?value.toFixed(0):value.toFixed(3);
+  });
+}
+
+function setFitUi(running) {
+  fitRunning=running;
+  const button=$('autoFit');
+  button.textContent=running?'Stop auto fit':'Auto fit';
+  button.setAttribute('aria-pressed',String(running));
+  button.classList.toggle('running',running);
+  if(running)$('fitStatus').hidden=false;
+  document.querySelectorAll('input').forEach(input=>{input.disabled=running;});
+  $('voicePreset').disabled=running;
+  for(const id of ['playOriginal','playSynth','playAB','reset','variation','download','copyConfig']) $(id).disabled=running;
+  button.disabled=!running&&voiceMode==='down';
+}
+
+function applyVector(refs,vector) {
+  refs.forEach((ref,index)=>ref.set(ref.min+Math.max(0,Math.min(1,vector[index]))*(ref.max-ref.min)));
+}
+
+function readVector(refs) {
+  return refs.map(ref=>(ref.get()-ref.min)/(ref.max-ref.min));
+}
+
+async function evaluateFit(reference,sampleRate) {
+  const p=params(), centers=baseHits.map((_,index)=>(p[`hit${index+1}Time`]+p.timingShift)/1000);
+  const data=renderProcedural(sampleRate,713).getChannelData(0);
+  return comparisonLoss(reference,candidateFeatures(data,sampleRate,centers),sampleRate);
+}
+
+async function runAutoFit() {
+  if(voiceMode==='down'){status('Auto fit is disabled for Down until a key-down reference recording is available.');return;}
+  if(fitRunning){stopFitRequested=true;status('Stopping after the current generation…');return;}
+  stopFitRequested=false; setFitUi(true); stopCurrent();
+  const previousVariation=$('variationAmt').value; $('variationAmt').value='0'; $('variationAmt').nextElementSibling.value=formatControl($('variationAmt'));
+  try {
+    status('Preparing reference features…');
+    const original=await loadOriginal(false),sampleRate=original.sampleRate;
+    const reference=candidateFeatures(original.getChannelData(0),sampleRate,baseHits.map(hit=>hit.t));
+    const stages=fitStages(),totalGenerations=stages.reduce((sum,stage)=>sum+stage.generations,0),rand=lcg(7130713);
+    let bestLoss=await evaluateFit(reference,sampleRate),pass=0;
+    const gaussian=()=>{const u=Math.max(1e-9,rand()),v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+    while(!stopFitRequested){
+      pass++;
+      let completed=0;
+      $('fitProgress').value=0;
+      $('fitReadout').textContent=`pass ${pass} · 0% · loss ${bestLoss.toFixed(5)}`;
+      for(const stage of stages){
+        if(stopFitRequested)break;
+        const refs=stage.refs;
+        let mean=readVector(refs),std=refs.map(ref=>ref.sigma),bestVector=[...mean],stageBest=bestLoss,stalled=0;
+        for(let generation=0;generation<stage.generations;generation++){
+          if(stopFitRequested)break;
+          const candidates=[];
+          for(let member=0;member<stage.population;member++){
+            const vector=member===0?[...bestVector]:mean.map((value,index)=>Math.max(0,Math.min(1,value+gaussian()*std[index])));
+            applyVector(refs,vector);
+            const loss=await evaluateFit(reference,sampleRate);
+            candidates.push({vector,loss});
+          }
+          candidates.sort((a,b)=>a.loss-b.loss);
+          if(candidates[0].loss<stageBest){stageBest=candidates[0].loss;bestLoss=stageBest;bestVector=[...candidates[0].vector];stalled=0;}else stalled++;
+          const elite=candidates.slice(0,Math.max(4,Math.ceil(stage.population*.25)));
+          const nextMean=mean.map((_,index)=>elite.reduce((sum,item)=>sum+item.vector[index],0)/elite.length);
+          const nextStd=std.map((_,index)=>Math.sqrt(elite.reduce((sum,item)=>sum+Math.pow(item.vector[index]-nextMean[index],2),0)/elite.length));
+          mean=mean.map((value,index)=>value*.25+nextMean[index]*.75);
+          std=std.map((value,index)=>Math.max(.008,value*.35+nextStd[index]*.65)*(stalled>=2?1.18:1));
+          applyVector(refs,bestVector); syncControlReadouts(); completed++;
+          const progress=Math.round(completed/totalGenerations*100); $('fitProgress').value=progress; $('fitReadout').textContent=`pass ${pass} · ${progress}% · loss ${bestLoss.toFixed(5)}`;
+          status(`Auto fit · pass ${pass} · ${stage.name} · generation ${generation+1}/${stage.generations}`); scheduleDraw();
+          await new Promise(resolve=>requestAnimationFrame(resolve));
+        }
+        applyVector(refs,bestVector);
+      }
+    }
+    syncControlReadouts(); scheduleDraw();
+    lastFitLoss=bestLoss;
+    status(`Auto fit stopped · retained best loss ${bestLoss.toFixed(5)}.`);
+  } catch(error) {
+    status(`Auto fit failed: ${error.message}`);
+  } finally {
+    if(previousVariation!=='0'){$('variationAmt').value=previousVariation;$('variationAmt').nextElementSibling.value=formatControl($('variationAmt'));}
+    setFitUi(false); stopFitRequested=false;
+  }
+}
+
+$('autoFit').addEventListener('click',runAutoFit);
+
+function compactMetrics(analysis) {
+  return {
+    centroidHz:Number(analysis.centroid.toFixed(2)),
+    rolloff85Hz:Number(analysis.rolloff.toFixed(2)),
+    midEnergy:Number(analysis.mid.toFixed(6)),
+    crestFactor:Number(analysis.crest.toFixed(4))
+  };
+}
+
+async function createConfigReport() {
+  const original=await loadOriginal(false),sampleRate=original.sampleRate,p=params();
+  const reference=candidateFeatures(original.getChannelData(0),sampleRate,baseHits.map(hit=>hit.t));
+  const synthData=renderProcedural(sampleRate,variationSeed).getChannelData(0);
+  const centers=baseHits.map((_,index)=>(p[`hit${index+1}Time`]+p.timingShift)/1000);
+  const candidate=candidateFeatures(synthData,sampleRate,centers);
+  const controls=Object.fromEntries([...document.querySelectorAll('input[data-param]')].map(input=>[input.id,Number(input.value)]));
+  const modes=modeState.map((hitModes,hitIndex)=>({
+    impact:hitIndex+1,
+    modes:hitModes.map(mode=>({frequencyHz:Number(mode[0].toFixed(3)),level:Number(mode[1].toFixed(6)),decayMs:Number((mode[2]*1000).toFixed(4))}))
+  }));
+  const hasReference=voiceMode==='up';
+  return {
+    schema:'keyboard-thock-voice-config',version:3,voice:voiceMode,
+    generatedAt:new Date().toISOString(),seed:variationSeed,sampleRate,
+    target:{name:hasReference?'single_hit.MP3':null,durationMs:voiceMode==='down'?60:Number((TARGET_DURATION*1000).toFixed(3)),strikeTimeMs:voiceMode==='down'?0:Number((TARGET_HIT_TIME*1000).toFixed(3))},
+    loss:hasReference?Number(comparisonLoss(reference,candidate,sampleRate).toFixed(8)):null,
+    lastOptimizerLoss:hasReference&&lastFitLoss!==null?Number(lastFitLoss.toFixed(8)):null,
+    objective:hasReference?{spectralWeight:.45,envelopeWeight:.42,descriptorWeight:.13,spectrumHz:[40,12000],impactWindowMs:IMPACT_WINDOW*1000}:null,
+    metrics:{reference:hasReference?compactMetrics(reference.analysis):null,procedural:compactMetrics(candidate.analysis)},
+    controls,modes
+  };
+}
+
+async function copyText(text) {
+  try {
+    if(navigator.clipboard?.writeText){
+      await Promise.race([
+        navigator.clipboard.writeText(text),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Clipboard API timed out')),700))
+      ]);
+      return;
+    }
+  } catch(_) {}
+  const textarea=document.createElement('textarea'); textarea.value=text; textarea.style.position='fixed'; textarea.style.opacity='0';
+  document.body.appendChild(textarea); textarea.select();
+  const copied=document.execCommand('copy'); textarea.remove();
+  if(!copied)throw new Error('Clipboard permission was denied');
+}
+
+$('copyConfig').addEventListener('click',async()=>{
+  const button=$('copyConfig'); button.disabled=true;
+  try {
+    status(voiceMode==='up'?'Calculating current loss and packaging the configuration…':'Packaging the manual Down configuration…');
+    const report=await createConfigReport(),json=JSON.stringify(report,null,2);
+    $('configOutput').value=json;
+    try {
+      await copyText(json);
+      status(report.loss===null?'Copied reproducible Down config · no reference loss.':`Copied reproducible config · current loss ${report.loss.toFixed(5)}.`);
+    } catch(_) {
+      $('configPanel').hidden=false; $('configPanel').open=true; $('configOutput').focus(); $('configOutput').select();
+      status(report.loss===null?'Down config selected below · press Ctrl+C to copy it.':`Config selected below · current loss ${report.loss.toFixed(5)}. Press Ctrl+C to copy it.`);
+    }
+  } catch(error) {
+    status(`Could not package config: ${error.message}`);
+  } finally {button.disabled=false;}
+});
+
+function scheduleDraw() {
+  cancelAnimationFrame(drawFrame); drawFrame=requestAnimationFrame(draw);
+}
+
+async function draw() {
+  const version=++drawVersion;
+  try {
+    await getContext(false); const original=await loadOriginal(false); if(version!==drawVersion)return;
+    const sampleRate=original.sampleRate, synthBuffer=renderProcedural(sampleRate), originalData=original.getChannelData(0), synthData=synthBuffer.getChannelData(0), p=params();
+    const originalCenters=baseHits.map(hit=>hit.t), synthCenters=baseHits.map((_,i)=>(p[`hit${i+1}Time`]+p.timingShift)/1000);
+    const originalAnalysis=analyzeImpacts(originalData,sampleRate,originalCenters), synthAnalysis=analyzeImpacts(synthData,sampleRate,synthCenters);
+    drawWaveform(originalData,synthData,sampleRate); drawSpectrum(originalAnalysis,synthAnalysis,sampleRate); updateMetrics(originalAnalysis,synthAnalysis);
+  } catch(error) { status(`Analysis unavailable: ${error.message}`); }
+}
+
+$('voicePreset').addEventListener('change',event=>applyVoicePreset(event.target.value));
+buildImpactControls(); buildModeEditor(); bindControls(); applyVoicePreset('down');
+window.addEventListener('resize',scheduleDraw);
+</script>
+</body>
+</html>
