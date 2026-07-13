@@ -9,6 +9,7 @@ import {
   type VirtualAnchor,
   VirtualTooltip,
 } from "@/components/registry/floating-tooltip";
+import { Kbd } from "@/components/ui/kbd";
 
 const tooltipData = [
   {
@@ -149,10 +150,11 @@ function ThemeHotkeyPreview() {
         <button
           type="button"
           onClick={() => setTheme(dark ? "light" : "dark")}
-          className="inline-flex size-9 items-center justify-center border border-border hover:bg-surface-hover"
+          className="inline-flex h-9 items-center justify-center gap-2 border border-border px-2.5 hover:bg-surface-hover"
           aria-label="Toggle theme"
         >
           <Icon className="size-4" />
+          <Kbd>D</Kbd>
         </button>
       </Tooltip>
     </div>
