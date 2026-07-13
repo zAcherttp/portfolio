@@ -1,22 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { formatISO, subDays } from "date-fns";
 import { Mail, MapPin, Phone, User } from "lucide-react";
 import { motion, type Variants } from "motion/react";
-import { useEffect, useState } from "react";
 import BookmarkRow from "../components/BookmarkRow";
+import ComponentRegistryList from "../components/ComponentRegistryList";
 import Footer from "../components/Footer";
-import type { Activity } from "../components/kibo-ui/contribution-graph";
-import {
-  ContributionGraph,
-  ContributionGraphBlock,
-  ContributionGraphCalendar,
-  ContributionGraphFooter,
-  ContributionGraphLegend,
-  ContributionGraphTotalCount,
-} from "../components/kibo-ui/contribution-graph";
 import ProjectCard from "../components/ProjectCard";
+import GitHubContributions from "../components/profile/GitHubContributions";
 import SectionDivider from "../components/SectionDivider";
 import SeeAllButton from "../components/SeeAllButton";
 import SeeAllProjectsButton from "../components/SeeAllProjectsButton";
@@ -164,46 +154,12 @@ const iconBounceVariants: Variants = {
   },
 };
 
-const generateDummyData = (baseDate = new Date("2026-06-23")): Activity[] => {
-  const data: Activity[] = [];
-  for (let i = 370; i >= 0; i--) {
-    const date = subDays(baseDate, i);
-    data.push({
-      date: formatISO(date, { representation: "date" }),
-      count: 0,
-      level: 0,
-    });
-  }
-  return data;
-};
-
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
-  const [dummyData, setDummyData] = useState<Activity[]>(() =>
-    generateDummyData(),
-  );
-  useEffect(() => {
-    setMounted(true);
-    setDummyData(generateDummyData(new Date()));
-  }, []);
-
   // Show only first 3 bookmarks / projects in the peek window
   const sortedBookmarks = getSortedBookmarks();
   const featuredBookmarks = sortedBookmarks.slice(0, 3);
   const featuredProjects = projectsData.slice(0, 3);
 
-  // Load live contribution graph via TanStack Query (Layer 1 cache)
-  const { data: activityData, isLoading } = useQuery<Activity[]>({
-    queryKey: ["github-contributions"],
-    queryFn: async () => {
-      const res = await fetch("/api/github-contributions");
-      if (!res.ok) throw new Error("Failed to fetch contributions");
-      return res.json();
-    },
-    staleTime: 1000 * 60 * 60, // Client Layer 1: Keep stale (cached in memory) for 1 hour
-  });
-
-  const displayData = activityData || dummyData;
   const { data: faviconMap } = useFavicons();
 
   return (
@@ -383,42 +339,21 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Components Section */}
+        <section className="mb-12">
+          <h2 className="mb-3 text-sm font-normal text-muted-foreground">
+            Components
+          </h2>
+          <p className="mb-4 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
+            Interface details, interactions, and visual experiments I have
+            pulled apart into reusable pieces.
+          </p>
+          <ComponentRegistryList />
+        </section>
+
         {/* Contribution Graph Section */}
         <section className="mb-12">
-          <div className="max-w-full overflow-hidden">
-            <ContributionGraph
-              data={displayData}
-              blockSize={8}
-              blockMargin={2}
-              fontSize={10}
-              weekStart={1}
-              labels={{
-                totalCount: "{{count}} contributions in the last year",
-              }}
-            >
-              <ContributionGraphCalendar>
-                {({ activity, dayIndex, weekIndex }) => (
-                  <ContributionGraphBlock
-                    activity={activity}
-                    dayIndex={dayIndex}
-                    weekIndex={weekIndex}
-                  />
-                )}
-              </ContributionGraphCalendar>
-              <ContributionGraphFooter className="text-[10px] text-muted-foreground mt-1.5">
-                {!mounted || isLoading ? (
-                  <span className="text-muted-foreground animate-pulse">
-                    Loading contributions...
-                  </span>
-                ) : (
-                  <>
-                    <ContributionGraphTotalCount />
-                    <ContributionGraphLegend />
-                  </>
-                )}
-              </ContributionGraphFooter>
-            </ContributionGraph>
-          </div>
+          <GitHubContributions />
         </section>
 
         {/* Projects Section */}

@@ -1,0 +1,24 @@
+## Usage
+
+Mount the listener once inside the theme provider. Pressing D toggles the resolved light or dark theme and throttles repeated key events.
+
+```tsx title="providers.tsx" {2}
+<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+  <GlobalHotkeys />
+  {children}
+</ThemeProvider>
+```
+
+## API reference
+
+<ApiTable rows={[{ prop: "shortcut", type: "D" }, { prop: "throttle", type: "number", defaultValue: "50ms" }, { prop: "ignoreInputs", type: "boolean", defaultValue: "true" }, { prop: "themes", type: '"light" | "dark"' }]} />
+
+## Credits
+
+- Built with TanStack Hotkeys, TanStack Pacer, and next-themes.
+
+## References
+
+- [TanStack Hotkeys](https://tanstack.com/hotkeys/latest)
+- [TanStack Pacer](https://tanstack.com/pacer/latest)
+- [next-themes](https://github.com/pacocoursey/next-themes)

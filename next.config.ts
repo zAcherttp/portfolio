@@ -1,6 +1,26 @@
+import createMDX from "@next/mdx";
 import type { NextConfig } from "next";
+import { CODE_THEMES } from "./lib/code-theme";
+
+const withMDX = createMDX({
+  extension: /\.mdx?$/,
+  options: {
+    remarkPlugins: ["remark-gfm"],
+    rehypePlugins: [
+      "rehype-slug",
+      [
+        "rehype-pretty-code",
+        {
+          theme: CODE_THEMES,
+          keepBackground: false,
+        },
+      ],
+    ],
+  },
+});
 
 const nextConfig: NextConfig = {
+  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   reactCompiler: true,
   cacheComponents: true,
   cacheLife: {
@@ -17,4 +37,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withMDX(nextConfig);

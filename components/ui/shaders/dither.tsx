@@ -580,7 +580,7 @@ function DitheredWaves({
   );
 }
 
-interface DitherProps {
+export interface DitherProps {
   fireSpeed?: number;
   noiseScale?: [number, number];
   flameHeight?: number;

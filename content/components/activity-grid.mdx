@@ -1,0 +1,28 @@
+## Usage
+
+Supply column data and render each SVG cell yourself. Pointer geometry and active-cell anchors stay inside the primitive.
+
+```tsx title="activity-grid.tsx" {5}
+<ActivityGrid
+  columns={weeks}
+  cellSize={8}
+  gap={2}
+  getKey={(item, column, row) => item?.date ?? `${column}-${row}`}
+  renderCell={({ item, columnIndex, rowIndex }) => (
+    <ActivityCell item={item} x={columnIndex} y={rowIndex} />
+  )}
+/>
+```
+
+## API reference
+
+<AutoTypeTable path="components/registry/activity-grid.tsx" name="ActivityGridProps" />
+
+## Credits
+
+- Extracted from the portfolio contribution calendar.
+
+## References
+
+- [SVG viewBox](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/viewBox)
+- [Pointer events](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events)

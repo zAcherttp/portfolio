@@ -1,0 +1,40 @@
+## Usage
+
+Wrap one focusable element for the common case. Trigger measurement, hover and focus behavior, accessibility wiring, and scroll invalidation are handled internally.
+
+```tsx title="example.tsx" {3}
+import { Tooltip } from "@/components/registry/floating-tooltip";
+
+<Tooltip content="42 requests" highlight>
+  <button type="button">Requests</button>
+</Tooltip>
+```
+
+## Virtual anchors
+
+Use the lower-level primitive for SVG, canvas, chart cells, and other targets represented by viewport-aware geometry.
+
+```tsx title="activity-grid.tsx" {2}
+<VirtualTooltip anchor={activeCell?.anchor ?? null} showAnchor>
+  {activeCell?.label}
+</VirtualTooltip>
+```
+
+## API reference
+
+### Tooltip
+
+<AutoTypeTable path="components/registry/floating-tooltip/tooltip.tsx" name="TooltipProps" />
+
+### Virtual tooltip
+
+<AutoTypeTable path="components/registry/floating-tooltip/virtual-tooltip.tsx" name="VirtualTooltipProps" />
+
+## Credits
+
+- Built as a reusable extraction from the contribution graph interaction.
+
+## References
+
+- [React portals](https://react.dev/reference/react-dom/createPortal)
+- [Visual Viewport API](https://developer.mozilla.org/en-US/docs/Web/API/Visual_Viewport_API)

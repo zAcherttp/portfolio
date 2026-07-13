@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@source "../tests";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -117,6 +118,10 @@
     92% 0.004 286.32 /
     50%
   ); /* zinc-200/50 — card hover border */
+  --code-background: oklch(98.5% 0 0);
+  --code-highlight: oklch(92% 0.004 286.32 / 55%);
+  --code-selection: oklch(80% 0.08 250 / 35%);
+  --code-line-number: oklch(70.5% 0.015 286.067);
 }
 
 .dark {
@@ -170,6 +175,10 @@
     37% 0.013 285.805 /
     50%
   ); /* zinc-700/50 — card hover border in dark */
+  --code-background: oklch(17.8% 0.006 285.885);
+  --code-highlight: oklch(27.4% 0.006 286.033 / 65%);
+  --code-selection: oklch(65% 0.13 250 / 35%);
+  --code-line-number: oklch(55.2% 0.016 285.938);
 }
 
 @layer base {
@@ -183,4 +192,82 @@
     scrollbar-gutter: stable;
     @apply font-sans;
   }
+}
+
+[data-rehype-pretty-code-figure] {
+  margin: 1rem 0;
+}
+
+[data-rehype-pretty-code-figure] code,
+.docs-highlighted-source code {
+  display: grid;
+  min-width: max-content;
+}
+
+[data-code-frame] pre {
+  background: transparent;
+}
+
+[data-code-frame] pre::-webkit-scrollbar,
+.docs-highlighted-source::-webkit-scrollbar {
+  height: 6px;
+}
+
+[data-code-frame] pre::-webkit-scrollbar-thumb,
+.docs-highlighted-source::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+[data-code-frame] ::selection {
+  background: var(--code-selection);
+}
+
+[data-code-frame] [data-highlighted-line] {
+  margin-inline: -1rem;
+  border-left: 2px solid var(--foreground);
+  background: var(--code-highlight);
+  padding-inline: calc(1rem - 2px) 1rem;
+}
+
+[data-code-frame] [data-highlighted-chars] {
+  border-bottom: 1px solid var(--foreground);
+  background: var(--code-highlight);
+}
+
+[data-code-frame] [data-highlighted-line-id="add"] {
+  border-left-color: oklch(62.7% 0.194 149.214);
+  background: oklch(62.7% 0.194 149.214 / 12%);
+}
+
+[data-code-frame] [data-highlighted-line-id="remove"] {
+  border-left-color: oklch(57.7% 0.245 27.325);
+  background: oklch(57.7% 0.245 27.325 / 12%);
+}
+
+[data-line-numbers] code {
+  counter-reset: code-line;
+}
+
+[data-line-numbers] [data-line] {
+  counter-increment: code-line;
+}
+
+[data-line-numbers] [data-line]::before {
+  display: inline-block;
+  width: 2rem;
+  margin-right: 1rem;
+  color: var(--code-line-number);
+  content: counter(code-line);
+  text-align: right;
+  user-select: none;
+}
+
+[data-rehype-pretty-code-figure] code span,
+.docs-highlighted-source code span {
+  color: var(--shiki-light);
+}
+
+.dark [data-rehype-pretty-code-figure] code span,
+.dark .docs-highlighted-source code span {
+  color: var(--shiki-dark);
 }

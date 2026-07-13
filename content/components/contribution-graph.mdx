@@ -1,0 +1,24 @@
+## Usage
+
+Compose the calendar, blocks, footer, total, and legend to control the graph without replacing its data and interaction model.
+
+```tsx title="contribution-graph.tsx" {3}
+<ContributionGraph data={activity} weekStart={1}>
+  <ContributionGraphCalendar>
+    {(cell) => <ContributionGraphBlock {...cell} />}
+  </ContributionGraphCalendar>
+</ContributionGraph>
+```
+
+## API reference
+
+<AutoTypeTable path="components/kibo-ui/contribution-graph/index.tsx" name="ContributionGraphProps" />
+
+## Credits
+
+- API shape adapted from the original Kibo UI contribution graph.
+
+## References
+
+- [GitHub contribution calendar](https://docs.github.com/en/account-and-profile/reference/profile-contributions-reference)
+- [date-fns](https://date-fns.org/)
