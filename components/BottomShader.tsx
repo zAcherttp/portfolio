@@ -127,7 +127,7 @@ export default function BottomShader() {
     };
   }, [isActive]);
 
-  if (pathname === "/playground") {
+  if (pathname !== "/") {
     return null;
   }
 
