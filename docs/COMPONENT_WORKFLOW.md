@@ -72,3 +72,10 @@ Before a component is considered complete:
 - `/dev/components/<slug>?case=<case-id>`: deterministic component inspection case.
 - `/playground`: shader-specific experimentation; not the general component fixture system.
 
+## Test Commands
+
+- `pnpm test:component <slug>`: run one component's unit and DOM tests.
+- `pnpm test:component:browser <slug>.spec.ts`: run one component's Chromium behavior tests.
+- `pnpm test:component:browser:dev <slug>.spec.ts`: reuse the active Portless development server.
+- `pnpm test:run`: run every unit and DOM test once.
+- `pnpm test:browser`: run the full desktop and mobile browser suite.

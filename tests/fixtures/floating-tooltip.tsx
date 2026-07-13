@@ -183,7 +183,10 @@ export function TooltipContentResizeFixture() {
 
 export function TooltipScrollFixture() {
   return (
-    <div className="h-72 w-full max-w-lg overflow-y-auto border-y border-border">
+    <div
+      className="h-72 w-full max-w-lg overflow-y-auto border-y border-border"
+      data-testid="tooltip-scroll-region"
+    >
       <div className="flex h-[42rem] items-center justify-center">
         <Tooltip content="Scroll invalidates this anchor" highlight>
           <button className={buttonClassName} type="button">

@@ -2,19 +2,21 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Use Node.js 24 or newer, install dependencies, then start the named local
+development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Portless serves the app at [https://portfolio.localhost](https://portfolio.localhost)
+and automatically gives linked Git worktrees their own branch-prefixed subdomain.
+The first run may ask to trust Portless's local certificate authority.
+
+Run `pnpm dev:app` when a direct Next.js server is needed without the Portless
+proxy. Browser tests use this direct command to remain independent of local
+certificate trust.
 
 ## Component Development
 
