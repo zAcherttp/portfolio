@@ -4,22 +4,25 @@ import type { IndividualKey } from "@tanstack/react-hotkeys";
 import { useEffect, useState } from "react";
 import { Kbd } from "@/components/ui/kbd";
 
+type PreviewKey = "ContextMenu" | "Fn";
+
 type KeyDefinition = {
   id?: string;
   label: string;
   keyName?: IndividualKey;
+  previewKey?: PreviewKey;
   units?: number;
 };
 
 const rows: KeyDefinition[][] = [
   [
-    { label: "Esc", keyName: "Escape" },
+    { label: "Esc", keyName: "Escape", units: 1.25 },
     ..."1234567890"
       .split("")
       .map((key) => ({ label: key, keyName: key as IndividualKey })),
     { label: "-", keyName: "-" },
     { label: "=", keyName: "=" },
-    { label: "Backspace", keyName: "Backspace", units: 2 },
+    { label: "Backspace", keyName: "Backspace", units: 2.25 },
   ],
   [
     { label: "Tab", keyName: "Tab", units: 1.5 },
@@ -55,13 +58,19 @@ const rows: KeyDefinition[][] = [
     { id: "left-alt", label: "Alt", keyName: "Alt", units: 1.25 },
     { label: "Space", keyName: "Space", units: 6.25 },
     { id: "right-alt", label: "Alt", keyName: "Alt", units: 1.25 },
-    { label: "Fn", units: 1.25 },
-    { label: "Menu", units: 1.25 },
+    { label: "Fn", previewKey: "Fn", units: 1.25 },
+    { label: "Menu", previewKey: "ContextMenu", units: 1.25 },
     { id: "right-control", label: "Ctrl", keyName: "Control", units: 1.25 },
   ],
 ];
 
-function KeyboardKey({ keyName, label, units = 1 }: KeyDefinition) {
+function KeyboardKey({
+  keyName,
+  label,
+  previewKey,
+  pressedKeys,
+  units = 1,
+}: KeyDefinition & { pressedKeys: ReadonlySet<PreviewKey> }) {
   const props = {
     className: "w-full min-w-0",
     style: { gridColumn: `span ${units * 4}` },
@@ -71,14 +80,60 @@ function KeyboardKey({ keyName, label, units = 1 }: KeyDefinition) {
   return keyName ? (
     <Kbd keyName={keyName} reactive {...props} />
   ) : (
-    <Kbd {...props} />
+    <Kbd
+      pressed={previewKey ? pressedKeys.has(previewKey) : undefined}
+      {...props}
+    />
   );
 }
 
 export function Keyboard60Preview() {
+  const [pressedKeys, setPressedKeys] = useState<ReadonlySet<PreviewKey>>(
+    new Set(),
+  );
   const [ready, setReady] = useState(false);
 
   useEffect(() => setReady(true), []);
+
+  useEffect(() => {
+    const resolvePreviewKey = (event: KeyboardEvent): PreviewKey | null => {
+      if (event.key === "ContextMenu" || event.code === "ContextMenu") {
+        return "ContextMenu";
+      }
+      if (event.key === "Fn" || event.code === "Fn") return "Fn";
+      return null;
+    };
+
+    const setPressed = (key: PreviewKey, pressed: boolean) => {
+      setPressedKeys((current) => {
+        const next = new Set(current);
+        if (pressed) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = resolvePreviewKey(event);
+      if (!key) return;
+      if (key === "ContextMenu") event.preventDefault();
+      setPressed(key, true);
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const key = resolvePreviewKey(event);
+      if (key) setPressed(key, false);
+    };
+    const handleBlur = () => setPressedKeys(new Set());
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
 
   return (
     <div
@@ -90,10 +145,21 @@ export function Keyboard60Preview() {
         className="mx-auto grid w-90 min-w-90 gap-1"
         style={{ gridTemplateRows: `repeat(${rows.length}, 1.25rem)` }}
       >
-        {rows.map((row) => (
-          <div className="grid grid-cols-60 gap-1" key={row[0].label}>
+        {rows.map((row, rowIndex) => (
+          <div
+            className={
+              rowIndex === 0
+                ? "grid grid-cols-[repeat(62,minmax(0,1fr))] gap-1"
+                : "grid grid-cols-60 gap-1"
+            }
+            key={row[0].label}
+          >
             {row.map((key) => (
-              <KeyboardKey key={key.id ?? key.label} {...key} />
+              <KeyboardKey
+                key={key.id ?? key.label}
+                {...key}
+                pressedKeys={pressedKeys}
+              />
             ))}
           </div>
         ))}

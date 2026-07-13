@@ -8,7 +8,7 @@ test.describe("KBD", () => {
 
     const dimensions = await keyboard.evaluate((element) => {
       const layout = element.firstElementChild;
-      const key = element.querySelector("kbd");
+      const key = element.querySelector<HTMLElement>('kbd[data-key="A"]');
       return {
         keyHeight: key?.getBoundingClientRect().height,
         keyWidth: key?.getBoundingClientRect().width,
@@ -20,6 +20,17 @@ test.describe("KBD", () => {
     expect(dimensions.keyHeight).toBe(20);
     expect(dimensions.keyWidth).toBeGreaterThanOrEqual(20);
     expect(dimensions.keyWidth).toBeLessThan(21);
+
+    const edgeWidths = await keyboard.evaluate((element) => ({
+      backspace: element
+        .querySelector<HTMLElement>('kbd[data-key="Backspace"]')
+        ?.getBoundingClientRect().width,
+      escape: element
+        .querySelector<HTMLElement>('kbd[data-key="Escape"]')
+        ?.getBoundingClientRect().width,
+    }));
+    expect(edgeWidths.escape).toBeGreaterThan(24);
+    expect(edgeWidths.backspace).toBeGreaterThan(48);
   });
 
   test("visualizes keydown, keyup, and blur on the 60% keyboard", async ({
@@ -61,6 +72,66 @@ test.describe("KBD", () => {
     await expect(idle).toHaveAttribute("data-state", "idle");
     await page.keyboard.up("d");
     await expect(reactive).toHaveAttribute("data-state", "idle");
+  });
+
+  test("owns preview-only keys without taking browser navigation", async ({
+    page,
+  }) => {
+    await page.goto("/components/kbd");
+    const keyboard = page.getByTestId("keyboard-60");
+    const menu = keyboard.getByText("Menu", { exact: true });
+    const fn = keyboard.getByText("Fn", { exact: true });
+    await expect(keyboard).toHaveAttribute("data-ready", "true");
+
+    const nativeBehavior = await page.evaluate(() => {
+      const dispatch = (key: string, code: string) => {
+        const event = new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          code,
+          key,
+        });
+        document.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      return {
+        menu: dispatch("ContextMenu", "ContextMenu"),
+        navigation: dispatch("Tab", "Tab"),
+      };
+    });
+
+    expect(nativeBehavior.menu).toBe(true);
+    expect(nativeBehavior.navigation).toBe(false);
+    await expect(menu).toHaveAttribute("data-state", "pressed");
+
+    await page.evaluate(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          bubbles: true,
+          code: "ContextMenu",
+          key: "ContextMenu",
+        }),
+      );
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          code: "Fn",
+          key: "Fn",
+        }),
+      );
+    });
+    await expect(menu).toHaveAttribute("data-state", "idle");
+    await expect(fn).toHaveAttribute("data-state", "pressed");
+
+    const initialTheme = await page.evaluate(() =>
+      document.documentElement.classList.contains("dark"),
+    );
+    await page.keyboard.press("D");
+    expect(
+      await page.evaluate(() =>
+        document.documentElement.classList.contains("dark"),
+      ),
+    ).toBe(initialTheme);
   });
 
   test("keeps the keyboard inspectable on a narrow viewport", async ({

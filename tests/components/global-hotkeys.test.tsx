@@ -41,7 +41,7 @@ vi.mock("@/utils/playPopSound", () => ({
   playRandomPopSound: mocks.playSound,
 }));
 
-import GlobalHotkeys from "@/components/GlobalHotkeys";
+import GlobalHotkeys, { isHotkeySandboxPath } from "@/components/GlobalHotkeys";
 
 describe("GlobalHotkeys", () => {
   beforeEach(() => {
@@ -91,6 +91,21 @@ describe("GlobalHotkeys", () => {
     render(<GlobalHotkeys />);
 
     mocks.hotkeyHandler?.(new KeyboardEvent("keydown", { code: "", key: "d" }));
+    expect(mocks.setTheme).not.toHaveBeenCalled();
+    expect(mocks.playSound).not.toHaveBeenCalled();
+  });
+
+  it("keeps global shortcuts inert on KBD sandbox routes", () => {
+    expect(isHotkeySandboxPath("/components/kbd")).toBe(true);
+    expect(isHotkeySandboxPath("/dev/components/kbd")).toBe(true);
+    expect(isHotkeySandboxPath("/components/theme-hotkey")).toBe(false);
+
+    window.history.replaceState({}, "", "/components/kbd");
+    render(<GlobalHotkeys />);
+    mocks.hotkeyHandler?.(
+      new KeyboardEvent("keydown", { code: "KeyD", key: "d" }),
+    );
+
     expect(mocks.setTheme).not.toHaveBeenCalled();
     expect(mocks.playSound).not.toHaveBeenCalled();
   });
