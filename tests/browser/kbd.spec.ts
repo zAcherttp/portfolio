@@ -1,6 +1,27 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("KBD", () => {
+  test("keeps the 60% layout at the default KBD scale", async ({ page }) => {
+    await page.goto("/dev/components/kbd");
+    const keyboard = page.getByTestId("keyboard-60");
+    await expect(keyboard).toHaveAttribute("data-ready", "true");
+
+    const dimensions = await keyboard.evaluate((element) => {
+      const layout = element.firstElementChild;
+      const key = element.querySelector("kbd");
+      return {
+        keyHeight: key?.getBoundingClientRect().height,
+        keyWidth: key?.getBoundingClientRect().width,
+        layoutWidth: layout?.getBoundingClientRect().width,
+      };
+    });
+
+    expect(dimensions.layoutWidth).toBe(360);
+    expect(dimensions.keyHeight).toBe(20);
+    expect(dimensions.keyWidth).toBeGreaterThanOrEqual(20);
+    expect(dimensions.keyWidth).toBeLessThan(21);
+  });
+
   test("visualizes keydown, keyup, and blur on the 60% keyboard", async ({
     page,
   }) => {

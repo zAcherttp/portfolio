@@ -63,7 +63,7 @@ const rows: KeyDefinition[][] = [
 
 function KeyboardKey({ keyName, label, units = 1 }: KeyDefinition) {
   const props = {
-    className: "h-9 w-full min-w-0 px-1 text-[9px]",
+    className: "w-full min-w-0",
     style: { gridColumn: `span ${units * 4}` },
     children: label,
   };
@@ -87,8 +87,8 @@ export function Keyboard60Preview() {
       data-testid="keyboard-60"
     >
       <div
-        className="mx-auto grid min-w-150 gap-1"
-        style={{ gridTemplateRows: `repeat(${rows.length}, 2.25rem)` }}
+        className="mx-auto grid w-90 min-w-90 gap-1"
+        style={{ gridTemplateRows: `repeat(${rows.length}, 1.25rem)` }}
       >
         {rows.map((row) => (
           <div className="grid grid-cols-60 gap-1" key={row[0].label}>
