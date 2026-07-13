@@ -16,19 +16,19 @@ import {
 import {
   type CSSProperties,
   createContext,
-  useEffect,
   Fragment,
   type HTMLAttributes,
   type ReactNode,
-  type RefObject,
-  useCallback,
   useContext,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import { createPortal } from "react-dom";
+import {
+  type ActiveGridCell,
+  ActivityGrid,
+} from "@/components/registry/activity-grid";
+import { VirtualTooltip } from "@/components/registry/floating-tooltip";
 
 export type Activity = {
   date: string;
@@ -230,33 +230,6 @@ const getMonthLabels = (
     });
 };
 
-type ViewportBounds = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
-const getVisibleDocumentBounds = (): ViewportBounds => {
-  const viewport = window.visualViewport;
-
-  if (!viewport) {
-    return {
-      left: window.scrollX,
-      top: window.scrollY,
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
-  }
-
-  return {
-    left: viewport.pageLeft,
-    top: viewport.pageTop,
-    width: viewport.width,
-    height: viewport.height,
-  };
-};
-
 export type ContributionGraphProps = HTMLAttributes<HTMLDivElement> & {
   data: Activity[];
   blockMargin?: number;
@@ -412,270 +385,79 @@ export const ContributionGraphCalendar = ({
   children,
   ...props
 }: ContributionGraphCalendarProps) => {
-  const { weeks, width, height, blockSize, blockMargin, labels, labelHeight } =
+  const { weeks, blockSize, blockMargin, labels, labelHeight } =
     useContributionGraph();
 
   const monthLabels = useMemo(
     () => getMonthLabels(weeks, labels.months),
     [weeks, labels.months],
   );
+  const [activeCell, setActiveCell] =
+    useState<ActiveGridCell<Activity> | null>(null);
 
-  const svgRef = useRef<SVGSVGElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const highlightRef = useRef<HTMLDivElement>(null);
-  const isVisibleRef = useRef(false);
-  const activeCellRef = useRef("");
-  const activeTooltipTextRef = useRef("");
-  const tooltipWidthRef = useRef(0);
-  const viewportBoundsRef = useRef<ViewportBounds>({
-    left: 0,
-    top: 0,
-    width: 0,
-    height: 0,
-  });
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const updateViewportBounds = () => {
-      viewportBoundsRef.current = getVisibleDocumentBounds();
-      activeCellRef.current = "";
-    };
-
-    updateViewportBounds();
-    setMounted(true);
-
-    const viewport = window.visualViewport;
-    const options = { passive: true };
-
-    window.addEventListener("resize", updateViewportBounds);
-    window.addEventListener("scroll", updateViewportBounds, options);
-    viewport?.addEventListener("resize", updateViewportBounds);
-    viewport?.addEventListener("scroll", updateViewportBounds, options);
-
-    return () => {
-      window.removeEventListener("resize", updateViewportBounds);
-      window.removeEventListener("scroll", updateViewportBounds);
-      viewport?.removeEventListener("resize", updateViewportBounds);
-      viewport?.removeEventListener("scroll", updateViewportBounds);
-    };
-  }, []);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const svg = svgRef.current;
-    const tooltip = tooltipRef.current;
-    const highlight = highlightRef.current;
-    if (!svg || !tooltip || !highlight) return;
-
-    const rect = svg.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
-
-    // Convert client coordinates to SVG viewBox coordinates
-    const svgX = (clientX / rect.width) * width;
-    const svgY = (clientY / rect.height) * height;
-
-    // Check if within grid bounds (with an 8px buffer)
-    const isInsideGrid =
-      svgX >= -8 &&
-      svgX <= width + 8 &&
-      svgY >= labelHeight - 8 &&
-      svgY <= height + 8;
-
-    if (!isInsideGrid) {
-      hideTooltip();
-      return;
-    }
-
-    // Map SVG coordinates to weekIndex and dayIndex
-    const weekIndex = Math.max(
-      0,
-      Math.min(Math.floor(svgX / (blockSize + blockMargin)), weeks.length - 1),
-    );
-    const dayIndex = Math.max(
-      0,
-      Math.min(Math.floor((svgY - labelHeight) / (blockSize + blockMargin)), 6),
-    );
-
-    const week = weeks[weekIndex];
-    const activity = week ? week[dayIndex] : undefined;
-
-    const isValid = activity && !activity.missing && activity.date;
-
-    if (isValid) {
-      const cellKey = `${weekIndex}-${dayIndex}`;
-
-      if (isVisibleRef.current && activeCellRef.current === cellKey) {
-        return;
-      }
-
-      const rectX = weekIndex * (blockSize + blockMargin);
-      const rectY = labelHeight + dayIndex * (blockSize + blockMargin);
-      const cellCenterX = rectX + blockSize / 2;
-
-      const countStr =
-        activity.count === 0
+  const tooltipText = activeCell
+    ? `${
+        activeCell.item.count === 0
           ? "No contributions"
-          : `${activity.count} ${
-              activity.count === 1 ? "contribution" : "contributions"
-            }`;
-      const dateStr = format(parseISO(activity.date), "MMM d, yyyy");
-      const tooltipText = `${countStr} on ${dateStr}`;
-
-      if (activeTooltipTextRef.current !== tooltipText) {
-        tooltip.textContent = tooltipText;
-        activeTooltipTextRef.current = tooltipText;
-        tooltipWidthRef.current = tooltip.offsetWidth;
-      }
-
-      // Keep overlay coordinates in document space so iOS pinch zoom does not
-      // push fixed-position portal elements away from the tapped cell.
-      const visibleDocument = viewportBoundsRef.current;
-      const scale = rect.width / width;
-      const scaleY = rect.height / height;
-
-      // Highlight: exact cell position in viewport space
-      const highlightLeft = `${visibleDocument.left + rect.left + rectX * scale}px`;
-      const highlightTop = `${visibleDocument.top + rect.top + rectY * scaleY}px`;
-      const highlightW = `${blockSize * scale}px`;
-      const highlightH = `${blockSize * scaleY}px`;
-
-      // Tooltip: centered above cell, clamped to viewport edges
-      const tooltipCenterX =
-        visibleDocument.left + rect.left + cellCenterX * scale;
-      const tooltipHalfW = (tooltipWidthRef.current || tooltip.offsetWidth) / 2;
-      const clampedLeft = Math.max(
-        visibleDocument.left + tooltipHalfW + 8,
-        Math.min(
-          tooltipCenterX,
-          visibleDocument.left + visibleDocument.width - tooltipHalfW - 8,
-        ),
-      );
-      const tooltipLeft = `${clampedLeft}px`;
-      const tooltipTop = `${visibleDocument.top + rect.top + rectY * scaleY}px`;
-
-      if (!isVisibleRef.current) {
-        // Snap instantly to the initial cell when first shown
-        tooltip.style.transition = "none";
-        tooltip.style.left = tooltipLeft;
-        tooltip.style.top = tooltipTop;
-
-        highlight.style.transition = "none";
-        highlight.style.left = highlightLeft;
-        highlight.style.top = highlightTop;
-        highlight.style.width = highlightW;
-        highlight.style.height = highlightH;
-
-        // Force a browser reflow
-        tooltip.offsetHeight;
-
-        // Restore transitions for smooth movement and fade-in
-        tooltip.style.transition =
-          "opacity 150ms ease-out, left 100ms cubic-bezier(0.2, 0.8, 0.2, 1), top 100ms cubic-bezier(0.2, 0.8, 0.2, 1)";
-        tooltip.style.opacity = "1";
-
-        highlight.style.transition =
-          "opacity 150ms ease-out, left 100ms cubic-bezier(0.2, 0.8, 0.2, 1), top 100ms cubic-bezier(0.2, 0.8, 0.2, 1)";
-        highlight.style.opacity = "1";
-
-        isVisibleRef.current = true;
-        activeCellRef.current = cellKey;
-      } else {
-        tooltip.style.left = tooltipLeft;
-        tooltip.style.top = tooltipTop;
-
-        highlight.style.left = highlightLeft;
-        highlight.style.top = highlightTop;
-        highlight.style.width = highlightW;
-        highlight.style.height = highlightH;
-        activeCellRef.current = cellKey;
-      }
-    } else {
-      hideTooltip();
-    }
-  };
-
-  const hideTooltip = () => {
-    const tooltip = tooltipRef.current;
-    const highlight = highlightRef.current;
-    if (!tooltip || !highlight) return;
-
-    if (isVisibleRef.current) {
-      tooltip.style.opacity = "0";
-      highlight.style.opacity = "0";
-      isVisibleRef.current = false;
-      activeCellRef.current = "";
-    }
-  };
+          : `${activeCell.item.count} ${
+              activeCell.item.count === 1 ? "contribution" : "contributions"
+            }`
+      } on ${format(parseISO(activeCell.item.date), "MMM d, yyyy")}`
+    : "";
 
   return (
     <>
-      <div
-        className={cn("max-w-full overflow-x-auto pt-6", className)}
+      <ActivityGrid
+        columns={weeks}
+        cellSize={blockSize}
+        gap={blockMargin}
+        labelHeight={labelHeight}
+        className={cn("pt-6", className)}
+        getKey={(activity, weekIndex, dayIndex) =>
+          activity?.date || `missing-${weekIndex}-${dayIndex}`
+        }
+        isInteractive={(activity): activity is Activity =>
+          Boolean(activity && !activity.missing && activity.date)
+        }
+        onActiveCellChange={setActiveCell}
+        renderLabels={() =>
+          hideMonthLabels ? null : (
+            <g className="fill-muted-foreground">
+              {monthLabels.map(({ label, weekIndex }) => (
+                <text
+                  dominantBaseline="hanging"
+                  key={weekIndex}
+                  x={(blockSize + blockMargin) * weekIndex}
+                >
+                  {label}
+                </text>
+              ))}
+            </g>
+          )
+        }
+        renderCell={({ item, columnIndex, rowIndex }) =>
+          children({
+            activity: item ?? {
+              date: "",
+              count: 0,
+              level: 0,
+              missing: true,
+            },
+            dayIndex: rowIndex,
+            weekIndex: columnIndex,
+          })
+        }
+        title="Contribution Graph"
         {...props}
+      />
+      <VirtualTooltip
+        anchor={activeCell?.anchor ?? null}
+        highlightRadius={2}
+        highlightThickness={1}
+        showAnchor
       >
-        <div
-          className="relative w-full min-w-132.5"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={hideTooltip}
-        >
-          <svg
-            ref={svgRef}
-            className="block overflow-visible w-full h-auto"
-            viewBox={`0 0 ${width} ${height}`}
-          >
-            <title>Contribution Graph</title>
-            {!hideMonthLabels && (
-              <g className="fill-muted-foreground">
-                {monthLabels.map(({ label, weekIndex }) => (
-                  <text
-                    dominantBaseline="hanging"
-                    key={weekIndex}
-                    x={(blockSize + blockMargin) * weekIndex}
-                  >
-                    {label}
-                  </text>
-                ))}
-              </g>
-            )}
-            {weeks.map((week, weekIndex) =>
-              week.map((activity, dayIndex) => {
-                const resolvedActivity = activity || {
-                  date: "",
-                  count: 0,
-                  level: 0,
-                  missing: true,
-                };
-
-                return (
-                  <Fragment key={`${weekIndex}-${dayIndex}`}>
-                    {children({ activity: resolvedActivity, dayIndex, weekIndex })}
-                  </Fragment>
-                );
-              }),
-            )}
-          </svg>
-        </div>
-      </div>
-
-      {mounted &&
-        createPortal(
-          <div
-            ref={highlightRef}
-            className="pointer-events-none absolute z-9998 rounded-xs border border-subtle-2/80 opacity-0 transition-opacity duration-150"
-            style={{ left: 0, top: 0, width: 0, height: 0 }}
-          />,
-          document.body,
-        )}
-
-      {mounted &&
-        createPortal(
-          <div
-            ref={tooltipRef}
-            className="pointer-events-none absolute z-9999 rounded bg-zinc-900 px-2 py-1 text-[10px] font-medium text-zinc-50 shadow-md -translate-x-1/2 -translate-y-[calc(100%+6px)] whitespace-nowrap opacity-0 transition-opacity duration-150"
-            style={{ left: 0, top: 0 }}
-          />,
-          document.body,
-        )}
+        {tooltipText}
+      </VirtualTooltip>
     </>
   );
 };
