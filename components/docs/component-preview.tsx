@@ -134,7 +134,7 @@ function FloatingTooltipPreview() {
 
 function GitHubPreview() {
   return (
-    <div className="flex min-h-40 items-center">
+    <div className="flex min-h-40 w-full min-w-0 items-center">
       <GitHubContributions />
     </div>
   );

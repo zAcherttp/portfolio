@@ -303,7 +303,7 @@ export const ContributionGraph = ({
       }}
     >
       <div
-        className={cn("flex w-full flex-col gap-2", className)}
+        className={cn("flex w-full min-w-0 flex-col gap-2", className)}
         style={{ fontSize, ...style }}
         {...props}
       >

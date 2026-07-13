@@ -19,10 +19,10 @@ function createColumns(count: number): Cell[][] {
 
 function GridExample({
   columns,
-  minWidthClassName = "min-w-80",
+  minContentWidth,
 }: {
   columns: Cell[][];
-  minWidthClassName?: string;
+  minContentWidth?: number;
 }) {
   const [active, setActive] = useState<ActiveGridCell<Cell> | null>(null);
   return (
@@ -32,7 +32,7 @@ function GridExample({
         columns={columns}
         gap={2}
         getKey={(item, column, row) => item?.id ?? `${column}-${row}`}
-        minWidthClassName={minWidthClassName}
+        minContentWidth={minContentWidth}
         onActiveCellChange={setActive}
         renderCell={({ item, columnIndex, rowIndex }) => (
           <rect
@@ -69,9 +69,7 @@ export function ActivityGridDefaultFixture() {
 }
 
 export function ActivityGridWideFixture() {
-  return (
-    <GridExample columns={createColumns(32)} minWidthClassName="min-w-320" />
-  );
+  return <GridExample columns={createColumns(32)} minContentWidth={1280} />;
 }
 
 export function ActivityGridEmptyFixture() {

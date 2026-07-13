@@ -24,7 +24,7 @@ export type ActivityGridProps<T> = Omit<
   cellSize: number;
   gap: number;
   labelHeight?: number;
-  minWidthClassName?: string;
+  minContentWidth?: number;
   title?: string;
   getKey: (
     item: T | undefined,
@@ -46,7 +46,7 @@ export function ActivityGrid<T>({
   cellSize,
   gap,
   labelHeight = 0,
-  minWidthClassName = "min-w-132.5",
+  minContentWidth,
   title = "Activity grid",
   getKey,
   renderCell,
@@ -62,6 +62,7 @@ export function ActivityGrid<T>({
   const stride = cellSize + gap;
   const width = columns.length * stride - gap;
   const height = labelHeight + rowCount * stride - gap;
+  const resolvedMinContentWidth = Math.max(width, minContentWidth ?? width);
 
   const clearActiveCell = () => {
     if (!activeKeyRef.current) return;
@@ -118,12 +119,15 @@ export function ActivityGrid<T>({
 
   return (
     <div
-      className={cn("max-w-full overflow-x-auto", className)}
+      className={cn("w-full min-w-0 max-w-full overflow-x-auto", className)}
       {...props}
       onPointerMove={handlePointerMove}
       onPointerLeave={clearActiveCell}
     >
-      <div className={cn("relative w-full", minWidthClassName)}>
+      <div
+        className="relative w-full"
+        style={{ minWidth: resolvedMinContentWidth }}
+      >
         <svg
           ref={svgRef}
           className="block h-auto w-full overflow-visible"

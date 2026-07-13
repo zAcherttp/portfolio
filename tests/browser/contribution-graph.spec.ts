@@ -1,6 +1,45 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("contribution graph", () => {
+  test("fills the available width in every portfolio host", async ({
+    page,
+  }) => {
+    const routes = [
+      "/",
+      "/components/activity-grid",
+      "/components/contribution-graph",
+      "/dev/components/contribution-graph",
+    ];
+
+    for (const route of routes) {
+      await page.goto(route);
+      const graph = page
+        .locator('svg:has(> title:text-is("Contribution Graph"))')
+        .first();
+      await expect(graph).toBeVisible();
+      const viewport = graph.locator(
+        "xpath=ancestor::div[contains(@class, 'overflow-x-auto')][1]",
+      );
+      const graphBox = await graph.boundingBox();
+      const viewportBox = await viewport.boundingBox();
+      const intrinsicWidth = await graph
+        .locator("..")
+        .evaluate((element) =>
+          Number.parseFloat(getComputedStyle(element).minWidth),
+        );
+
+      expect(graphBox, `${route} graph bounds`).not.toBeNull();
+      expect(viewportBox, `${route} viewport bounds`).not.toBeNull();
+      expect(
+        Math.abs(
+          (graphBox?.width ?? 0) -
+            Math.max(viewportBox?.width ?? 0, intrinsicWidth),
+        ),
+        `${route} should fill its viewport without shrinking below its intrinsic width`,
+      ).toBeLessThan(1);
+    }
+  });
+
   test("shows contribution details for an active day", async ({
     page,
   }, testInfo) => {

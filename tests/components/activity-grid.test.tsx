@@ -69,6 +69,7 @@ describe("ActivityGrid", () => {
 
     const svg = screen.getByTitle("Test activity").closest("svg");
     expect(svg).toHaveAttribute("viewBox", "0 0 22 26");
+    expect(svg?.parentElement).toHaveStyle({ minWidth: "22px" });
     expect(screen.getByTestId("labels")).toHaveTextContent("Days");
     expect(screen.getAllByTestId(/^cell-/)).toHaveLength(4);
   });

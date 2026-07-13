@@ -1,6 +1,21 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("activity grid", () => {
+  test("fills its available fixture width by default", async ({ page }) => {
+    await page.goto("/dev/components/activity-grid");
+    const stage = page.getByTestId("fixture-stage");
+    const region = stage.locator(".overflow-x-auto");
+    const svg = region.locator("svg");
+    const regionBox = await region.boundingBox();
+    const svgBox = await svg.boundingBox();
+
+    expect(regionBox).not.toBeNull();
+    expect(svgBox).not.toBeNull();
+    expect(
+      Math.abs((regionBox?.width ?? 0) - (svgBox?.width ?? 0)),
+    ).toBeLessThan(1);
+  });
+
   test("reports cells and clears the active state on pointer leave", async ({
     page,
   }, testInfo) => {
@@ -14,10 +29,10 @@ test.describe("activity grid", () => {
 
     const cellBox = await cell.boundingBox();
     expect(cellBox).not.toBeNull();
-    await page.mouse.move(
-      (cellBox?.x ?? 0) + (cellBox?.width ?? 0) / 2,
-      (cellBox?.y ?? 0) + (cellBox?.height ?? 0) / 2,
-    );
+    const clientX = (cellBox?.x ?? 0) + (cellBox?.width ?? 0) / 2;
+    const clientY = (cellBox?.y ?? 0) + (cellBox?.height ?? 0) / 2;
+    await cell.hover();
+    await page.mouse.move(clientX + 0.25, clientY + 0.25);
     await expect(output).toContainText("level");
     await expect(output).not.toHaveText("No active cell");
 

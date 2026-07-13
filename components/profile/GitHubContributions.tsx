@@ -57,7 +57,7 @@ export default function GitHubContributions({
   });
 
   return (
-    <div className="max-w-full overflow-hidden">
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
       <ContributionGraph
         data={data ?? fallbackData}
         blockSize={8}
