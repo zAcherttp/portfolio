@@ -133,7 +133,10 @@ export default function BottomShader() {
 
   if (isSupported === null || !isSupported) {
     return (
-      <div className="w-full h-32 -mt-8 bg-transparent pointer-events-none" />
+      <div
+        className="w-full h-32 -mt-8 bg-transparent pointer-events-none"
+        data-testid="bottom-shader-fallback"
+      />
     );
   }
 
@@ -170,7 +173,10 @@ export default function BottomShader() {
   ];
 
   return (
-    <div className="w-full h-32 -mt-8 relative overflow-hidden pointer-events-none">
+    <div
+      className="w-full h-32 -mt-8 relative overflow-hidden pointer-events-none"
+      data-testid="bottom-shader"
+    >
       {isActive && (
         <Dither
           fireSpeed={animatedFireSpeed}
