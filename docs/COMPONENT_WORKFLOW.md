@@ -79,3 +79,10 @@ Before a component is considered complete:
 - `pnpm test:component:browser:dev <slug>.spec.ts`: reuse the active Portless development server.
 - `pnpm test:run`: run every unit and DOM test once.
 - `pnpm test:browser`: run the full desktop and mobile browser suite.
+
+## CI Tiers
+
+- Every push and pull request runs Biome, TypeScript, and all unit/component tests.
+- Pull requests run the production build and full desktop/mobile browser suite after the fast checks pass.
+- Pushes to `master` repeat the production build and browser gate against the merged commit.
+- Pushes to `dev` intentionally run only the fast tier; open a pull request to exercise the merge gate.
