@@ -20,7 +20,10 @@ const withMDX = createMDX({
 });
 
 const nextConfig: NextConfig = {
-  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
+  pageExtensions:
+    process.env.NODE_ENV === "development"
+      ? ["dev.tsx", "js", "jsx", "md", "mdx", "ts", "tsx"]
+      : ["js", "jsx", "md", "mdx", "ts", "tsx"],
   reactCompiler: true,
   cacheComponents: true,
   cacheLife: {
