@@ -24,7 +24,7 @@ export default function ComponentRegistryList({
           <span className="hidden text-xs text-muted-foreground sm:block">
             {entry.category}
           </span>
-          <RotatingArrow className="mr-1 text-subtle group-hover:text-foreground" />
+          <RotatingArrow className="mr-4.5 text-subtle group-hover:text-foreground" />
         </Link>
       ))}
     </div>
