@@ -13,7 +13,11 @@ import {
   Typescript,
 } from "@/components/ui/svgs";
 import type { Project } from "@/data/projects";
-import { DURATIONS, EASINGS, getStaggerDelay } from "../constants/easings";
+import {
+  getStaggerDelay,
+  MOTION_STAGGER,
+  MOTION_TRANSITION,
+} from "../constants/motion";
 import RotatingArrow from "./ui/RotatingArrow";
 
 interface SeeAllProjectsButtonProps {
@@ -128,6 +132,7 @@ export default function SeeAllProjectsButton({
     <Link
       ref={linkRef}
       href="/projects"
+      data-see-all-reveal=""
       onMouseEnter={() => {
         setIsHovered(true);
         setIsExiting(false);
@@ -140,10 +145,9 @@ export default function SeeAllProjectsButton({
     >
       <motion.div
         animate={{ opacity: isExiting ? 0 : 1 }}
-        transition={{
-          duration: isExiting ? DURATIONS.fadeExit : DURATIONS.fadeEnter,
-          ease: "easeInOut",
-        }}
+        transition={
+          isExiting ? MOTION_TRANSITION.feedback : MOTION_TRANSITION.enter
+        }
         onAnimationComplete={() => {
           if (isExiting) {
             setIsExiting(false);
@@ -166,8 +170,8 @@ export default function SeeAllProjectsButton({
           }}
           transition={
             isHovered || isExiting
-              ? { duration: DURATIONS.enter, ease: EASINGS.easeOutQuint }
-              : { duration: DURATIONS.exit }
+              ? MOTION_TRANSITION.cascade
+              : MOTION_TRANSITION.instant
           }
           className="flex items-center overflow-hidden shrink-0"
         >
@@ -178,6 +182,7 @@ export default function SeeAllProjectsButton({
             return (
               <motion.div
                 key={project.id}
+                data-reveal-item=""
                 initial={{ x: 32, opacity: 0 }}
                 animate={{
                   x: isHovered || isExiting ? 0 : 32,
@@ -186,15 +191,10 @@ export default function SeeAllProjectsButton({
                 transition={
                   isHovered || isExiting
                     ? {
-                        duration: DURATIONS.enter,
-                        delay: getStaggerDelay(
-                          index,
-                          DURATIONS.staggerBase,
-                          itemsToRender.length,
-                        ),
-                        ease: EASINGS.easeOutQuint,
+                        ...MOTION_TRANSITION.cascade,
+                        delay: getStaggerDelay(index, itemsToRender.length),
                       }
-                    : { duration: DURATIONS.exit }
+                    : MOTION_TRANSITION.instant
                 }
                 style={{
                   zIndex: index + 1,
@@ -208,15 +208,14 @@ export default function SeeAllProjectsButton({
                   transition={
                     isHovered || isExiting
                       ? {
-                          duration: 0.4,
+                          ...MOTION_TRANSITION.reveal,
                           delay: getStaggerDelay(
                             index,
-                            DURATIONS.staggerMaskBase,
                             itemsToRender.length,
+                            MOTION_STAGGER.maskOffset,
                           ),
-                          ease: "easeInOut",
                         }
-                      : { duration: DURATIONS.exit }
+                      : MOTION_TRANSITION.instant
                   }
                   className="w-full h-full flex items-center justify-center"
                 >
@@ -232,8 +231,8 @@ export default function SeeAllProjectsButton({
         animate={{ flexGrow: isHovered || isExiting ? 1 : 0 }}
         transition={
           isHovered || isExiting
-            ? { duration: DURATIONS.enter, ease: EASINGS.easeOutQuint }
-            : { duration: DURATIONS.exit }
+            ? MOTION_TRANSITION.cascade
+            : MOTION_TRANSITION.instant
         }
         className="h-full min-w-0"
       />
