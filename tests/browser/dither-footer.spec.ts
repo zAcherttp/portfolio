@@ -11,12 +11,14 @@ test.describe("dither footer", () => {
     const canvas = stage.locator("canvas");
 
     await expect(canvas).toBeVisible();
+    await expect
+      .poll(async () => (await canvas.boundingBox())?.height)
+      .toBe(320);
     const box = await canvas.boundingBox();
     const stageBox = await stage.boundingBox();
     expect(box).not.toBeNull();
     expect(stageBox).not.toBeNull();
     expect(box?.width).toBeGreaterThan(0);
-    expect(box?.height).toBe(320);
     expect(box?.width).toBeLessThanOrEqual(stageBox?.width ?? 0);
   });
 
@@ -60,6 +62,43 @@ test.describe("dither footer", () => {
     await expect(showcase).toBeVisible();
     await expect(showcase.locator("canvas")).toBeVisible();
     await expect(page.getByTestId("bottom-shader")).toHaveCount(0);
+  });
+
+  test("remounts the showcase after client-side navigation", async ({
+    page,
+  }) => {
+    await page.goto("/components/dither-footer");
+    await expect(
+      page.getByTestId("dither-showcase").locator("canvas"),
+    ).toBeVisible();
+
+    await page
+      .getByRole("link", { name: "Next component: Theme Hotkey" })
+      .click();
+    await expect(page).toHaveURL(/\/components\/theme-hotkey$/);
+    await page
+      .getByRole("link", { name: "Previous component: Dither Footer" })
+      .click();
+    await expect(page).toHaveURL(/\/components\/dither-footer$/);
+
+    const canvas = page.getByTestId("dither-showcase").locator("canvas");
+    await expect(canvas).toBeVisible();
+    await page.waitForTimeout(750);
+    await expect
+      .poll(() =>
+        canvas.evaluate((element) => {
+          const canvasElement = element as HTMLCanvasElement;
+          const context =
+            canvasElement.getContext("webgl2") ??
+            canvasElement.getContext("webgl");
+          return context?.isContextLost();
+        }),
+      )
+      .toBe(false);
+    const first = await canvas.screenshot();
+    await page.waitForTimeout(250);
+    const second = await canvas.screenshot();
+    expect(second.equals(first)).toBe(false);
   });
 
   test("uses the fallback without creating a WebGL canvas", async ({

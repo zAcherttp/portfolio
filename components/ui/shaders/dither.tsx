@@ -2,7 +2,7 @@
 
 /* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 const waveVertexShader = `
@@ -466,6 +466,50 @@ export default function Dither({
   flamePositionBias = 0.15,
 }: DitherProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [rendererKey, setRendererKey] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const recoveryFrameRef = useRef(0);
+
+  const scheduleContextRecovery = useCallback(() => {
+    if (recoveryFrameRef.current) return;
+
+    recoveryFrameRef.current = window.requestAnimationFrame(() => {
+      recoveryFrameRef.current = 0;
+      setRendererKey((key) => key + 1);
+    });
+  }, []);
+
+  const handleContextLost = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      scheduleContextRecovery();
+    },
+    [scheduleContextRecovery],
+  );
+
+  const setCanvasRef = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      canvasRef.current?.removeEventListener(
+        "webglcontextlost",
+        handleContextLost,
+      );
+      canvasRef.current = canvas;
+
+      if (!canvas) return;
+
+      canvas.addEventListener("webglcontextlost", handleContextLost);
+      window.requestAnimationFrame(() => {
+        if (canvasRef.current !== canvas) return;
+
+        const context =
+          canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+        if (context?.isContextLost()) {
+          scheduleContextRecovery();
+        }
+      });
+    },
+    [handleContextLost, scheduleContextRecovery],
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -477,6 +521,8 @@ export default function Dither({
 
   return (
     <Canvas
+      key={rendererKey}
+      ref={setCanvasRef}
       className="w-full h-full relative"
       camera={{ position: [0, 0, 6] }}
       dpr={1}
