@@ -35,7 +35,7 @@ export async function CodeSnippet({
       showLineNumbers={showLineNumbers}
       className={className}
     >
-      <div className="docs-highlighted-source overflow-x-auto overscroll-x-contain px-4 py-3 font-mono text-xs leading-5">
+      <div className="docs-highlighted-source overflow-x-auto overscroll-x-contain px-4 py-4 font-mono text-xs leading-5">
         {highlightedCode}
       </div>
     </CodeFrame>

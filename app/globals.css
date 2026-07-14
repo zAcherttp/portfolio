@@ -122,6 +122,7 @@
   --code-highlight: oklch(92% 0.004 286.32 / 55%);
   --code-selection: oklch(80% 0.08 250 / 35%);
   --code-line-number: oklch(70.5% 0.015 286.067);
+  --ease-out-ui: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .dark {
@@ -270,4 +271,27 @@
 .dark [data-rehype-pretty-code-figure] code span,
 .dark .docs-highlighted-source code span {
   color: var(--shiki-dark);
+}
+
+.docs-pressable {
+  transition:
+    color 140ms var(--ease-out-ui),
+    background-color 140ms var(--ease-out-ui),
+    border-color 140ms var(--ease-out-ui),
+    box-shadow 140ms var(--ease-out-ui),
+    transform 140ms var(--ease-out-ui);
+}
+
+.docs-pressable:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-pressable {
+    transition-duration: 0ms;
+  }
+
+  .docs-pressable:active {
+    transform: none;
+  }
 }

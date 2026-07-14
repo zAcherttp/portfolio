@@ -32,7 +32,7 @@ function CodeTitle({
   language?: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 border-b border-border px-4 py-2 font-mono text-[10px] text-muted-foreground">
+    <div className="flex min-w-0 items-center gap-2 border-b border-border/70 px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
       <CodeLanguageIcon language={language} />
       <span className="truncate">{title}</span>
     </div>
@@ -59,7 +59,7 @@ export function CodeFrame({
       data-code-frame
       data-line-numbers={showLineNumbers || undefined}
       className={cn(
-        "group/code relative my-4 overflow-hidden border-y border-border bg-[var(--code-background)]",
+        "group/code relative my-5 overflow-hidden rounded-xl bg-[var(--code-background)]",
         className,
       )}
     >
@@ -72,9 +72,9 @@ export function CodeFrame({
 
 export function MdxPre(props: ComponentProps<"pre">) {
   return (
-    <CodeFrame className="my-0 border-t-0">
+    <CodeFrame className="my-0 rounded-t-none">
       <pre
-        className="overflow-x-auto overscroll-x-contain px-4 py-3 font-mono text-xs leading-5"
+        className="overflow-x-auto overscroll-x-contain px-4 py-4 font-mono text-xs leading-5"
         {...props}
       />
     </CodeFrame>
@@ -82,7 +82,7 @@ export function MdxPre(props: ComponentProps<"pre">) {
 }
 
 export function MdxFigure(props: ComponentProps<"figure">) {
-  return <figure {...props} className={cn("my-4", props.className)} />;
+  return <figure {...props} className={cn("my-5", props.className)} />;
 }
 
 export function MdxFigcaption({
@@ -92,7 +92,10 @@ export function MdxFigcaption({
   return (
     <figcaption
       {...props}
-      className={cn("border-x border-t border-border", props.className)}
+      className={cn(
+        "overflow-hidden rounded-t-xl bg-[var(--code-background)]",
+        props.className,
+      )}
     >
       <CodeTitle title={children} language={props["data-language"]} />
     </figcaption>

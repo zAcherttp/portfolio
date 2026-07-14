@@ -2,42 +2,37 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ComponentDocsShell } from "@/components/docs/component-docs-shell";
 import { ComponentPreview } from "@/components/docs/component-preview";
-import { componentRegistry } from "@/data/components";
-
-const docs = {
-  "floating-tooltip": () => import("@/content/components/floating-tooltip.mdx"),
-  "activity-grid": () => import("@/content/components/activity-grid.mdx"),
-  "contribution-graph": () =>
-    import("@/content/components/contribution-graph.mdx"),
-  "dither-footer": () => import("@/content/components/dither-footer.mdx"),
-  "theme-hotkey": () => import("@/content/components/theme-hotkey.mdx"),
-  kbd: () => import("@/content/components/kbd.mdx"),
-} as const;
+import { componentDocs } from "@/lib/component-docs-source";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
-  return componentRegistry.map(({ slug }) => ({ slug }));
+  return componentDocs.getPages().map((page) => ({
+    slug: page.data.entry.slug,
+  }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const entry = componentRegistry.find((item) => item.slug === slug);
-  return entry
-    ? { title: `${entry.name} | Components`, description: entry.description }
+  const page = componentDocs.getPage([slug]);
+  return page
+    ? {
+        title: `${page.data.title} | Components`,
+        description: page.data.description,
+      }
     : {};
 }
 
 export default async function ComponentPage({ params }: Props) {
   const { slug } = await params;
-  const entry = componentRegistry.find((item) => item.slug === slug);
-  const loadDoc = docs[slug as keyof typeof docs];
-  if (!entry || !loadDoc) notFound();
-  const { default: Content } = await loadDoc();
+  const page = componentDocs.getPage([slug]);
+  if (!page) notFound();
+  const { entry } = page.data;
+  const { default: Content } = await page.data.loadDocument();
   return (
     <ComponentDocsShell
       entry={entry}
-      preview={<ComponentPreview slug={slug} />}
+      preview={<ComponentPreview slug={entry.slug} />}
     >
       <Content />
     </ComponentDocsShell>

@@ -2,8 +2,13 @@ import { ArrowLeft, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import ComponentRegistryList from "@/components/ComponentRegistryList";
 import SectionDivider from "@/components/SectionDivider";
+import { componentDocs } from "@/lib/component-docs-source";
 
 export default function ComponentsPage() {
+  const documentedComponents = componentDocs
+    .getPages()
+    .map((page) => page.data.entry);
+
   return (
     <main className="min-h-screen text-foreground">
       <div className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
@@ -36,7 +41,7 @@ export default function ComponentsPage() {
         </header>
 
         <SectionDivider className="mb-4" />
-        <ComponentRegistryList />
+        <ComponentRegistryList entries={documentedComponents} />
       </div>
     </main>
   );

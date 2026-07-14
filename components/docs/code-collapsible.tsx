@@ -15,7 +15,7 @@ export function CodeCollapsible({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="inline-flex items-center gap-1 border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="docs-pressable inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-xs outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Expand <ChevronDown className="size-3.5" />
           </button>

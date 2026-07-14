@@ -160,4 +160,5 @@ export const componentRegistry = [
   },
 ] as const satisfies readonly RegistryEntry[];
 
+export type RegisteredComponent = (typeof componentRegistry)[number];
 export type ComponentSlug = (typeof componentRegistry)[number]["slug"];

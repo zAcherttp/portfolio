@@ -37,7 +37,7 @@ export function ComponentSource(props: ComponentSourceProps) {
   return (
     <Suspense
       fallback={
-        <div className="my-4 h-40 animate-pulse border-y border-border bg-muted/20" />
+        <div className="my-5 h-40 animate-pulse rounded-xl bg-muted/45" />
       }
     >
       <ComponentSourceContent {...props} />
