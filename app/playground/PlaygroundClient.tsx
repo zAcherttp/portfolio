@@ -1,8 +1,9 @@
 "use client";
 
 import { button, useControls } from "leva";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BackButton } from "@/components/BackButton";
 import Dither from "@/components/ui/shaders/dither";
 
 const playClickSound = () => {
@@ -215,16 +216,16 @@ export default function PlaygroundClient() {
       {/* Header controls overlay */}
       <header className="p-6 relative z-20 flex flex-col gap-2 pointer-events-auto">
         <div className="flex items-center gap-3">
-          <BackButton
+          <Link
             href="/"
-            className={
+            className={`inline-flex items-center gap-1.5 text-sm font-medium ${
               isDark
                 ? "text-zinc-400 hover:text-zinc-100"
                 : "text-zinc-600 hover:text-zinc-900"
-            }
+            } transition-colors`}
           >
-            Home
-          </BackButton>
+            <ArrowLeft className="w-4 h-4" /> Home
+          </Link>
         </div>
         <div className="mt-4">
           <h1 className="text-xl font-bold tracking-tight">

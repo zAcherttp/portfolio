@@ -1,7 +1,6 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BackButton } from "@/components/BackButton";
 import { componentRegistry } from "@/data/components";
 import { requireDevelopmentFixtures } from "@/lib/dev-fixtures";
 import { createSeoMetadata } from "@/lib/seo/metadata";
@@ -20,9 +19,13 @@ export default function ComponentFixturesPage() {
   return (
     <main className="min-h-screen text-foreground">
       <div className="mx-auto max-w-4xl px-6 py-8 sm:py-12">
-        <BackButton className="mb-10" href="/components">
+        <Link
+          className="mb-10 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          href="/components"
+        >
+          <ArrowLeft className="size-3.5" />
           Components
-        </BackButton>
+        </Link>
 
         <header className="mb-8">
           <div className="flex items-baseline gap-3">

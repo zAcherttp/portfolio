@@ -1,6 +1,6 @@
 ## Usage
 
-Place the shader after the footer. The wrapper owns WebGL capability checks, scroll reveal, theme colors, and animation lifecycle.
+Place the root integration after the footer. `BottomShader` owns only the bottom-of-page scroll nudge; `DitherFooter` owns WebGL checks, theme colors, and its animation lifecycle. Render `DitherFooter` directly when the effect should start automatically.
 
 ```tsx title="layout.tsx"
 import { Suspense } from "react";

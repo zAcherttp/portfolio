@@ -51,6 +51,17 @@ test.describe("dither footer", () => {
     await expect(page.getByTestId("bottom-shader-fallback")).toHaveCount(0);
   });
 
+  test("starts the component showcase without a scroll nudge", async ({
+    page,
+  }) => {
+    await page.goto("/components/dither-footer");
+
+    const showcase = page.getByTestId("dither-showcase");
+    await expect(showcase).toBeVisible();
+    await expect(showcase.locator("canvas")).toBeVisible();
+    await expect(page.getByTestId("bottom-shader")).toHaveCount(0);
+  });
+
   test("uses the fallback without creating a WebGL canvas", async ({
     page,
   }) => {

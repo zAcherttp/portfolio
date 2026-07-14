@@ -1,8 +1,8 @@
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
-import { BackButton } from "@/components/BackButton";
 import SectionDivider from "@/components/SectionDivider";
 import type { RegistryEntry } from "@/data/components";
-import type { CapturedComponentUsage } from "@/lib/component-usage";
 import { CodeSnippet } from "./code-snippet";
 import { DocsTabs } from "./component-docs-tabs";
 import { ComponentSource } from "./component-source";
@@ -11,12 +11,10 @@ import { PackageCommand } from "./package-command";
 export function ComponentDocsShell({
   entry,
   preview,
-  usage,
   children,
 }: {
   entry: RegistryEntry;
   preview: ReactNode;
-  usage: CapturedComponentUsage;
   children: ReactNode;
 }) {
   const source = entry.files.map((file) => (
@@ -25,9 +23,13 @@ export function ComponentDocsShell({
   return (
     <main className="min-h-screen text-foreground">
       <article className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
-        <BackButton className="docs-pressable mb-9" href="/components">
+        <Link
+          href="/components"
+          className="docs-pressable mb-9 inline-flex items-center gap-1.5 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <ArrowLeft className="size-3.5" />
           Components
-        </BackButton>
+        </Link>
         <header className="mb-10">
           <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-xl font-semibold tracking-tight">
@@ -62,9 +64,9 @@ export function ComponentDocsShell({
                   fallback={<div className="h-32 animate-pulse bg-muted/20" />}
                 >
                   <CodeSnippet
-                    code={usage.code}
-                    title={usage.title}
-                    language={usage.language}
+                    code={entry.usage.code}
+                    title={entry.usage.title}
+                    language={entry.usage.language}
                     className="my-0 rounded-none bg-transparent"
                   />
                 </Suspense>

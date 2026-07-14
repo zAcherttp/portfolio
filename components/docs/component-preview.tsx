@@ -2,7 +2,8 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { type ComponentType, useState } from "react";
+import { type ComponentType, type ReactNode, useState } from "react";
+import { DitherFooter } from "@/components/DitherFooter";
 import GitHubContributions from "@/components/profile/GitHubContributions";
 import {
   Tooltip,
@@ -79,6 +80,32 @@ const tooltipData = [
   },
 ] as const;
 
+type PreviewFrameMode = "canvas" | "compact" | "wide";
+
+function PreviewFrame({
+  children,
+  mode,
+}: {
+  children: ReactNode;
+  mode: PreviewFrameMode;
+}) {
+  const layoutClassName =
+    mode === "compact"
+      ? "w-fit p-6"
+      : mode === "canvas"
+        ? "w-full overflow-hidden"
+        : "w-full px-4 py-6 sm:px-6";
+
+  return (
+    <div
+      className={`rounded-2xl bg-background ${layoutClassName}`}
+      data-preview-frame={mode}
+    >
+      {children}
+    </div>
+  );
+}
+
 function FloatingTooltipPreview() {
   const [active, setActive] = useState<{
     anchor: VirtualAnchor;
@@ -136,9 +163,11 @@ function FloatingTooltipPreview() {
 
 function GitHubPreview() {
   return (
-    <div className="flex min-h-40 w-full min-w-0 items-center">
-      <GitHubContributions />
-    </div>
+    <PreviewFrame mode="wide">
+      <div className="flex min-h-40 w-full min-w-0 items-center">
+        <GitHubContributions />
+      </div>
+    </PreviewFrame>
   );
 }
 
@@ -148,26 +177,36 @@ function ThemeHotkeyPreview() {
   const Icon = dark ? Sun : Moon;
   return (
     <div className="flex min-h-40 items-center justify-center">
-      <Tooltip content="Toggle theme">
-        <button
-          type="button"
-          onClick={() => setTheme(dark ? "light" : "dark")}
-          className="inline-flex h-9 items-center justify-center gap-2 border border-border px-2.5 hover:bg-surface-hover"
-          aria-label="Toggle theme"
-        >
-          <Icon className="size-4" />
-          <Kbd>D</Kbd>
-        </button>
-      </Tooltip>
+      <PreviewFrame mode="compact">
+        <Tooltip content="Toggle theme">
+          <button
+            type="button"
+            onClick={() => setTheme(dark ? "light" : "dark")}
+            className="inline-flex h-9 items-center justify-center gap-2 border border-border px-2.5 hover:bg-surface-hover"
+            aria-label="Toggle theme"
+          >
+            <Icon className="size-4" />
+            <Kbd>D</Kbd>
+          </button>
+        </Tooltip>
+      </PreviewFrame>
     </div>
   );
 }
 
 function DitherPreview() {
   return (
-    <div className="relative min-h-40 overflow-hidden bg-background">
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_1px)] bg-size-[5px_5px] text-foreground [mask-image:linear-gradient(to_top,black,transparent)]" />
-    </div>
+    <PreviewFrame mode="canvas">
+      <DitherFooter className="h-44 w-full" testId="dither-showcase" />
+    </PreviewFrame>
+  );
+}
+
+function KbdPreview() {
+  return (
+    <PreviewFrame mode="wide">
+      <Keyboard60Preview />
+    </PreviewFrame>
   );
 }
 
@@ -177,7 +216,7 @@ const previewRegistry = {
   "contribution-graph": GitHubPreview,
   "dither-footer": DitherPreview,
   "theme-hotkey": ThemeHotkeyPreview,
-  kbd: Keyboard60Preview,
+  kbd: KbdPreview,
 } satisfies Record<ComponentSlug, ComponentType>;
 
 export function ComponentPreview({ slug }: { slug: ComponentSlug }) {
