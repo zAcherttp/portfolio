@@ -182,7 +182,7 @@ function ThemeHotkeyPreview() {
           <button
             type="button"
             onClick={() => setTheme(dark ? "light" : "dark")}
-            className="inline-flex h-9 items-center justify-center gap-2 border border-border px-2.5 hover:bg-surface-hover"
+            className="docs-pressable -m-6 inline-flex items-center justify-center gap-2 rounded-2xl p-6 outline-none hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Toggle theme"
           >
             <Icon className="size-4" />
