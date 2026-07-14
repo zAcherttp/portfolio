@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BackButton } from "@/components/BackButton";
 import ComponentRegistryList from "@/components/ComponentRegistryList";
-import SectionDivider from "@/components/SectionDivider";
 import { componentDocs } from "@/lib/component-docs-source";
 import { createPageJsonLd, SeoJsonLd } from "@/lib/seo/json-ld";
 import { createSeoMetadata } from "@/lib/seo/metadata";
@@ -50,8 +49,6 @@ export default function ComponentsPage() {
               packages will come after their interfaces settle.
             </p>
           </header>
-
-          <SectionDivider className="mb-4" />
           <ComponentRegistryList entries={documentedComponents} />
         </div>
       </main>

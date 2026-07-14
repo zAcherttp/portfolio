@@ -42,7 +42,7 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
       {highlightedDocs.map((doc) => (
         <div key={doc.id} className="overflow-hidden rounded-xl bg-muted/55">
           <div className="overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[30rem] table-fixed text-left text-xs">
+            <table className="w-full min-w-120 table-fixed text-left text-xs">
               <thead>
                 <tr className="border-border/70 border-b">
                   <th className="w-1/3 px-4 py-2.5 font-medium">Prop</th>
