@@ -1,42 +1,15 @@
-"use client";
-
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import Footer from "../../components/Footer";
-import ProjectCard from "../../components/ProjectCard";
-import { projectsData } from "../../data/projects";
+import { BackButton } from "@/components/BackButton";
+import Footer from "@/components/Footer";
+import { ProjectsList } from "./projects-list.client";
 
 export default function ProjectsPage() {
-  const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-
-  const categories = [
-    "All",
-    ...Array.from(new Set(projectsData.flatMap((p) => p.languages))).sort(),
-  ];
-
-  const filteredProjects = projectsData.filter(
-    (project) =>
-      selectedCategory === "All" ||
-      project.languages.includes(selectedCategory),
-  );
-
   return (
     <div className="min-h-screen text-foreground font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-20">
-        {/* Navigation */}
         <nav className="mb-12">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <BackButton />
         </nav>
 
-        {/* Header */}
         <header className="mb-8">
           <h1 className="text-xl font-bold tracking-tight text-foreground mb-2">
             Projects
@@ -47,40 +20,8 @@ export default function ProjectsPage() {
           </p>
         </header>
 
-        {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-border">
-          {categories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer ${
-                selectedCategory === category
-                  ? "bg-foreground text-background shadow-xs"
-                  : "bg-muted text-muted-foreground hover:bg-surface-hover"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+        <ProjectsList />
 
-        {/* Projects List */}
-        {filteredProjects.length > 0 ? (
-          <div className="space-y-3">
-            {filteredProjects.map((project, index) => (
-              <ProjectCard key={project.id} project={project} index={index} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 bg-muted/50 rounded-xl border border-dashed border-border">
-            <p className="text-muted-foreground font-medium">
-              No projects found matching your criteria.
-            </p>
-          </div>
-        )}
-
-        {/* Footer */}
         <Footer />
       </div>
     </div>

@@ -1,27 +1,14 @@
-"use client";
-
-import { Mail, MapPin, Phone, User } from "lucide-react";
-import { motion, type Variants } from "motion/react";
-import { profile } from "@/data/profile";
-import BookmarkRow from "../components/BookmarkRow";
 import ComponentRegistryList from "../components/ComponentRegistryList";
 import Footer from "../components/Footer";
 import ProjectCard from "../components/ProjectCard";
 import GitHubContributions from "../components/profile/GitHubContributions";
 import SectionDivider from "../components/SectionDivider";
-import SeeAllButton from "../components/SeeAllButton";
 import SeeAllProjectsButton from "../components/SeeAllProjectsButton";
 import StackIcon from "../components/StackIcon";
 import { GitHub, LinkedIn } from "../components/ui/icons";
-import { getSortedBookmarks } from "../data/bookmarks";
 import { projectsData } from "../data/projects";
-import { useFavicons } from "../hooks/useFavicons";
-import { getDomainName } from "../utils/url";
-
-const MotionMapPin = motion.create(MapPin);
-const MotionPhone = motion.create(Phone);
-const MotionMail = motion.create(Mail);
-const MotionUser = motion.create(User);
+import { HomeBookmarks } from "./home-bookmarks.client";
+import { HomeProfile } from "./home-profile.client";
 
 function Tech({
   children,
@@ -144,111 +131,15 @@ const stackGroups = [
   },
 ] as const;
 
-const iconBounceVariants: Variants = {
-  normal: { y: 0 },
-  animate: {
-    y: [0, -2, 0.25, 0],
-    transition: {
-      duration: 0.45,
-      ease: "easeOut",
-    },
-  },
-};
-
 export default function Home() {
-  // Show only first 3 bookmarks / projects in the peek window
-  const sortedBookmarks = getSortedBookmarks();
-  const featuredBookmarks = sortedBookmarks.slice(0, 3);
   const featuredProjects = projectsData.slice(0, 3);
-
-  const { data: faviconMap } = useFavicons();
 
   return (
     <div className="min-h-screen text-foreground font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-8 sm:py-12">
-        {/* Intro Header */}
         <header className="mb-12">
-          {/* Profile Card Header */}
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                {profile.name}
-              </h1>
-              <p className="text-xs text-subtle font-mono mt-1.5 uppercase tracking-wider">
-                {profile.role}
-              </p>
-            </div>
-          </div>
-
-          {/* Grid Metadata columns (gridless) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-1 gap-y-1 text-sm text-muted-foreground mb-4 -mx-2 sm:w-2/3">
-            <div className="space-y-1">
-              <motion.div
-                initial="normal"
-                whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-default py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
-              >
-                <MotionMapPin
-                  variants={iconBounceVariants}
-                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
-                />
-                <span className="group-hover:text-foreground transition-colors">
-                  Ho Chi Minh City, Viet Nam
-                </span>
-              </motion.div>
-              <motion.div
-                initial="normal"
-                whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-pointer py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
-              >
-                <MotionPhone
-                  variants={iconBounceVariants}
-                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
-                />
-                <a
-                  href="tel:+84326149613"
-                  className="font-mono text-sm group-hover:text-foreground transition-colors"
-                >
-                  +84 326 149 613
-                </a>
-              </motion.div>
-            </div>
-
-            <div className="space-y-1">
-              <motion.div
-                initial="normal"
-                whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-pointer py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
-              >
-                <MotionMail
-                  variants={iconBounceVariants}
-                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
-                />
-                <a
-                  href="mailto:zchr.work@gmail.com"
-                  className="group-hover:text-foreground transition-colors"
-                >
-                  zchr.work@gmail.com
-                </a>
-              </motion.div>
-              <motion.div
-                initial="normal"
-                whileHover="animate"
-                className="flex items-center gap-2.5 group cursor-default py-1.5 px-2 rounded-md hover:bg-surface-hover transition-colors"
-              >
-                <MotionUser
-                  variants={iconBounceVariants}
-                  className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors"
-                />
-                <span className="group-hover:text-foreground transition-colors">
-                  he / him
-                </span>
-              </motion.div>
-            </div>
-          </div>
-
-          {/* Social Buttons Row */}
-          <div className="flex items-center gap-2 mt-4">
+          <HomeProfile />
+          <div className="mt-4 flex items-center gap-2">
             <a
               href="https://github.com/zAcherttp"
               target="_blank"
@@ -372,29 +263,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Bookmarks Peek Widget */}
-        <section className="mb-12">
-          <div className="flex justify-between items-baseline mb-3">
-            <h2 className="text-sm font-normal text-muted-foreground">
-              Bookmarks
-            </h2>
-          </div>
-
-          <div className="flex flex-col -mx-3 pb-4">
-            {featuredBookmarks.map((bookmark) => (
-              <BookmarkRow
-                key={bookmark.url}
-                bookmark={bookmark}
-                faviconSrc={faviconMap?.[getDomainName(bookmark.url)] ?? null}
-              />
-            ))}
-
-            <SeeAllButton
-              remaining={sortedBookmarks.slice(3)}
-              faviconMap={faviconMap ?? {}}
-            />
-          </div>
-        </section>
+        <HomeBookmarks />
 
         {/* Footer/Framing Placeholder */}
         <Footer />
