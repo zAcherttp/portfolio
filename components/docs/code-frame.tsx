@@ -59,13 +59,15 @@ export function CodeFrame({
       data-code-frame
       data-line-numbers={showLineNumbers || undefined}
       className={cn(
-        "group/code relative my-5 overflow-hidden rounded-xl bg-[var(--code-background)]",
+        "group/code my-5 overflow-hidden rounded-xl bg-[var(--code-background)]",
         className,
       )}
     >
       {title && <CodeTitle title={title} language={language} />}
-      {children}
-      <CodeCopyButton value={value} />
+      <div className="relative">
+        {children}
+        <CodeCopyButton value={value} />
+      </div>
     </div>
   );
 }
