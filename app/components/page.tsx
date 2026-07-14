@@ -1,6 +1,7 @@
-import { ArrowLeft, FlaskConical } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackButton } from "@/components/BackButton";
 import ComponentRegistryList from "@/components/ComponentRegistryList";
 import SectionDivider from "@/components/SectionDivider";
 import { componentDocs } from "@/lib/component-docs-source";
@@ -26,13 +27,9 @@ export default function ComponentsPage() {
       />
       <main className="min-h-screen text-foreground">
         <div className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
-          <Link
-            href="/"
-            className="mb-10 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" />
+          <BackButton className="mb-10" href="/">
             Profile
-          </Link>
+          </BackButton>
 
           <header className="mb-12">
             <div className="flex items-center justify-between gap-4">
