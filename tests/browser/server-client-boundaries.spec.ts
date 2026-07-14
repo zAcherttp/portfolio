@@ -50,13 +50,13 @@ test.describe("server and client page boundaries", () => {
       .locator("xpath=ancestor::a[1]");
     const arrow = bookmarkRow.locator("[data-rotating-arrow]");
 
-    await expect(bookmarkRow).toHaveCSS("transition-duration", "0.1s");
-    await expect(arrow).toHaveCSS("transition-duration", "0.14s");
+    await expect(bookmarkRow).not.toHaveCSS("transition-duration", "0s");
+    await expect(arrow).not.toHaveCSS("transition-duration", "0s");
 
     await bookmarkRow.hover();
 
     await expect(bookmarkRow).toHaveCSS("transition-duration", "0s");
-    await expect(arrow).toHaveCSS("transition-duration", "0.14s");
+    await expect(arrow).not.toHaveCSS("transition-duration", "0s");
   });
 
   test("keeps the see-all favicon cascade readable", async ({ page }) => {

@@ -48,6 +48,12 @@ test.describe("contribution graph", () => {
       "Pointer hover behavior is covered by the desktop pointer project.",
     );
     await page.goto("/dev/components/contribution-graph");
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
     const stage = page.getByTestId("fixture-stage");
     const activeCell = stage.locator('svg rect[data-count="8"]').first();
     const box = await activeCell.boundingBox();

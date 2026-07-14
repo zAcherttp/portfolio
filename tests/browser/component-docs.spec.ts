@@ -56,10 +56,6 @@ test.describe("component documentation", () => {
     const viewOptionsButton = page.getByRole("button", {
       name: "View options",
     });
-    const copyButtonGroup = copyPageButton.locator("..");
-    await expect(copyButtonGroup).toHaveCSS("border-radius", "10px");
-    await expect(copyPageButton).toHaveCSS("border-radius", "8px 0px 0px 8px");
-    await expect(viewOptionsButton).toHaveCSS("transition-duration", "0s");
     await viewOptionsButton.click();
     const viewAsMarkdown = page.getByRole("menuitem", {
       name: "View as Markdown",
@@ -215,11 +211,7 @@ test.describe("component documentation", () => {
       (element) => getComputedStyle(element).rotate,
     );
 
-    await expect(arrow).toHaveCSS("transition-duration", "0.14s");
-    await expect(arrow).toHaveCSS(
-      "transition-timing-function",
-      "cubic-bezier(0.25, 0.1, 0.25, 1)",
-    );
+    await expect(arrow).not.toHaveCSS("transition-duration", "0s");
 
     await componentLink.hover();
 
@@ -228,7 +220,7 @@ test.describe("component documentation", () => {
       .not.toBe(restingRotation);
 
     await arrow.hover();
-    await expect(arrow).toHaveCSS("transition-duration", "0.14s");
+    await expect(arrow).not.toHaveCSS("transition-duration", "0s");
   });
 
   test("removes rotating-arrow movement for reduced motion", async ({

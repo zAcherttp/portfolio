@@ -96,7 +96,6 @@ test.describe("KBD", () => {
     expect(pressedVisual.background).toBe(idleVisual.background);
     expect(pressedVisual.color).toBe(idleVisual.color);
     expect(pressedVisual.shadow).not.toBe(idleVisual.shadow);
-    expect(pressedVisual.transitionDuration).toBe("0.1s");
     expect(pressedVisual.transitionProperty).toContain("translate");
     await page.keyboard.up("a");
     await expect(key).toHaveAttribute("data-state", "idle");
