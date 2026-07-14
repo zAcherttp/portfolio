@@ -4,6 +4,7 @@ import { MdxFigcaption, MdxFigure, MdxPre } from "@/components/docs/code-frame";
 import { ComponentSource } from "@/components/docs/component-source";
 import { DocsSection } from "@/components/docs/docs-primitives";
 import { Step, Steps } from "@/components/docs/steps";
+import { ExternalLink } from "@/components/ExternalLink";
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -22,9 +23,11 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {...props}
       />
     ),
-    a: (props) => (
-      <a
+    a: ({ href = "", ...props }) => (
+      <ExternalLink
+        attributionContext="docs-reference"
         className="underline underline-offset-4 hover:text-foreground"
+        href={href}
         {...props}
       />
     ),

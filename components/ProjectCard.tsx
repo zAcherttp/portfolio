@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Project } from "../data/projects";
+import { ExternalLink } from "./ExternalLink";
 import RotatingArrow from "./ui/RotatingArrow";
 import {
   CPlusPlus,
@@ -44,10 +45,10 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
   };
 
   return (
-    <a
+    <ExternalLink
+      attributionContext="project"
       href={project.url}
       target="_blank"
-      rel="noopener noreferrer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className="group/p flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border p-4 transition-colors hover:bg-surface-hover"
@@ -90,6 +91,6 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
           </span>
         ))}
       </div>
-    </a>
+    </ExternalLink>
   );
 }

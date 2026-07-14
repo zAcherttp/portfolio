@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Bookmark } from "../data/bookmarks";
 import { getDomainName } from "../utils/url";
+import { ExternalLink } from "./ExternalLink";
 import Favicon from "./Favicon";
 import RotatingArrow from "./ui/RotatingArrow";
 
@@ -18,10 +19,10 @@ export default function BookmarkRow({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <a
+    <ExternalLink
+      attributionContext="bookmark"
       href={bookmark.url}
       target="_blank"
-      rel="noopener noreferrer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-surface-hover transition-colors group"
@@ -51,6 +52,6 @@ export default function BookmarkRow({
         <span className="hidden sm:inline">{getDomainName(bookmark.url)}</span>
         <RotatingArrow isHovered={isHovered} />
       </div>
-    </a>
+    </ExternalLink>
   );
 }

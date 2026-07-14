@@ -1,12 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ExternalLink } from "@/components/ExternalLink";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { OutboundLinkContext } from "@/lib/attribution";
 import { cn } from "@/lib/utils";
 import { docActionButtonClass } from "./doc-action-styles";
 
@@ -54,16 +56,24 @@ export function DocActionMenuItem({
 }
 
 export function DocActionMenuLink({
+  attributionContext,
   href,
   children,
 }: {
+  attributionContext: OutboundLinkContext;
   href: string;
   children: ReactNode;
 }) {
   return (
     <DropdownMenuItem
       closeOnClick
-      render={<a href={href} rel="noopener noreferrer" target="_blank" />}
+      render={
+        <ExternalLink
+          attributionContext={attributionContext}
+          href={href}
+          target="_blank"
+        />
+      }
     >
       {children}
     </DropdownMenuItem>

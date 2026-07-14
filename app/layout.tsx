@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { OutboundLinkTracker } from "@/components/OutboundLinkTracker";
 import { MOTION_CSS_VARIABLES } from "@/constants/motion";
 import {
   createPersonJsonLd,
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col relative">
         <SeoJsonLd data={[createPersonJsonLd(), createWebSiteJsonLd()]} />
         <Providers>{children}</Providers>
+        <OutboundLinkTracker />
         <Analytics />
       </body>
     </html>

@@ -1,5 +1,7 @@
 "use client";
 
+import { ExternalLink } from "./ExternalLink";
+
 export default function Footer() {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -19,52 +21,52 @@ export default function Footer() {
           </button>
           <span className="text-subtle-2 select-none">•</span>
           <span>Inspired by</span>
-          <a
+          <ExternalLink
+            attributionContext="footer-credit"
             href="https://chanhdai.com/"
             target="_blank"
-            rel="noopener noreferrer"
             className="hover:underline text-foreground font-medium"
           >
             Chánh Đại
-          </a>
+          </ExternalLink>
           <span>&</span>
-          <a
+          <ExternalLink
+            attributionContext="footer-credit"
             href="https://ruru.build/"
             target="_blank"
-            rel="noopener noreferrer"
             className="hover:underline text-foreground font-medium"
           >
             ruru.build
-          </a>
+          </ExternalLink>
           <span className="text-subtle-2 select-none">•</span>
           <span>Deployed on</span>
-          <a
+          <ExternalLink
+            attributionContext="footer-credit"
             href="https://vercel.com"
             target="_blank"
-            rel="noopener noreferrer"
             className="hover:underline text-foreground font-medium"
           >
             Vercel
-          </a>
+          </ExternalLink>
         </div>
         <div className="flex items-center justify-center gap-2 text-[10px] text-subtle font-mono">
-          <a
+          <ExternalLink
+            attributionContext="footer-resource"
             href="https://github.com/zAcherttp/portfolio"
             target="_blank"
-            rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"
           >
             GitHub Source
-          </a>
+          </ExternalLink>
           <span className="text-subtle-2 select-none">|</span>
-          <a
+          <ExternalLink
+            attributionContext="footer-resource"
             href="https://github.com/zAcherttp/portfolio/blob/master/LICENSE"
             target="_blank"
-            rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"
           >
             MIT License
-          </a>
+          </ExternalLink>
         </div>
       </div>
     </footer>

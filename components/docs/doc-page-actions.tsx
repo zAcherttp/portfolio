@@ -124,7 +124,11 @@ export function LLMCopyButtonWithViewOptions({
         triggerClassName="size-7 rounded-l-none border-l border-border/70 hover:bg-background/70 data-popup-open:bg-background/70"
       >
         {viewOptions.map(({ label: optionLabel, href, icon: OptionIcon }) => (
-          <DocActionMenuLink href={href} key={optionLabel}>
+          <DocActionMenuLink
+            attributionContext="docs-action"
+            href={href}
+            key={optionLabel}
+          >
             <OptionIcon aria-hidden="true" className="size-4" />
             {optionLabel}
           </DocActionMenuLink>

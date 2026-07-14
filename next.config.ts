@@ -38,6 +38,19 @@ const nextConfig: NextConfig = {
       expire: 2592000,
     },
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

@@ -1,5 +1,6 @@
 import BottomShader from "../components/BottomShader";
 import ComponentRegistryList from "../components/ComponentRegistryList";
+import { ExternalLink } from "../components/ExternalLink";
 import Footer from "../components/Footer";
 import ProjectCard from "../components/ProjectCard";
 import GitHubContributions from "../components/profile/GitHubContributions";
@@ -21,15 +22,15 @@ function Tech({
   url: string;
 }) {
   return (
-    <a
+    <ExternalLink
+      attributionContext="skill"
       href={url}
       target="_blank"
-      rel="noopener noreferrer"
       className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-foreground py-1 px-2.5 rounded-md hover:bg-surface-hover transition-colors"
     >
       <StackIcon color={color} name={children} />
       {children}
-    </a>
+    </ExternalLink>
   );
 }
 
@@ -141,24 +142,24 @@ export default function Home() {
         <header className="mb-12">
           <HomeProfile />
           <div className="mt-4 flex items-center gap-2">
-            <a
+            <ExternalLink
+              attributionContext="profile"
               href="https://github.com/zAcherttp"
               target="_blank"
-              rel="noopener noreferrer"
               className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-subtle transition-colors hover:border-border hover:bg-muted hover:text-foreground"
               aria-label="GitHub"
             >
               <GitHub className="w-3.5 h-3.5" />
-            </a>
-            <a
+            </ExternalLink>
+            <ExternalLink
+              attributionContext="profile"
               href="https://www.linkedin.com/in/ttuanphat91605/"
               target="_blank"
-              rel="noopener noreferrer"
               className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-subtle transition-colors hover:border-border hover:bg-muted hover:text-foreground"
               aria-label="LinkedIn"
             >
               <LinkedIn className="w-3.5 h-3.5" />
-            </a>
+            </ExternalLink>
           </div>
         </header>
 

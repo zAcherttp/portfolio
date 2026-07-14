@@ -6,6 +6,7 @@ import {
   LinkedIn as LinkedInIcon,
   XLogo as XIcon,
 } from "@/components/ui/icons";
+import { withUtmParameters } from "@/lib/attribution";
 import { copyText } from "@/lib/copy-text";
 import {
   DocActionMenu,
@@ -28,7 +29,16 @@ export function DocShareMenu({ title, url }: { title: string; url: string }) {
   }, []);
 
   const absoluteUrl = origin ? new URL(url, origin).toString() : url;
-  const encodedUrl = encodeURIComponent(absoluteUrl);
+  const xSharedUrl = withUtmParameters(absoluteUrl, {
+    source: "x",
+    medium: "social",
+    campaign: "component-share",
+  });
+  const linkedInSharedUrl = withUtmParameters(absoluteUrl, {
+    source: "linkedin",
+    medium: "social",
+    campaign: "component-share",
+  });
 
   async function handleCopy() {
     await copyText(absoluteUrl);
@@ -50,13 +60,15 @@ export function DocShareMenu({ title, url }: { title: string; url: string }) {
         {copied ? "Link copied" : "Copy link"}
       </DocActionMenuItem>
       <DocActionMenuLink
-        href={`https://x.com/intent/tweet?${new URLSearchParams({ text: title, url: absoluteUrl })}`}
+        attributionContext="docs-share"
+        href={`https://x.com/intent/tweet?${new URLSearchParams({ text: title, url: xSharedUrl })}`}
       >
         <XIcon aria-hidden="true" className="size-4" />
         Share on X
       </DocActionMenuLink>
       <DocActionMenuLink
-        href={`https://www.linkedin.com/sharing/share-offsite?url=${encodedUrl}`}
+        attributionContext="docs-share"
+        href={`https://www.linkedin.com/sharing/share-offsite?url=${encodeURIComponent(linkedInSharedUrl)}`}
       >
         <LinkedInIcon aria-hidden="true" className="size-4" />
         Share on LinkedIn
