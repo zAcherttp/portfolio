@@ -30,6 +30,7 @@ import {
   ThemeHotkeyInputFixture,
   ThemeHotkeyRapidFixture,
 } from "./theme-hotkey";
+import { TransactionDockDefaultFixture } from "./transaction-dock";
 
 export const fixtureRegistry: FixtureRegistry = {
   "floating-tooltip": {
@@ -147,6 +148,16 @@ export const fixtureRegistry: FixtureRegistry = {
         id: "rapid",
         name: "Rapid fire",
         component: ThemeHotkeyRapidFixture,
+      },
+    ],
+  },
+  "transaction-dock": {
+    slug: "transaction-dock",
+    cases: [
+      {
+        id: "default",
+        name: "Default",
+        component: TransactionDockDefaultFixture,
       },
     ],
   },

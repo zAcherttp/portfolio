@@ -1,0 +1,62 @@
+## Usage
+
+Mount the provider around the table or feed that opens transactions, then render one dock near the application root. A card begins expanded when opened. Swiping downward minimizes it; swiping a collapsed card upward restores it.
+
+```tsx title="transaction-dock.tsx"
+import {
+  TransactionDock,
+  TransactionDockProvider,
+  useTransactionDock,
+} from "@/components/registry/transaction-dock";
+
+function TransactionTable() {
+  const { openTransaction } = useTransactionDock();
+
+  return transactions.map((transaction) => (
+    <button
+      key={transaction.id}
+      type="button"
+      onClick={() => openTransaction(transaction.id)}
+    >
+      View details
+    </button>
+  ));
+}
+
+<TransactionDockProvider transactions={transactions} maxExpanded={3}>
+  <TransactionTable />
+  <TransactionDock />
+</TransactionDockProvider>;
+```
+
+## Stack behavior
+
+- The least recently focused expanded card automatically collapses when capacity is reached.
+- Manually minimized cards remain minimized until explicitly restored.
+- Closing an expanded card restores the most recently auto-collapsed card.
+- Collapsed cards share a deck slot so the dock remains inside the viewport.
+- The provider reduces expanded capacity as the viewport narrows.
+
+## API reference
+
+### TransactionDockProvider
+
+Provides the transaction collection and controls how many detail cards can remain expanded at once. Wrap the table or feed that calls `useTransactionDock` with this component.
+
+<AutoTypeTable path="components/registry/transaction-dock/transaction-dock.tsx" name="TransactionDockProviderProps" />
+
+### TransactionDockItem
+
+Defines the transaction data rendered inside each card, including its payment, sender, billing, and optional attachment details.
+
+<AutoTypeTable path="components/registry/transaction-dock/transaction-card.tsx" name="TransactionDockItem" />
+
+## Credits
+
+- Swipe and snap-point behavior is built from the shadcn/ui Drawer and Base UI Drawer primitives.
+- [Transaction card inspiration](https://x.com/disarto_max/status/2075985534359363801)
+
+## References
+
+- [shadcn/ui Drawer](https://ui.shadcn.com/docs/components/base/drawer)
+- [Base UI Drawer](https://base-ui.com/react/components/drawer)

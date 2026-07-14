@@ -159,6 +159,35 @@
       }
     },
     {
+      "name": "transaction-dock",
+      "type": "registry:component",
+      "title": "Transaction Dock",
+      "description": "A non-modal transaction detail dock with swipeable snap points, automatic capacity collapse, and deterministic re-entry.",
+      "categories": ["interaction", "data-display"],
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["drawer"],
+      "files": [
+        {
+          "path": "components/registry/transaction-dock/transaction-card.tsx",
+          "type": "registry:component",
+          "target": "@components/registry/transaction-dock/transaction-card.tsx"
+        },
+        {
+          "path": "components/registry/transaction-dock/transaction-dock.tsx",
+          "type": "registry:component",
+          "target": "@components/registry/transaction-dock/transaction-dock.tsx"
+        },
+        {
+          "path": "components/registry/transaction-dock/index.ts",
+          "type": "registry:component",
+          "target": "@components/registry/transaction-dock/index.ts"
+        }
+      ],
+      "meta": {
+        "status": "exploring"
+      }
+    },
+    {
       "name": "kbd",
       "type": "registry:ui",
       "title": "KBD",

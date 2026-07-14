@@ -111,6 +111,26 @@ export const componentRegistry = [
     },
   },
   {
+    slug: "transaction-dock",
+    name: "Transaction Dock",
+    category: "Interaction",
+    description:
+      "A non-modal transaction detail dock with swipeable snap points, automatic capacity collapse, and deterministic re-entry.",
+    status: "exploring",
+    files: [
+      "components/registry/transaction-dock/transaction-card.tsx",
+      "components/registry/transaction-dock/transaction-dock.tsx",
+      "components/registry/transaction-dock/index.ts",
+    ],
+    dependencies: ["lucide-react"],
+    registryDependencies: ["drawer"],
+    usage: {
+      format: "jsx",
+      selector: "TransactionDockProvider",
+      source: "components/docs/component-preview.tsx",
+    },
+  },
+  {
     slug: "kbd",
     name: "KBD",
     category: "Input",
