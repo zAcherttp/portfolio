@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { cn } from "@/lib/utils";
 import {
   TRANSACTION_CARD_SLOT_WIDTH,
   TransactionCard,
@@ -175,7 +176,9 @@ export function TransactionDockProvider({
           const lastActiveAt = nextSequence();
           if (existing.mode === "expanded") {
             return current.map((panel) =>
-              panel.id === id ? { ...panel, lastActiveAt } : panel,
+              panel.id === id
+                ? { ...panel, lastActiveAt, openedAt: lastActiveAt }
+                : panel,
             );
           }
 
@@ -204,6 +207,7 @@ export function TransactionDockProvider({
                   mode: "expanded",
                   collapsedAt: null,
                   lastActiveAt,
+                  openedAt: lastActiveAt,
                 }
               : panel,
           );
@@ -351,7 +355,10 @@ export function TransactionDock({ className }: TransactionDockProps) {
 
   return (
     <div
-      className={className}
+      className={cn(
+        "fixed bottom-0 left-0 right-0 pointer-events-none z-50 w-full",
+        className,
+      )}
       data-panel-count={panels.length}
       data-slot-count={totalSlots}
       data-transaction-dock=""

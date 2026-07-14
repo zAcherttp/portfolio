@@ -9,8 +9,9 @@
   },
   "scripts": {
     "dev": "portless",
-    "dev:app": "next dev",
-    "build": "pnpm registry:build && next build",
+    "dev:app": "pnpm precompute-types && next dev",
+    "build": "pnpm precompute-types && pnpm registry:build && next build",
+    "precompute-types": "tsx scripts/precompute-type-tables.mts",
     "start": "next start",
     "lint": "biome check",
     "check": "biome check --write",
@@ -83,6 +84,7 @@
     "jsdom": "^29.1.1",
     "portless": "0.15.1",
     "tailwindcss": "^4.3.2",
+    "tsx": "^4.23.1",
     "typescript": "6.0.3",
     "vitest": "^4.1.10"
   }

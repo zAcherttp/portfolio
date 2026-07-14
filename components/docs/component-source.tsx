@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { Suspense } from "react";
+import { cacheLife } from "next/cache";
 import { CodeCollapsible } from "./code-collapsible";
 import { CodeSnippet } from "./code-snippet";
 
@@ -34,15 +34,7 @@ type ComponentSourceProps = {
 };
 
 export function ComponentSource(props: ComponentSourceProps) {
-  return (
-    <Suspense
-      fallback={
-        <div className="my-5 h-40 animate-pulse rounded-xl bg-muted/45" />
-      }
-    >
-      <ComponentSourceContent {...props} />
-    </Suspense>
-  );
+  return <ComponentSourceContent {...props} />;
 }
 
 async function ComponentSourceContent({
@@ -50,6 +42,9 @@ async function ComponentSourceContent({
   title = sourcePath,
   collapsible = true,
 }: ComponentSourceProps) {
+  "use cache";
+  cacheLife("max");
+
   const source = await readWorkspaceFile(sourcePath);
   const language = languageByExtension[path.extname(sourcePath)] ?? "text";
   const frame = (

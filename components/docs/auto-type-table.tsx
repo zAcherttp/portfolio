@@ -1,22 +1,74 @@
 import { type Jsx, toJsxRuntime } from "hast-util-to-jsx-runtime";
-import { Suspense } from "react";
+import { cacheLife } from "next/cache";
+import type { ReactNode } from "react";
 import * as runtime from "react/jsx-runtime";
+import typeTablesRegistry from "@/data/type-tables-registry.json";
 import { highlightCode } from "@/lib/highlight-code";
 import { generateTypeTable } from "@/lib/type-table";
+
+interface PrecomputedEntry {
+  name: string;
+  required: boolean;
+  description?: string;
+  highlightedType: unknown;
+}
+
+interface PrecomputedDoc {
+  id: string;
+  name: string;
+  entries: PrecomputedEntry[];
+}
+
+interface HighlightedEntry {
+  name: string;
+  required: boolean;
+  description?: string;
+  highlightedType: ReactNode;
+}
+
+interface HighlightedDoc {
+  id: string;
+  name: string;
+  entries: HighlightedEntry[];
+}
 
 type AutoTypeTableProps = { path: string; name: string };
 
 export function AutoTypeTable(props: AutoTypeTableProps) {
-  return (
-    <Suspense
-      fallback={<div className="h-28 animate-pulse rounded-xl bg-muted/45" />}
-    >
-      <AutoTypeTableContent {...props} />
-    </Suspense>
-  );
+  return <AutoTypeTableContent {...props} />;
 }
 
 async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
+  "use cache";
+  cacheLife("max");
+
+  const key = `${path}:${name}`;
+  const precomputed = (typeTablesRegistry as Record<string, PrecomputedDoc[]>)[
+    key
+  ];
+
+  if (precomputed) {
+    const highlightedDocs: HighlightedDoc[] = precomputed.map(
+      (doc: PrecomputedDoc) => ({
+        ...doc,
+        entries: doc.entries.map((entry: PrecomputedEntry) => ({
+          ...entry,
+          highlightedType: toJsxRuntime(
+            entry.highlightedType as Parameters<typeof toJsxRuntime>[0],
+            {
+              Fragment: runtime.Fragment,
+              jsx: runtime.jsx as Jsx,
+              jsxs: runtime.jsxs as Jsx,
+            },
+          ),
+        })),
+      }),
+    );
+
+    return renderTable(highlightedDocs);
+  }
+
+  // Fallback (for development / missing registry entries)
   const docs = await generateTypeTable({ path, name });
   const highlightedDocs = await Promise.all(
     docs.map(async (doc) => ({
@@ -37,6 +89,10 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
     })),
   );
 
+  return renderTable(highlightedDocs);
+}
+
+function renderTable(highlightedDocs: HighlightedDoc[]) {
   return (
     <div className="space-y-4">
       {highlightedDocs.map((doc) => (
@@ -50,7 +106,7 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
                 </tr>
               </thead>
               <tbody>
-                {doc.entries.map((entry) => (
+                {doc.entries.map((entry: HighlightedEntry) => (
                   <tr
                     key={entry.name}
                     className="border-border/60 border-b align-top last:border-b-0"

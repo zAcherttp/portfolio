@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { cacheLife } from "next/cache";
 import { componentDocs } from "@/lib/component-docs-source";
 import { generateTypeTable } from "@/lib/type-table";
 
@@ -64,6 +65,9 @@ async function expandTypeTables(markdown: string) {
 }
 
 export async function getComponentDocsMarkdown(slug: string) {
+  "use cache";
+  cacheLife("max");
+
   const page = componentDocs.getPage([slug]);
   if (!page) return null;
 

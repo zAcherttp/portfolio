@@ -42,3 +42,12 @@ Object.defineProperty(window, "matchMedia", {
     removeListener() {},
   }),
 });
+
+import { vi } from "vitest";
+
+vi.mock("next/cache", () => ({
+  cacheLife: () => {},
+  unstable_cache: <T>(fn: T): T => fn,
+  revalidateTag: () => {},
+  revalidatePath: () => {},
+}));
