@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 import { ComponentDocsShell } from "@/components/docs/component-docs-shell";
 import { ComponentPreview } from "@/components/docs/component-preview";
@@ -30,8 +31,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : {};
 }
 
-export default async function ComponentPage({ params }: Props) {
-  const { slug } = await params;
+async function renderComponentPage(slug: string) {
+  "use cache";
+  cacheLife("max");
+
   const page = componentDocs.getPage([slug]);
   if (!page) notFound();
   const { entry } = page.data;
@@ -59,4 +62,11 @@ export default async function ComponentPage({ params }: Props) {
       </ComponentDocsShell>
     </>
   );
+}
+
+export default async function ComponentPage({ params }: Props) {
+  "use cache";
+  cacheLife("max");
+  const { slug } = await params;
+  return renderComponentPage(slug);
 }

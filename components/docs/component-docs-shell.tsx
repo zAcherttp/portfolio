@@ -1,4 +1,4 @@
-import { type ReactNode, Suspense } from "react";
+import type { ReactNode } from "react";
 import { BackButton } from "@/components/BackButton";
 import SectionDivider from "@/components/SectionDivider";
 import type { RegistryEntry } from "@/data/components";
@@ -78,16 +78,12 @@ export function ComponentDocsShell({
             {
               label: "Code",
               content: (
-                <Suspense
-                  fallback={<div className="h-32 animate-pulse bg-muted/20" />}
-                >
-                  <CodeSnippet
-                    code={usage.code}
-                    title={usage.title}
-                    language={usage.language}
-                    className="my-0 rounded-none bg-transparent"
-                  />
-                </Suspense>
+                <CodeSnippet
+                  code={usage.code}
+                  title={usage.title}
+                  language={usage.language}
+                  className="my-0 rounded-none bg-transparent"
+                />
               ),
             },
           ]}
