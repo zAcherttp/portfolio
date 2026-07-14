@@ -264,13 +264,26 @@
 }
 
 [data-rehype-pretty-code-figure] code span,
-.docs-highlighted-source code span {
+.docs-highlighted-source code span,
+.docs-highlighted-type code span {
   color: var(--shiki-light);
 }
 
 .dark [data-rehype-pretty-code-figure] code span,
-.dark .docs-highlighted-source code span {
+.dark .docs-highlighted-source code span,
+.dark .docs-highlighted-type code span {
   color: var(--shiki-dark);
+}
+
+.docs-highlighted-type pre,
+.docs-highlighted-type code {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.docs-highlighted-type [data-line] {
+  white-space: pre-wrap;
 }
 
 .docs-pressable {
