@@ -1,9 +1,9 @@
-import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackButton } from "@/components/BackButton";
+import RotatingArrow from "@/components/ui/RotatingArrow";
 import { type ComponentSlug, componentRegistry } from "@/data/components";
 import { requireDevelopmentFixtures } from "@/lib/dev-fixtures";
 import { createSeoMetadata } from "@/lib/seo/metadata";
@@ -41,11 +41,11 @@ async function ComponentFixtureContent({ params, searchParams }: Props) {
         <div className="mb-10 flex items-center justify-between gap-4">
           <BackButton href="/dev/components">Fixtures</BackButton>
           <Link
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="group inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
             href={`/components/${entry.slug}`}
           >
             Documentation
-            <ExternalLink className="size-3.5" />
+            <RotatingArrow />
           </Link>
         </div>
 

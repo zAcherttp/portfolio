@@ -1,5 +1,5 @@
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import RotatingArrow from "@/components/ui/RotatingArrow";
 import { componentRegistry, type RegistryEntry } from "@/data/components";
 
 export type ComponentRegistryListProps = {
@@ -24,10 +24,7 @@ export default function ComponentRegistryList({
           <span className="hidden text-xs text-muted-foreground sm:block">
             {entry.category}
           </span>
-          <ArrowUpRight
-            aria-hidden="true"
-            className="mr-1 size-3.5 text-subtle transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
-          />
+          <RotatingArrow className="mr-1 text-subtle group-hover:text-foreground" />
         </Link>
       ))}
     </div>

@@ -28,6 +28,45 @@ test.describe("component documentation", () => {
     expect(response?.status()).toBe(404);
   });
 
+  test("rotates the shared arrow when a component link is hovered", async ({
+    page,
+  }) => {
+    await page.goto("/components");
+
+    const componentLink = page.locator('a[href^="/components/"]').first();
+    const arrow = componentLink.locator("[data-rotating-arrow]");
+    const restingRotation = await arrow.evaluate(
+      (element) => getComputedStyle(element).rotate,
+    );
+
+    await expect(arrow).toHaveCSS("transition-duration", "0.14s");
+    await expect(arrow).toHaveCSS(
+      "transition-timing-function",
+      "cubic-bezier(0.25, 0.1, 0.25, 1)",
+    );
+
+    await componentLink.hover();
+
+    await expect
+      .poll(() => arrow.evaluate((element) => getComputedStyle(element).rotate))
+      .not.toBe(restingRotation);
+
+    await arrow.hover();
+    await expect(arrow).toHaveCSS("transition-duration", "0.14s");
+  });
+
+  test("removes rotating-arrow movement for reduced motion", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/components");
+
+    const componentLink = page.locator('a[href^="/components/"]').first();
+    const arrow = componentLink.locator("[data-rotating-arrow]");
+
+    await expect(arrow).toHaveCSS("transition-duration", "0s");
+  });
+
   test("shows focused component API props without inherited DOM attributes", async ({
     page,
   }) => {
