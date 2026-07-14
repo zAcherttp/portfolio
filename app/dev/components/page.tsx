@@ -49,7 +49,7 @@ export default function ComponentFixturesPage() {
                 <span className="hidden text-xs text-muted-foreground sm:block">
                   {fixture.cases.length} cases
                 </span>
-                <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                <ArrowRight className="motion-hover size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
               </Link>
             );
           })}

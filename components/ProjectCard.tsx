@@ -50,7 +50,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
       rel="noopener noreferrer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="flex flex-col gap-1.5 p-4 rounded-xl border border-border hover:bg-surface-hover transition-all duration-300 group/p cursor-pointer"
+      className="group/p flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border p-4 transition-colors hover:bg-surface-hover"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

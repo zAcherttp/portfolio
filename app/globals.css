@@ -54,14 +54,14 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Globally override Tailwind transition durations: 100ms on hover out (idle), 0s on hover in */
+/* Generic hover feedback is intentionally instant on enter and soft on exit. */
 .transition,
 .transition-all,
 .transition-colors,
 .transition-opacity,
 .transition-shadow,
 .transition-transform {
-  transition-duration: 100ms;
+  transition-duration: var(--motion-duration-hover-out, 100ms);
 }
 
 .transition:hover,
@@ -70,7 +70,62 @@
 .transition-opacity:hover,
 .transition-shadow:hover,
 .transition-transform:hover {
-  transition-duration: 0s;
+  transition-duration: var(--motion-duration-instant, 0ms);
+}
+
+/* Explicit motion presets opt selected properties back into animation. */
+.motion-feedback,
+.motion-feedback:hover {
+  transition-duration: var(--motion-duration-feedback, 120ms);
+  transition-timing-function: var(
+    --motion-ease-out,
+    cubic-bezier(0.23, 1, 0.32, 1)
+  );
+}
+
+.motion-hover,
+.motion-hover:hover {
+  transition-duration: var(--motion-duration-hover, 140ms);
+  transition-timing-function: var(
+    --motion-ease-standard,
+    cubic-bezier(0.25, 0.1, 0.25, 1)
+  );
+}
+
+.motion-enter,
+.motion-enter:hover {
+  transition-duration: var(--motion-duration-enter, 180ms);
+  transition-timing-function: var(
+    --motion-ease-out,
+    cubic-bezier(0.23, 1, 0.32, 1)
+  );
+}
+
+.motion-move,
+.motion-move:hover {
+  transition-duration: var(--motion-duration-move, 200ms);
+  transition-timing-function: var(
+    --motion-ease-in-out,
+    cubic-bezier(0.77, 0, 0.175, 1)
+  );
+}
+
+.motion-reveal,
+.motion-reveal:hover {
+  transition-duration: var(--motion-duration-reveal, 240ms);
+  transition-timing-function: var(
+    --motion-ease-out,
+    cubic-bezier(0.23, 1, 0.32, 1)
+  );
+}
+
+.motion-cascade,
+.motion-cascade:hover {
+  transition-duration: var(--motion-duration-cascade, 380ms);
+  transition-timing-function: var(
+    --motion-ease-cascade,
+    cubic-bezier(0.16, 1, 0.3, 1)
+  );
 }
 
 :root {
@@ -122,7 +177,6 @@
   --code-highlight: oklch(92% 0.004 286.32 / 55%);
   --code-selection: oklch(80% 0.08 250 / 35%);
   --code-line-number: oklch(70.5% 0.015 286.067);
-  --ease-out-ui: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .dark {
@@ -288,23 +342,31 @@
 
 .docs-pressable {
   transition:
-    color 140ms var(--ease-out-ui),
-    background-color 140ms var(--ease-out-ui),
-    border-color 140ms var(--ease-out-ui),
-    box-shadow 140ms var(--ease-out-ui),
-    transform 140ms var(--ease-out-ui);
-}
-
-.docs-pressable:active {
-  transform: scale(0.97);
+    color var(--motion-duration-feedback, 120ms)
+    var(--motion-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color var(--motion-duration-feedback, 120ms)
+    var(--motion-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    border-color var(--motion-duration-feedback, 120ms)
+    var(--motion-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    box-shadow var(--motion-duration-feedback, 120ms)
+    var(--motion-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .docs-pressable {
-    transition-duration: 0ms;
+  .motion-hover,
+  .motion-hover:hover,
+  .motion-enter,
+  .motion-enter:hover,
+  .motion-move,
+  .motion-move:hover,
+  .motion-reveal,
+  .motion-reveal:hover,
+  .motion-cascade,
+  .motion-cascade:hover {
+    transition-duration: var(--motion-duration-instant, 0ms);
   }
 
-  .docs-pressable:active {
-    transform: none;
+  .docs-pressable {
+    transition-duration: 0ms;
   }
 }

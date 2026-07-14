@@ -1,7 +1,8 @@
 "use client";
 
 import { Mail, MapPin, Phone, User } from "lucide-react";
-import { motion, type Variants } from "motion/react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
+import { MOTION_TRANSITION } from "@/constants/motion";
 import { profile } from "@/data/profile";
 
 const MotionMapPin = motion.create(MapPin);
@@ -9,18 +10,18 @@ const MotionPhone = motion.create(Phone);
 const MotionMail = motion.create(Mail);
 const MotionUser = motion.create(User);
 
-const iconBounceVariants: Variants = {
-  normal: { y: 0 },
-  animate: {
-    y: [0, -2, 0.25, 0],
-    transition: {
-      duration: 0.45,
-      ease: "easeOut",
-    },
-  },
-};
-
 export function HomeProfile() {
+  const shouldReduceMotion = useReducedMotion();
+  const iconBounceVariants: Variants = {
+    normal: { y: 0 },
+    animate: shouldReduceMotion
+      ? { y: 0 }
+      : {
+          y: [0, -2, 0.25, 0],
+          transition: MOTION_TRANSITION.reveal,
+        },
+  };
+
   return (
     <>
       <div className="mb-4 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">

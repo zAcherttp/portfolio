@@ -144,7 +144,7 @@ export default function Home() {
               href="https://github.com/zAcherttp"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-7 h-7 rounded-md border border-border hover:bg-muted hover:border-border hover:text-foreground text-subtle transition-all"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-subtle transition-colors hover:border-border hover:bg-muted hover:text-foreground"
               aria-label="GitHub"
             >
               <GitHub className="w-3.5 h-3.5" />
@@ -153,7 +153,7 @@ export default function Home() {
               href="https://www.linkedin.com/in/ttuanphat91605/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-7 h-7 rounded-md border border-border hover:bg-muted hover:border-border hover:text-foreground text-subtle transition-all"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-subtle transition-colors hover:border-border hover:bg-muted hover:text-foreground"
               aria-label="LinkedIn"
             >
               <LinkedIn className="w-3.5 h-3.5" />

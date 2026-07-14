@@ -25,7 +25,7 @@ function KbdElement({ className, pressed = false, ...props }: KbdBaseProps) {
   return (
     <kbd
       className={cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-border bg-muted/60 px-1.5 align-middle font-mono text-[10px] font-medium leading-none text-muted-foreground shadow-[0_2px_0_var(--border)] transition-[translate,filter,box-shadow] duration-100 ease-out motion-reduce:transition-none data-[state=pressed]:translate-y-0.5 data-[state=pressed]:brightness-90 data-[state=pressed]:shadow-[0_0_0_var(--border)]",
+        "motion-feedback inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-border bg-muted/60 px-1.5 align-middle font-mono text-[10px] font-medium leading-none text-muted-foreground shadow-[0_2px_0_var(--border)] transition-[translate,filter,box-shadow] motion-reduce:transition-none data-[state=pressed]:translate-y-0.5 data-[state=pressed]:brightness-90 data-[state=pressed]:shadow-[0_0_0_var(--border)]",
         className,
       )}
       {...props}

@@ -27,7 +27,7 @@ export function ProjectsList() {
             key={category}
             type="button"
             onClick={() => setSelectedCategory(category)}
-            className={`cursor-pointer rounded-full px-4 py-1.5 font-medium text-sm transition-all ${
+            className={`cursor-pointer rounded-full px-4 py-1.5 font-medium text-sm transition-colors ${
               selectedCategory === category
                 ? "bg-foreground text-background shadow-xs"
                 : "bg-muted text-muted-foreground hover:bg-surface-hover"

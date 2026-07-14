@@ -376,7 +376,8 @@ export const ContributionGraphBlock = ({
       x={(blockSize + blockMargin) * weekIndex}
       y={labelHeight + (blockSize + blockMargin) * dayIndex}
       style={{
-        transition: "fill 300ms ease-in-out, opacity 300ms ease-in-out",
+        transition:
+          "fill var(--motion-duration-move, 200ms) var(--motion-ease-in-out, cubic-bezier(0.77, 0, 0.175, 1)), opacity var(--motion-duration-move, 200ms) var(--motion-ease-in-out, cubic-bezier(0.77, 0, 0.175, 1))",
         ...props.style,
       }}
       {...props}

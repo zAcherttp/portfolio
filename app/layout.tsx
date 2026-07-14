@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
+import { MOTION_CSS_VARIABLES } from "@/constants/motion";
 import {
   createPersonJsonLd,
   createWebSiteJsonLd,
@@ -46,6 +47,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      style={MOTION_CSS_VARIABLES}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col relative">
