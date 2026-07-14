@@ -10,9 +10,9 @@ export type RegistryEntry = {
   dependencies: readonly string[];
   registryDependencies: readonly string[];
   usage: {
-    code: string;
-    title: string;
-    language: string;
+    format: "jsx";
+    selector: string;
+    source: string;
   };
 };
 
@@ -33,13 +33,9 @@ export const componentRegistry = [
     dependencies: ["motion"],
     registryDependencies: [],
     usage: {
-      title: "example.tsx",
-      language: "tsx",
-      code: `import { Tooltip } from "@/components/registry/floating-tooltip";
-
-<Tooltip content="42 requests" highlight>
-  <button type="button">Requests</button>
-</Tooltip>`,
+      format: "jsx",
+      selector: "VirtualTooltip",
+      source: "components/docs/component-preview.tsx",
     },
   },
   {
@@ -53,17 +49,9 @@ export const componentRegistry = [
     dependencies: [],
     registryDependencies: [],
     usage: {
-      title: "example.tsx",
-      language: "tsx",
-      code: `import { ActivityGrid } from "@/components/registry/activity-grid";
-
-<ActivityGrid
-  columns={weeks}
-  cellSize={8}
-  gap={2}
-  getKey={(item) => item?.date ?? "empty"}
-  renderCell={({ item }) => <ActivityCell item={item} />}
-/>`,
+      format: "jsx",
+      selector: "ActivityGrid",
+      source: "components/kibo-ui/contribution-graph/index.tsx",
     },
   },
   {
@@ -77,19 +65,9 @@ export const componentRegistry = [
     dependencies: ["date-fns"],
     registryDependencies: ["activity-grid", "floating-tooltip"],
     usage: {
-      title: "example.tsx",
-      language: "tsx",
-      code: `import {
-  ContributionGraph,
-  ContributionGraphBlock,
-  ContributionGraphCalendar,
-} from "@/components/kibo-ui/contribution-graph";
-
-<ContributionGraph data={activity}>
-  <ContributionGraphCalendar>
-    {(cell) => <ContributionGraphBlock {...cell} />}
-  </ContributionGraphCalendar>
-</ContributionGraph>`,
+      format: "jsx",
+      selector: "ContributionGraph",
+      source: "components/profile/GitHubContributions.tsx",
     },
   },
   {
@@ -107,12 +85,9 @@ export const componentRegistry = [
     dependencies: ["three", "@react-three/fiber"],
     registryDependencies: [],
     usage: {
-      title: "layout.tsx",
-      language: "tsx",
-      code: `import BottomShader from "@/components/BottomShader";
-
-<Footer />
-<BottomShader />`,
+      format: "jsx",
+      selector: "DitherFooter",
+      source: "components/docs/component-preview.tsx",
     },
   },
   {
@@ -130,14 +105,9 @@ export const componentRegistry = [
     ],
     registryDependencies: [],
     usage: {
-      title: "providers.tsx",
-      language: "tsx",
-      code: `import GlobalHotkeys from "@/components/GlobalHotkeys";
-
-<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-  <GlobalHotkeys />
-  {children}
-</ThemeProvider>`,
+      format: "jsx",
+      selector: "Tooltip",
+      source: "components/docs/component-preview.tsx",
     },
   },
   {
@@ -151,15 +121,9 @@ export const componentRegistry = [
     dependencies: ["@tanstack/react-hotkeys"],
     registryDependencies: [],
     usage: {
-      title: "shortcut.tsx",
-      language: "tsx",
-      code: `import { Kbd, KbdGroup } from "@/components/ui/kbd";
-
-<KbdGroup>
-  <Kbd>Ctrl</Kbd>
-  <span>+</span>
-  <Kbd keyName="K" reactive>K</Kbd>
-</KbdGroup>`,
+      format: "jsx",
+      selector: "Kbd",
+      source: "components/docs/keyboard-60-preview.tsx",
     },
   },
 ] as const satisfies readonly RegistryEntry[];
