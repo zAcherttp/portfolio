@@ -248,7 +248,7 @@ function FloatingTooltipPreview() {
 
   return (
     <div
-      className="mx-auto grid aspect-[13/8] w-full max-w-lg grid-cols-13 grid-rows-8 gap-1.5"
+      className="mx-auto grid aspect-13/8 w-full max-w-lg grid-cols-13 grid-rows-8 gap-1.5"
       onPointerLeave={() => setActive(null)}
     >
       {tooltipData.map((item) => (

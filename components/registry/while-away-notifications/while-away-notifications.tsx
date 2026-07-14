@@ -596,7 +596,7 @@ export function NotificationCenter({
         ) : (
           <ul
             aria-label="Notification list"
-            className="max-h-[22rem] overflow-y-auto overscroll-contain py-1"
+            className="max-h-88 overflow-y-auto overscroll-contain py-1"
           >
             {notifications.map((notification) => (
               <li key={notification.id}>
