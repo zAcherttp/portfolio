@@ -1,12 +1,10 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DitherFooter } from "@/components/DitherFooter";
 import { playPopSound } from "@/lib/play-pop-sound";
 
 export default function BottomShader() {
-  const pathname = usePathname();
   const [isActive, setIsActive] = useState(false);
 
   // Listen for scroll-nudge events (at the bottom, scroll down more)
@@ -63,10 +61,6 @@ export default function BottomShader() {
       window.removeEventListener("touchmove", handleTouchMove);
     };
   }, [isActive]);
-
-  if (pathname !== "/") {
-    return null;
-  }
 
   return <DitherFooter active={isActive} testId="bottom-shader" />;
 }

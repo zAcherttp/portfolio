@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
-import { Suspense } from "react";
 import { MOTION_CSS_VARIABLES } from "@/constants/motion";
 import {
   createPersonJsonLd,
@@ -12,7 +11,6 @@ import {
 import { createSeoMetadata } from "@/lib/seo/metadata";
 import { staticSeo } from "@/lib/seo/routes";
 import { siteConfig } from "@/lib/seo/site";
-import BottomShader from "../components/BottomShader";
 import Providers from "../components/Providers";
 
 const geistSans = Geist({
@@ -52,12 +50,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col relative">
         <SeoJsonLd data={[createPersonJsonLd(), createWebSiteJsonLd()]} />
-        <Providers>
-          {children}
-          <Suspense fallback={null}>
-            <BottomShader />
-          </Suspense>
-        </Providers>
+        <Providers>{children}</Providers>
         <Analytics />
       </body>
     </html>

@@ -1,3 +1,4 @@
+import BottomShader from "../components/BottomShader";
 import ComponentRegistryList from "../components/ComponentRegistryList";
 import Footer from "../components/Footer";
 import ProjectCard from "../components/ProjectCard";
@@ -268,6 +269,7 @@ export default function Home() {
         {/* Footer/Framing Placeholder */}
         <Footer />
       </div>
+      <BottomShader />
     </div>
   );
 }
