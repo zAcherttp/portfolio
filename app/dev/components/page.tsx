@@ -3,12 +3,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { componentRegistry } from "@/data/components";
 import { requireDevelopmentFixtures } from "@/lib/dev-fixtures";
+import { createSeoMetadata } from "@/lib/seo/metadata";
 import { fixtureRegistry } from "@/tests/fixtures/registry";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createSeoMetadata({
   title: "Component Fixtures",
-  robots: { index: false, follow: false },
-};
+  description: "Development-only component fixtures.",
+  path: "/dev/components",
+  noIndex: true,
+});
 
 export default function ComponentFixturesPage() {
   requireDevelopmentFixtures();

@@ -1,8 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
+import {
+  createPersonJsonLd,
+  createWebSiteJsonLd,
+  SeoJsonLd,
+} from "@/lib/seo/json-ld";
+import { createSeoMetadata } from "@/lib/seo/metadata";
+import { staticSeo } from "@/lib/seo/routes";
+import { siteConfig } from "@/lib/seo/site";
 import BottomShader from "../components/BottomShader";
 import Providers from "../components/Providers";
 
@@ -17,8 +25,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "portfolio",
-  description: "Personal portfolio website",
+  metadataBase: siteConfig.url,
+  ...createSeoMetadata(staticSeo.home),
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f7f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#171717" },
+  ],
 };
 
 export default function RootLayout({
@@ -33,6 +49,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col relative">
+        <SeoJsonLd data={[createPersonJsonLd(), createWebSiteJsonLd()]} />
         <Providers>
           {children}
           <Suspense fallback={null}>

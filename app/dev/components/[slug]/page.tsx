@@ -5,13 +5,16 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { type ComponentSlug, componentRegistry } from "@/data/components";
 import { requireDevelopmentFixtures } from "@/lib/dev-fixtures";
+import { createSeoMetadata } from "@/lib/seo/metadata";
 import { cn } from "@/lib/utils";
 import { fixtureRegistry } from "@/tests/fixtures/registry";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createSeoMetadata({
   title: "Component Fixture",
-  robots: { index: false, follow: false },
-};
+  description: "Development-only component fixture.",
+  path: "/dev/components",
+  noIndex: true,
+});
 
 type Props = {
   params: Promise<{ slug: string }>;

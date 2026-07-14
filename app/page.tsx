@@ -2,6 +2,7 @@
 
 import { Mail, MapPin, Phone, User } from "lucide-react";
 import { motion, type Variants } from "motion/react";
+import { profile } from "@/data/profile";
 import BookmarkRow from "../components/BookmarkRow";
 import ComponentRegistryList from "../components/ComponentRegistryList";
 import Footer from "../components/Footer";
@@ -171,10 +172,10 @@ export default function Home() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Tuấn Phát
+                {profile.name}
               </h1>
               <p className="text-xs text-subtle font-mono mt-1.5 uppercase tracking-wider">
-                Software Developer
+                {profile.role}
               </p>
             </div>
           </div>
