@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import { DitherFooter } from "@/components/DitherFooter";
+import { WhileAwayNotificationsPreview } from "@/components/docs/while-away-notifications-preview";
 import GitHubContributions from "@/components/profile/GitHubContributions";
 import {
   Tooltip,
@@ -415,6 +416,7 @@ const previewRegistry = {
   "dither-footer": DitherPreview,
   "theme-hotkey": ThemeHotkeyPreview,
   "transaction-dock": TransactionDockPreview,
+  "while-away-notifications": WhileAwayNotificationsPreview,
   kbd: KbdPreview,
 } satisfies Record<ComponentSlug, ComponentType>;
 

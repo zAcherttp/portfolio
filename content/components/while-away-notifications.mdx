@@ -1,0 +1,86 @@
+## Usage
+
+Mount one provider per tab, render the notification center where the user expects it, and keep one Sonner toaster near the application root.
+
+```tsx title="notifications.tsx"
+import {
+  NotificationCenter,
+  WhileAwayNotificationsProvider,
+} from "@/components/registry/while-away-notifications";
+import { Toaster } from "@/components/ui/sonner";
+
+<WhileAwayNotificationsProvider>
+  <NotificationCenter />
+  <Toaster position="top-right" />
+</WhileAwayNotificationsProvider>;
+```
+
+Publish real activity through the hook. Notifications received while the current tab is hidden or unfocused are queued automatically.
+
+```tsx title="activity-stream.tsx"
+import { useWhileAwayNotifications } from "@/components/registry/while-away-notifications";
+
+function ActivityStream() {
+  const { notify } = useWhileAwayNotifications();
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        notify({
+          id: crypto.randomUUID(),
+          title: "Deployment is ready",
+          description: "The preview passed every check.",
+          source: "Deployments",
+          tone: "success",
+        })
+      }
+    >
+      Publish notification
+    </button>
+  );
+}
+```
+
+## Return behavior
+
+- Focus loss shorter than the away threshold replays queued activity as normal toasts.
+- A qualified return waits briefly for late events, then presents up to three individual toasts.
+- Larger batches collapse into one digest toast while every item remains in the notification center.
+- Opening the center dismisses this component's visible toasts without marking notifications as read.
+- Read, new, and toast-presentation state remain local to the current tab and reset on reload.
+
+## API reference
+
+**WhileAwayNotificationsProvider**
+
+Provides the tab-scoped notification collection, monitors whether the current tab is active, and controls how queued activity is presented when the user returns. Wrap the notification producers and `NotificationCenter` for one tab with this component.
+
+<AutoTypeTable path="components/registry/while-away-notifications/while-away-notifications.tsx" name="WhileAwayNotificationsProviderProps" />
+
+**NotificationCenter**
+
+Renders the notification trigger, unread badge, and anchored notification popover. Place it wherever the user should open their tab's notification history.
+
+<AutoTypeTable path="components/registry/while-away-notifications/while-away-notifications.tsx" name="NotificationCenterProps" />
+
+**useWhileAwayNotifications**
+
+Provides the current notifications, unread count, tab-attention phase, and actions for publishing, queuing, reading, and opening notifications. Call `notify` for normal application activity; use `queueForReturn` only when an event must wait for the next tab return.
+
+**WhileAwayNotification**
+
+Describes one notification published to the provider. Give every notification a stable `id` so repeated events can be deduplicated before they enter the inbox or return queue.
+
+<AutoTypeTable path="components/registry/while-away-notifications/notification-state.ts" name="WhileAwayNotification" />
+
+## Credits
+
+- Toast presentation uses the shadcn/ui Sonner component.
+- The notification center uses the shadcn/ui Popover component backed by Base UI.
+
+## References
+
+- [shadcn/ui Sonner](https://ui.shadcn.com/docs/components/base/sonner)
+- [shadcn/ui Popover](https://ui.shadcn.com/docs/components/base/popover)
+- [Page Visibility API](https://developer.mozilla.org/docs/Web/API/Page_Visibility_API)

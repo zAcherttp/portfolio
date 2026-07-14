@@ -22,6 +22,8 @@ const componentDocumentLoaders = {
   "dither-footer": () => import("@/content/components/dither-footer.mdx"),
   "theme-hotkey": () => import("@/content/components/theme-hotkey.mdx"),
   "transaction-dock": () => import("@/content/components/transaction-dock.mdx"),
+  "while-away-notifications": () =>
+    import("@/content/components/while-away-notifications.mdx"),
   kbd: () => import("@/content/components/kbd.mdx"),
 } satisfies Record<RegisteredComponent["slug"], ComponentDocumentLoader>;
 

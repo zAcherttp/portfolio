@@ -31,6 +31,12 @@ import {
   ThemeHotkeyRapidFixture,
 } from "./theme-hotkey";
 import { TransactionDockDefaultFixture } from "./transaction-dock";
+import {
+  WhileAwayCatchUpFixture,
+  WhileAwayDefaultFixture,
+  WhileAwayDigestFixture,
+  WhileAwayEmptyFixture,
+} from "./while-away-notifications";
 
 export const fixtureRegistry: FixtureRegistry = {
   "floating-tooltip": {
@@ -158,6 +164,31 @@ export const fixtureRegistry: FixtureRegistry = {
         id: "default",
         name: "Default",
         component: TransactionDockDefaultFixture,
+      },
+    ],
+  },
+  "while-away-notifications": {
+    slug: "while-away-notifications",
+    cases: [
+      {
+        id: "default",
+        name: "Default",
+        component: WhileAwayDefaultFixture,
+      },
+      {
+        id: "catch-up",
+        name: "Catch up",
+        component: WhileAwayCatchUpFixture,
+      },
+      {
+        id: "digest",
+        name: "Digest overflow",
+        component: WhileAwayDigestFixture,
+      },
+      {
+        id: "empty",
+        name: "Empty",
+        component: WhileAwayEmptyFixture,
       },
     ],
   },

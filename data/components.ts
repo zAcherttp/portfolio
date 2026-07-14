@@ -131,6 +131,26 @@ export const componentRegistry = [
     },
   },
   {
+    slug: "while-away-notifications",
+    name: "While Away Notifications",
+    category: "Interaction",
+    description:
+      "A tab-scoped notification center that queues background activity and presents it when the user returns.",
+    status: "exploring",
+    files: [
+      "components/registry/while-away-notifications/notification-state.ts",
+      "components/registry/while-away-notifications/while-away-notifications.tsx",
+      "components/registry/while-away-notifications/index.ts",
+    ],
+    dependencies: ["lucide-react", "sonner"],
+    registryDependencies: ["popover", "sonner"],
+    usage: {
+      format: "jsx",
+      selector: "WhileAwayNotificationsProvider",
+      source: "components/docs/while-away-notifications-usage.tsx",
+    },
+  },
+  {
     slug: "kbd",
     name: "KBD",
     category: "Input",

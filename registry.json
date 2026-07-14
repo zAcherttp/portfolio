@@ -188,6 +188,35 @@
       }
     },
     {
+      "name": "while-away-notifications",
+      "type": "registry:component",
+      "title": "While Away Notifications",
+      "description": "A tab-scoped notification center that queues background activity and presents it when the user returns.",
+      "categories": ["interaction", "notification"],
+      "dependencies": ["lucide-react", "sonner"],
+      "registryDependencies": ["popover", "sonner"],
+      "files": [
+        {
+          "path": "components/registry/while-away-notifications/notification-state.ts",
+          "type": "registry:lib",
+          "target": "@components/registry/while-away-notifications/notification-state.ts"
+        },
+        {
+          "path": "components/registry/while-away-notifications/while-away-notifications.tsx",
+          "type": "registry:component",
+          "target": "@components/registry/while-away-notifications/while-away-notifications.tsx"
+        },
+        {
+          "path": "components/registry/while-away-notifications/index.ts",
+          "type": "registry:component",
+          "target": "@components/registry/while-away-notifications/index.ts"
+        }
+      ],
+      "meta": {
+        "status": "exploring"
+      }
+    },
+    {
       "name": "kbd",
       "type": "registry:ui",
       "title": "KBD",
