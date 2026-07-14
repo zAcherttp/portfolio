@@ -2,9 +2,7 @@
 
 /* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, wrapEffect } from "@react-three/postprocessing";
-import { Effect } from "postprocessing";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 const waveVertexShader = `
@@ -15,6 +13,53 @@ void main() {
   vec4 modelPosition = modelMatrix * vec4(position, 1.0);
   vec4 viewPosition = viewMatrix * modelPosition;
   gl_Position = projectionMatrix * viewPosition;
+}
+`;
+
+const ditherShader = `
+uniform float colorNum;
+uniform float pixelSize;
+uniform vec2 ditherOpacity;
+uniform int ditherEnabled;
+
+const float bayerMatrix8x8[64] = float[64](
+  0.0/64.0, 48.0/64.0, 12.0/64.0, 60.0/64.0,  3.0/64.0, 51.0/64.0, 15.0/64.0, 63.0/64.0,
+  32.0/64.0,16.0/64.0, 44.0/64.0, 28.0/64.0, 35.0/64.0,19.0/64.0, 47.0/64.0, 31.0/64.0,
+  8.0/64.0, 56.0/64.0,  4.0/64.0, 52.0/64.0, 11.0/64.0,59.0/64.0,  7.0/64.0, 55.0/64.0,
+  40.0/64.0,24.0/64.0, 36.0/64.0, 20.0/64.0, 43.0/64.0,27.0/64.0, 39.0/64.0, 23.0/64.0,
+  2.0/64.0, 50.0/64.0, 14.0/64.0, 62.0/64.0,  1.0/64.0,49.0/64.0, 13.0/64.0, 61.0/64.0,
+  34.0/64.0,18.0/64.0, 46.0/64.0, 30.0/64.0, 33.0/64.0,17.0/64.0, 45.0/64.0, 29.0/64.0,
+  10.0/64.0,58.0/64.0,  6.0/64.0, 54.0/64.0,  9.0/64.0,57.0/64.0,  5.0/64.0, 53.0/64.0,
+  42.0/64.0,26.0/64.0, 38.0/64.0, 22.0/64.0, 41.0/64.0,25.0/64.0, 37.0/64.0, 21.0/64.0
+);
+
+vec2 pixelatedUv(vec2 fragmentCoord, vec2 resolution) {
+  if (ditherEnabled == 0) {
+    return fragmentCoord / resolution;
+  }
+  return floor(fragmentCoord / pixelSize) * pixelSize / resolution;
+}
+
+float ditherMask(float value) {
+  vec2 cell = floor(gl_FragCoord.xy / pixelSize);
+  int x = int(mod(cell.x, 8.0));
+  int y = int(mod(cell.y, 8.0));
+  return step(bayerMatrix8x8[y * 8 + x], value);
+}
+
+vec4 applyDither(vec3 color, float alpha) {
+  if (ditherEnabled == 0) {
+    return vec4(color, alpha);
+  }
+  if (alpha < 0.01 || ditherMask(alpha) < 0.5) {
+    return vec4(0.0);
+  }
+  float dotAlpha = mix(
+    ditherOpacity.x,
+    ditherOpacity.y,
+    smoothstep(0.2, 0.95, alpha)
+  );
+  return vec4(color, dotAlpha);
 }
 `;
 
@@ -38,6 +83,8 @@ uniform vec3 flameBgColor; // background / fade-out color (#fefefe)
 uniform float flameBodyHeat;
 uniform float flameHeatPower;
 uniform float flamePositionBias;
+
+${ditherShader}
 
 vec4 mod289(vec4 x) { return x - floor(x * (1.0/289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -85,7 +132,7 @@ float fbm(vec2 p) {
 }
 
 void main() {
-  vec2 screenUv = gl_FragCoord.xy / resolution.xy;
+  vec2 screenUv = pixelatedUv(gl_FragCoord.xy, resolution.xy);
   
   // Aspect-ratio-independent noise coordinate mapping
   vec2 noiseUv = screenUv;
@@ -135,7 +182,7 @@ void main() {
     outColor = waveColor;
   }
   
-  gl_FragColor = vec4(outColor, fire);
+  gl_FragColor = applyDither(outColor, fire);
 }
 `;
 
@@ -144,226 +191,14 @@ precision highp float;
 uniform vec2 resolution;
 uniform vec3 waveColor;
 
+${ditherShader}
+
 void main() {
-  vec2 screenUv = gl_FragCoord.xy / resolution.xy;
+  vec2 screenUv = pixelatedUv(gl_FragCoord.xy, resolution.xy);
   float grad = 1.0 - screenUv.y;
-  gl_FragColor = vec4(waveColor, grad);
+  gl_FragColor = applyDither(waveColor, grad);
 }
 `;
-
-const ditherFragmentShader = `
-precision highp float;
-uniform float colorNum;
-uniform float pixelSize;
-uniform float ditherAlphaMin;
-uniform float ditherAlphaMax;
-// waveColor retained for uniform binding compatibility but not used for color output
-uniform vec3 waveColor;
-
-const float bayerMatrix8x8[64] = float[64](
-  0.0/64.0, 48.0/64.0, 12.0/64.0, 60.0/64.0,  3.0/64.0, 51.0/64.0, 15.0/64.0, 63.0/64.0,
-  32.0/64.0,16.0/64.0, 44.0/64.0, 28.0/64.0, 35.0/64.0,19.0/64.0, 47.0/64.0, 31.0/64.0,
-  8.0/64.0, 56.0/64.0,  4.0/64.0, 52.0/64.0, 11.0/64.0,59.0/64.0,  7.0/64.0, 55.0/64.0,
-  40.0/64.0,24.0/64.0, 36.0/64.0, 20.0/64.0, 43.0/64.0,27.0/64.0, 39.0/64.0, 23.0/64.0,
-  2.0/64.0, 50.0/64.0, 14.0/64.0, 62.0/64.0,  1.0/64.0,49.0/64.0, 13.0/64.0, 61.0/64.0,
-  34.0/64.0,18.0/64.0, 46.0/64.0, 30.0/64.0, 33.0/64.0,17.0/64.0, 45.0/64.0, 29.0/64.0,
-  10.0/64.0,58.0/64.0,  6.0/64.0, 54.0/64.0,  9.0/64.0,57.0/64.0,  5.0/64.0, 53.0/64.0,
-  42.0/64.0,26.0/64.0, 38.0/64.0, 22.0/64.0, 41.0/64.0,25.0/64.0, 37.0/64.0, 21.0/64.0
-);
-
-// Bayer-dither a scalar value [0,1]
-float ditherAlpha(vec2 uv, float value) {
-  vec2 scaledCoord = floor(uv * resolution / pixelSize);
-  int x = int(mod(scaledCoord.x, 8.0));
-  int y = int(mod(scaledCoord.y, 8.0));
-  float threshold = bayerMatrix8x8[y * 8 + x];
-  return step(threshold, value);
-}
-
-void mainImage(in vec4 inputColor, in vec2 uv, out vec4 outputColor) {
-  vec2 normalizedPixelSize = pixelSize / resolution;
-  vec2 uvPixel = normalizedPixelSize * floor(uv / normalizedPixelSize);
-  vec4 color = texture2D(inputBuffer, uvPixel);
-
-  // Early exit: no fire at all — discard to avoid Bayer (0,0) dot-grid artifact
-  if (color.a < 0.01) {
-    outputColor = vec4(0.0, 0.0, 0.0, 0.0);
-    return;
-  }
-  
-  // Use the alpha channel as fire intensity for the dither mask.
-  // The rgb carries the gradient color computed in the wave shader.
-  float mask = ditherAlpha(uv, color.a);
-  
-  if (mask > 0.5) {
-    float dotAlpha = mix(ditherAlphaMin, ditherAlphaMax, smoothstep(0.2, 0.95, color.a));
-    outputColor = vec4(color.rgb, dotAlpha);
-  } else {
-    outputColor = vec4(0.0, 0.0, 0.0, 0.0);
-  }
-}
-`;
-
-class RetroEffectImpl extends Effect {
-  // biome-ignore lint/suspicious/noExplicitAny: base class Effect requires Map<string, Uniform<any>>
-  public uniforms: Map<string, THREE.Uniform<any>>;
-
-  constructor() {
-    // biome-ignore lint/suspicious/noExplicitAny: base class Effect requires Map<string, Uniform<any>>
-    const uniforms = new Map<string, THREE.Uniform<any>>([
-      ["colorNum", new THREE.Uniform(4.0)],
-      ["pixelSize", new THREE.Uniform(2.0)],
-      ["ditherAlphaMin", new THREE.Uniform(1.0)],
-      ["ditherAlphaMax", new THREE.Uniform(1.0)],
-      ["waveColor", new THREE.Uniform(new THREE.Color(0, 0, 0))],
-    ]);
-    super("RetroEffect", ditherFragmentShader, { uniforms });
-    this.uniforms = uniforms;
-  }
-
-  private getUniform(name: string) {
-    const uniform = this.uniforms.get(name);
-    if (!uniform) {
-      throw new Error(`Missing RetroEffect uniform: ${name}`);
-    }
-    return uniform;
-  }
-
-  set colorNum(value: number) {
-    this.getUniform("colorNum").value = value;
-  }
-
-  get colorNum(): number {
-    return this.getUniform("colorNum").value;
-  }
-
-  set pixelSize(value: number) {
-    this.getUniform("pixelSize").value = value;
-  }
-
-  get pixelSize(): number {
-    return this.getUniform("pixelSize").value;
-  }
-
-  set ditherAlphaMin(value: number) {
-    this.getUniform("ditherAlphaMin").value = value;
-  }
-
-  get ditherAlphaMin(): number {
-    return this.getUniform("ditherAlphaMin").value;
-  }
-
-  set ditherAlphaMax(value: number) {
-    this.getUniform("ditherAlphaMax").value = value;
-  }
-
-  get ditherAlphaMax(): number {
-    return this.getUniform("ditherAlphaMax").value;
-  }
-
-  set waveColor(value: THREE.Color | [number, number, number]) {
-    const u = this.getUniform("waveColor");
-    if (Array.isArray(value)) {
-      u.value.setRGB(value[0], value[1], value[2], THREE.SRGBColorSpace);
-    } else {
-      u.value.copy(value);
-    }
-  }
-
-  get waveColor(): THREE.Color {
-    return this.getUniform("waveColor").value;
-  }
-}
-
-const RetroEffect = forwardRef<
-  RetroEffectImpl,
-  {
-    colorNum: number;
-    pixelSize: number;
-    ditherOpacity: [number, number];
-    waveColor: [number, number, number];
-  }
->((props, ref) => {
-  const { colorNum, pixelSize, ditherOpacity, waveColor } = props;
-  const WrappedRetroEffect = wrapEffect(RetroEffectImpl);
-  return (
-    <WrappedRetroEffect
-      ref={ref}
-      colorNum={colorNum}
-      pixelSize={pixelSize}
-      ditherAlphaMin={ditherOpacity[0]}
-      ditherAlphaMax={ditherOpacity[1]}
-      waveColor={waveColor}
-    />
-  );
-});
-
-RetroEffect.displayName = "RetroEffect";
-
-function isRendererContextReady(gl: THREE.WebGLRenderer) {
-  const context = gl.getContext();
-  const attributes = gl.getContextAttributes() as
-    | WebGLContextAttributes
-    | null
-    | undefined;
-
-  return Boolean(
-    gl.domElement?.isConnected && attributes && !context.isContextLost(),
-  );
-}
-
-function GuardedEffectComposer({
-  colorNum,
-  pixelSize,
-  ditherOpacity,
-  waveColor,
-}: {
-  colorNum: number;
-  pixelSize: number;
-  ditherOpacity: [number, number];
-  waveColor: [number, number, number];
-}) {
-  const { gl } = useThree();
-  const [canCompose, setCanCompose] = useState(false);
-
-  useEffect(() => {
-    const canvas = gl.domElement;
-    let frameId = 0;
-
-    const updateComposerState = () => {
-      setCanCompose(isRendererContextReady(gl));
-    };
-    const handleContextLost = () => {
-      setCanCompose(false);
-    };
-
-    updateComposerState();
-    frameId = window.requestAnimationFrame(updateComposerState);
-    canvas.addEventListener("webglcontextlost", handleContextLost);
-    canvas.addEventListener("webglcontextrestored", updateComposerState);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      canvas.removeEventListener("webglcontextlost", handleContextLost);
-      canvas.removeEventListener("webglcontextrestored", updateComposerState);
-    };
-  }, [gl]);
-
-  if (!canCompose) {
-    return null;
-  }
-
-  return (
-    <EffectComposer>
-      <RetroEffect
-        colorNum={colorNum}
-        pixelSize={pixelSize}
-        ditherOpacity={ditherOpacity}
-        waveColor={waveColor}
-      />
-    </EffectComposer>
-  );
-}
 
 interface DitheredWavesProps {
   fireSpeed: number;
@@ -424,6 +259,10 @@ function DitheredWaves({
       noiseStrength: { value: noiseStrength },
       burnProgress: { value: burnProgress },
       fireRange: { value: new THREE.Vector2(...fireRange) },
+      colorNum: { value: colorNum },
+      pixelSize: { value: pixelSize },
+      ditherOpacity: { value: new THREE.Vector2(...ditherOpacity) },
+      ditherEnabled: { value: mode === "fire" ? 0 : 1 },
       waveColor: {
         value: new THREE.Color().setRGB(
           waveColor[0],
@@ -434,8 +273,7 @@ function DitheredWaves({
       },
       flameMode: { value: flameMode },
       // Use THREE.Vector3 (not THREE.Color) to pass raw sRGB [0-1] values
-      // without color-space linearisation — preserves full vibrancy after
-      // the composer's sRGB gamma-encode output step.
+      // without color-space linearisation.
       flameColorA: {
         value: new THREE.Vector3(
           flameColors?.[0][0] ?? 0,
@@ -507,6 +345,22 @@ function DitheredWaves({
     ) {
       mat.uniforms.fireRange.value.set(...fireRange);
     }
+    if (mat.uniforms.colorNum.value !== colorNum) {
+      mat.uniforms.colorNum.value = colorNum;
+    }
+    if (mat.uniforms.pixelSize.value !== pixelSize) {
+      mat.uniforms.pixelSize.value = pixelSize;
+    }
+    if (
+      mat.uniforms.ditherOpacity.value.x !== ditherOpacity[0] ||
+      mat.uniforms.ditherOpacity.value.y !== ditherOpacity[1]
+    ) {
+      mat.uniforms.ditherOpacity.value.set(...ditherOpacity);
+    }
+    const ditherEnabled = mode === "fire" ? 0 : 1;
+    if (mat.uniforms.ditherEnabled.value !== ditherEnabled) {
+      mat.uniforms.ditherEnabled.value = ditherEnabled;
+    }
     if (mat.uniforms.waveColor) {
       mat.uniforms.waveColor.value.setRGB(
         waveColor[0],
@@ -555,28 +409,17 @@ function DitheredWaves({
   }, [mode]);
 
   return (
-    <>
-      <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
-        <planeGeometry args={[1, 1]} />
-        <shaderMaterial
-          key={mode}
-          ref={materialRef}
-          vertexShader={waveVertexShader}
-          fragmentShader={activeFragmentShader}
-          uniforms={initialUniforms}
-          transparent={true}
-        />
-      </mesh>
-
-      {mode !== "fire" && (
-        <GuardedEffectComposer
-          colorNum={colorNum}
-          pixelSize={pixelSize}
-          ditherOpacity={ditherOpacity}
-          waveColor={waveColor}
-        />
-      )}
-    </>
+    <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        key={mode}
+        ref={materialRef}
+        vertexShader={waveVertexShader}
+        fragmentShader={activeFragmentShader}
+        uniforms={initialUniforms}
+        transparent={true}
+      />
+    </mesh>
   );
 }
 
