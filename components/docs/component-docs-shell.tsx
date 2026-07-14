@@ -1,6 +1,5 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
+import { BackButton } from "@/components/BackButton";
 import SectionDivider from "@/components/SectionDivider";
 import type { RegistryEntry } from "@/data/components";
 import { CodeSnippet } from "./code-snippet";
@@ -23,13 +22,9 @@ export function ComponentDocsShell({
   return (
     <main className="min-h-screen text-foreground">
       <article className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
-        <Link
-          href="/components"
-          className="docs-pressable mb-9 inline-flex items-center gap-1.5 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <ArrowLeft className="size-3.5" />
+        <BackButton className="docs-pressable mb-9" href="/components">
           Components
-        </Link>
+        </BackButton>
         <header className="mb-10">
           <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-xl font-semibold tracking-tight">
