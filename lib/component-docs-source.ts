@@ -60,3 +60,15 @@ export const componentDocs = loader({
   baseUrl: "/components",
   source: componentDocsSource,
 });
+
+export function getComponentDocsNeighbours(slug: string) {
+  const pages = componentDocs.getPages();
+  const index = pages.findIndex((page) => page.data.entry.slug === slug);
+
+  if (index === -1) return { previous: null, next: null };
+
+  return {
+    previous: pages[index - 1]?.data.entry ?? null,
+    next: pages[index + 1]?.data.entry ?? null,
+  };
+}

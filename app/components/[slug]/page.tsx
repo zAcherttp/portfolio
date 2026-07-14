@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ComponentDocsShell } from "@/components/docs/component-docs-shell";
 import { ComponentPreview } from "@/components/docs/component-preview";
-import { componentDocs } from "@/lib/component-docs-source";
+import {
+  componentDocs,
+  getComponentDocsNeighbours,
+} from "@/lib/component-docs-source";
 import { captureComponentUsage } from "@/lib/component-usage";
 import { createPageJsonLd, SeoJsonLd } from "@/lib/seo/json-ld";
 import { createSeoMetadata } from "@/lib/seo/metadata";
@@ -34,6 +37,7 @@ export default async function ComponentPage({ params }: Props) {
   const { entry } = page.data;
   const { default: Content } = await page.data.loadDocument();
   const usage = await captureComponentUsage(entry.usage);
+  const { previous, next } = getComponentDocsNeighbours(slug);
   return (
     <>
       <SeoJsonLd
@@ -46,7 +50,9 @@ export default async function ComponentPage({ params }: Props) {
       />
       <ComponentDocsShell
         entry={entry}
+        next={next}
         preview={<ComponentPreview slug={entry.slug} />}
+        previous={previous}
         usage={usage}
       >
         <Content />

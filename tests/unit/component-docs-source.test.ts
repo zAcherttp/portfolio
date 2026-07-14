@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { componentRegistry } from "@/data/components";
-import { componentDocs } from "@/lib/component-docs-source";
+import {
+  componentDocs,
+  getComponentDocsNeighbours,
+} from "@/lib/component-docs-source";
 
 describe("component docs source", () => {
   test("derives one stable documentation page from every registry entry", () => {
@@ -22,5 +25,24 @@ describe("component docs source", () => {
 
   test("does not resolve unknown component slugs", () => {
     expect(componentDocs.getPage(["not-a-component"])).toBeUndefined();
+  });
+
+  test("derives adjacent components without wrapping at the boundaries", () => {
+    expect(getComponentDocsNeighbours("floating-tooltip")).toEqual({
+      previous: null,
+      next: componentRegistry[1],
+    });
+    expect(getComponentDocsNeighbours("activity-grid")).toEqual({
+      previous: componentRegistry[0],
+      next: componentRegistry[2],
+    });
+    expect(getComponentDocsNeighbours("kbd")).toEqual({
+      previous: componentRegistry.at(-2),
+      next: null,
+    });
+    expect(getComponentDocsNeighbours("not-a-component")).toEqual({
+      previous: null,
+      next: null,
+    });
   });
 });

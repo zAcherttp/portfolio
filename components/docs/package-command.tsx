@@ -5,17 +5,18 @@ import { useMemo, useState } from "react";
 
 type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
 
-export function PackageCommand({ packages }: { packages: readonly string[] }) {
+export function PackageCommand({ slug }: { slug: string }) {
   const [manager, setManager] = useState<PackageManager>("pnpm");
   const [copied, setCopied] = useState(false);
+  const registryItem = `@zacherttp/${slug}`;
   const commands = useMemo(
     () => ({
-      pnpm: `pnpm add ${packages.join(" ")}`,
-      npm: `npm install ${packages.join(" ")}`,
-      yarn: `yarn add ${packages.join(" ")}`,
-      bun: `bun add ${packages.join(" ")}`,
+      pnpm: `pnpm dlx shadcn@latest add ${registryItem}`,
+      npm: `npx shadcn@latest add ${registryItem}`,
+      yarn: `yarn dlx shadcn@latest add ${registryItem}`,
+      bun: `bunx --bun shadcn@latest add ${registryItem}`,
     }),
-    [packages],
+    [registryItem],
   );
 
   async function copy() {

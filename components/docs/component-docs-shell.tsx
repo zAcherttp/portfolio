@@ -4,19 +4,26 @@ import SectionDivider from "@/components/SectionDivider";
 import type { RegistryEntry } from "@/data/components";
 import type { CapturedComponentUsage } from "@/lib/component-usage";
 import { CodeSnippet } from "./code-snippet";
+import { ComponentDocsNavigation } from "./component-docs-navigation";
 import { DocsTabs } from "./component-docs-tabs";
 import { ComponentSource } from "./component-source";
+import { LLMCopyButtonWithViewOptions } from "./doc-page-actions";
+import { DocShareMenu } from "./doc-share-menu";
 import { PackageCommand } from "./package-command";
 
 export function ComponentDocsShell({
   entry,
   preview,
   usage,
+  previous,
+  next,
   children,
 }: {
   entry: RegistryEntry;
   preview: ReactNode;
   usage: CapturedComponentUsage;
+  previous: RegistryEntry | null;
+  next: RegistryEntry | null;
   children: ReactNode;
 }) {
   const source = entry.files.map((file) => (
@@ -25,9 +32,22 @@ export function ComponentDocsShell({
   return (
     <main className="min-h-screen text-foreground">
       <article className="mx-auto max-w-3xl px-6 py-8 sm:py-12">
-        <BackButton className="docs-pressable mb-9" href="/components">
-          Components
-        </BackButton>
+        <div className="mb-9 flex flex-wrap items-center justify-between gap-3">
+          <BackButton className="docs-pressable" href="/components">
+            Components
+          </BackButton>
+          <div className="ml-auto flex items-center gap-1 max-[420px]:w-full max-[420px]:justify-end">
+            <LLMCopyButtonWithViewOptions
+              githubUrl={`https://github.com/zAcherttp/portfolio/blob/master/content/components/${entry.slug}.mdx`}
+              markdownUrl={`/components/${entry.slug}.mdx`}
+            />
+            <DocShareMenu
+              title={`${entry.name} component documentation`}
+              url={`/components/${entry.slug}`}
+            />
+            <ComponentDocsNavigation previous={previous} next={next} />
+          </div>
+        </div>
         <header className="mb-10">
           <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-xl font-semibold tracking-tight">
@@ -43,7 +63,7 @@ export function ComponentDocsShell({
         </header>
         <DocsTabs
           ariaLabel={`${entry.name} example`}
-          panelClassName="mt-3 overflow-hidden rounded-2xl bg-muted/45"
+          panelClassName="mt-3 overflow-hidden rounded-2xl bg-muted/55"
           tabs={[
             {
               label: "Preview",
@@ -85,14 +105,7 @@ export function ComponentDocsShell({
             tabs={[
               {
                 label: "Command",
-                content:
-                  entry.dependencies.length > 0 ? (
-                    <PackageCommand packages={entry.dependencies} />
-                  ) : (
-                    <p className="rounded-xl bg-muted/55 px-4 py-4 text-sm text-muted-foreground">
-                      No package dependencies.
-                    </p>
-                  ),
+                content: <PackageCommand slug={entry.slug} />,
               },
               {
                 label: "Manual",

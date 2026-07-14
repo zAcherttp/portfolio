@@ -38,6 +38,25 @@ const nextConfig: NextConfig = {
       expire: 2592000,
     },
   },
+  async rewrites() {
+    return [
+      {
+        source: "/components/:slug.mdx",
+        destination: "/component-docs.mdx/:slug",
+      },
+      {
+        source: "/components/:slug",
+        destination: "/component-docs.mdx/:slug",
+        has: [
+          {
+            type: "header",
+            key: "accept",
+            value: ".*text/markdown.*",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default withMDX(nextConfig);

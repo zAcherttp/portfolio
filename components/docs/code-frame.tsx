@@ -59,7 +59,7 @@ export function CodeFrame({
       data-code-frame
       data-line-numbers={showLineNumbers || undefined}
       className={cn(
-        "group/code my-5 overflow-hidden rounded-xl bg-[var(--code-background)]",
+        "group/code my-5 overflow-hidden rounded-xl bg-muted/55",
         className,
       )}
     >
@@ -95,7 +95,7 @@ export function MdxFigcaption({
     <figcaption
       {...props}
       className={cn(
-        "overflow-hidden rounded-t-xl bg-[var(--code-background)]",
+        "overflow-hidden rounded-t-xl bg-muted/55",
         props.className,
       )}
     >

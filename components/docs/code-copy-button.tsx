@@ -25,7 +25,7 @@ export function CodeCopyButton({ value }: { value?: string }) {
       onClick={copy}
       aria-label="Copy code"
       title="Copy code"
-      className="docs-pressable absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md bg-[var(--code-background)]/90 text-muted-foreground outline-none hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      className="docs-pressable absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-background/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Icon className="size-3.5" />
       <span className="sr-only" aria-live="polite">
