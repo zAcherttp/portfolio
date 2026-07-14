@@ -1,15 +1,31 @@
 import { cacheLife } from "next/cache";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import type { Activity } from "../../../components/kibo-ui/contribution-graph";
+import { fetchBoundedJson } from "../../../lib/bounded-fetch";
 
-type APIActivity = {
-  date: string;
-  contributionCount: number;
-  contributionLevel: string;
-  color: string;
-};
+const contributionLevelSchema = z.enum([
+  "NONE",
+  "FIRST_QUARTILE",
+  "SECOND_QUARTILE",
+  "THIRD_QUARTILE",
+  "FOURTH_QUARTILE",
+]);
+const apiActivitySchema = z.object({
+  date: z.iso.date(),
+  contributionCount: z.number().int().nonnegative().max(100_000),
+  contributionLevel: contributionLevelSchema,
+});
+const githubContributionsSchema = z.object({
+  contributions: z.array(z.array(apiActivitySchema).max(7)).max(60),
+});
 
-const mapLevel = (levelStr: string): number => {
+type APIActivity = z.infer<typeof apiActivitySchema>;
+
+const CONTRIBUTIONS_MAX_BYTES = 512 * 1024;
+const CONTRIBUTIONS_TIMEOUT_MS = 5_000;
+
+const mapLevel = (levelStr: APIActivity["contributionLevel"]): number => {
   switch (levelStr) {
     case "NONE":
       return 0;
@@ -32,12 +48,10 @@ async function getCachedContributions(username: string, baseUrl: string) {
   cacheLife("daily");
 
   const url = `${baseUrl}/${username}.json`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch contributions: ${res.statusText}`);
-  }
-
-  const data = (await res.json()) as { contributions: APIActivity[][] };
+  const data = await fetchBoundedJson(url, githubContributionsSchema, {
+    maxBytes: CONTRIBUTIONS_MAX_BYTES,
+    timeoutMs: CONTRIBUTIONS_TIMEOUT_MS,
+  });
   const weeks = data.contributions;
   const contributions: Activity[] = weeks.flat().map((item) => ({
     date: item.date,
@@ -54,8 +68,13 @@ export async function GET() {
 
   if (!username || !baseUrl) {
     return NextResponse.json(
-      { error: "GitHub configuration missing in server environment" },
-      { status: 500 },
+      {
+        error: {
+          code: "api_configuration_unavailable",
+          message: "Contribution data is temporarily unavailable.",
+        },
+      },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 
@@ -67,11 +86,15 @@ export async function GET() {
         "Cache-Control": "public, max-age=3600, stale-while-revalidate",
       },
     });
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch contribution graph";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: "upstream_unavailable",
+          message: "Contribution data is temporarily unavailable.",
+        },
+      },
+      { status: 502, headers: { "Cache-Control": "private, no-store" } },
+    );
   }
 }
