@@ -2,7 +2,7 @@ import type { MDXComponents } from "mdx/types";
 import { AutoTypeTable } from "@/components/docs/auto-type-table";
 import { MdxFigcaption, MdxFigure, MdxPre } from "@/components/docs/code-frame";
 import { ComponentSource } from "@/components/docs/component-source";
-import { ApiTable, DocsSection } from "@/components/docs/docs-primitives";
+import { DocsSection } from "@/components/docs/docs-primitives";
 import { Step, Steps } from "@/components/docs/steps";
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
@@ -39,7 +39,6 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     figcaption: MdxFigcaption,
     pre: MdxPre,
     DocsSection,
-    ApiTable,
     AutoTypeTable,
     ComponentSource,
     Steps,

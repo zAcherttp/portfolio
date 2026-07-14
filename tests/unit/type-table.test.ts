@@ -38,6 +38,21 @@ const documentedTypes = [
       "className",
     ],
   },
+  {
+    name: "DitherFooterProps",
+    path: "components/DitherFooter.tsx",
+    props: ["active", "className", "testId"],
+  },
+  {
+    name: "GlobalHotkeysProps",
+    path: "components/GlobalHotkeys.tsx",
+    props: ["shortcut", "throttleMs", "ignoreInputs"],
+  },
+  {
+    name: "KbdOwnProps",
+    path: "components/ui/kbd.tsx",
+    props: ["pressed", "reactive", "keyName", "className", "children"],
+  },
 ] as const;
 
 describe("component API type tables", () => {

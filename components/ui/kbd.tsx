@@ -2,12 +2,24 @@
 
 import type { IndividualKey } from "@tanstack/react-hotkeys";
 import { useKeyHold } from "@tanstack/react-hotkeys";
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type KbdBaseProps = HTMLAttributes<HTMLElement> & {
+export type KbdOwnProps = {
+  /** Shows the key in its depressed visual state. */
   pressed?: boolean;
+  /** Subscribes the key to live keyboard state. */
+  reactive?: boolean;
+  /** Physical key observed when reactive mode is enabled. */
+  keyName?: IndividualKey;
+  /** Additional classes for the key element. */
+  className?: string;
+  /** Key label rendered inside the element. */
+  children?: ReactNode;
 };
+
+type KbdBaseProps = Omit<HTMLAttributes<HTMLElement>, keyof KbdOwnProps> &
+  Pick<KbdOwnProps, "pressed" | "className" | "children">;
 
 type StaticKbdProps = KbdBaseProps & {
   reactive?: false;

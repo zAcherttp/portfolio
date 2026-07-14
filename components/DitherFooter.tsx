@@ -29,9 +29,12 @@ const ORANGE_FLAME_COLORS: [
   [1.0, 0.788, 0.118],
 ];
 
-interface DitherFooterProps {
+export interface DitherFooterProps {
+  /** Controls whether the shader and its warm-up animation are running. */
   active?: boolean;
+  /** Classes applied to the shader container. */
   className?: string;
+  /** Base test identifier used by the rendered and fallback states. */
   testId?: string;
 }
 
