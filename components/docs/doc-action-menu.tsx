@@ -1,12 +1,14 @@
 "use client";
 
-import { Menu } from "@base-ui/react/menu";
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
 import {
-  docActionButtonClass,
-  docActionMenuItemClass,
-} from "./doc-action-styles";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { docActionButtonClass } from "./doc-action-styles";
 
 export function DocActionMenu({
   label,
@@ -20,27 +22,18 @@ export function DocActionMenu({
   children: ReactNode;
 }) {
   return (
-    <Menu.Root>
-      <Menu.Trigger
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
         aria-label={label}
-        title={label}
         className={cn(docActionButtonClass, triggerClassName)}
+        title={label}
       >
         {icon}
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Positioner
-          align="end"
-          className="z-50 outline-none"
-          collisionPadding={12}
-          sideOffset={6}
-        >
-          <Menu.Popup className="motion-enter min-w-48 origin-(--transform-origin) rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg shadow-black/5 outline-none transition-[transform,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
-            {children}
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-48" sideOffset={6}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -54,13 +47,9 @@ export function DocActionMenuItem({
   children: ReactNode;
 }) {
   return (
-    <Menu.Item
-      className={docActionMenuItemClass}
-      closeOnClick={closeOnClick}
-      onClick={onClick}
-    >
+    <DropdownMenuItem closeOnClick={closeOnClick} onClick={onClick}>
       {children}
-    </Menu.Item>
+    </DropdownMenuItem>
   );
 }
 
@@ -72,14 +61,11 @@ export function DocActionMenuLink({
   children: ReactNode;
 }) {
   return (
-    <Menu.LinkItem
-      className={docActionMenuItemClass}
+    <DropdownMenuItem
       closeOnClick
-      href={href}
-      rel="noopener noreferrer"
-      target="_blank"
+      render={<a href={href} rel="noopener noreferrer" target="_blank" />}
     >
       {children}
-    </Menu.LinkItem>
+    </DropdownMenuItem>
   );
 }
