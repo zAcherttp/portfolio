@@ -11,14 +11,13 @@ import {
   useRef,
   useState,
 } from "react";
+import { cn } from "@/lib/utils";
 import {
   TRANSACTION_CARD_SLOT_WIDTH,
   TransactionCard,
   type TransactionCardMode,
   type TransactionDockItem,
 } from "./transaction-card";
-import { cn } from "@/lib/utils";
-
 
 type TransactionPanel = {
   id: string;

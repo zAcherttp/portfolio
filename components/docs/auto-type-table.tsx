@@ -1,9 +1,36 @@
 import { type Jsx, toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { cacheLife } from "next/cache";
+import type { ReactNode } from "react";
 import * as runtime from "react/jsx-runtime";
+import typeTablesRegistry from "@/data/type-tables-registry.json";
 import { highlightCode } from "@/lib/highlight-code";
 import { generateTypeTable } from "@/lib/type-table";
-import typeTablesRegistry from "@/data/type-tables-registry.json";
+
+interface PrecomputedEntry {
+  name: string;
+  required: boolean;
+  description?: string;
+  highlightedType: unknown;
+}
+
+interface PrecomputedDoc {
+  id: string;
+  name: string;
+  entries: PrecomputedEntry[];
+}
+
+interface HighlightedEntry {
+  name: string;
+  required: boolean;
+  description?: string;
+  highlightedType: ReactNode;
+}
+
+interface HighlightedDoc {
+  id: string;
+  name: string;
+  entries: HighlightedEntry[];
+}
 
 type AutoTypeTableProps = { path: string; name: string };
 
@@ -16,20 +43,27 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
   cacheLife("max");
 
   const key = `${path}:${name}`;
-  const precomputed = (typeTablesRegistry as Record<string, any>)[key];
+  const precomputed = (typeTablesRegistry as Record<string, PrecomputedDoc[]>)[
+    key
+  ];
 
   if (precomputed) {
-    const highlightedDocs = precomputed.map((doc: any) => ({
-      ...doc,
-      entries: doc.entries.map((entry: any) => ({
-        ...entry,
-        highlightedType: toJsxRuntime(entry.highlightedType, {
-          Fragment: runtime.Fragment,
-          jsx: runtime.jsx as Jsx,
-          jsxs: runtime.jsxs as Jsx,
-        }),
-      })),
-    }));
+    const highlightedDocs: HighlightedDoc[] = precomputed.map(
+      (doc: PrecomputedDoc) => ({
+        ...doc,
+        entries: doc.entries.map((entry: PrecomputedEntry) => ({
+          ...entry,
+          highlightedType: toJsxRuntime(
+            entry.highlightedType as Parameters<typeof toJsxRuntime>[0],
+            {
+              Fragment: runtime.Fragment,
+              jsx: runtime.jsx as Jsx,
+              jsxs: runtime.jsxs as Jsx,
+            },
+          ),
+        })),
+      }),
+    );
 
     return renderTable(highlightedDocs);
   }
@@ -58,7 +92,7 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
   return renderTable(highlightedDocs);
 }
 
-function renderTable(highlightedDocs: any[]) {
+function renderTable(highlightedDocs: HighlightedDoc[]) {
   return (
     <div className="space-y-4">
       {highlightedDocs.map((doc) => (
@@ -72,7 +106,7 @@ function renderTable(highlightedDocs: any[]) {
                 </tr>
               </thead>
               <tbody>
-                {doc.entries.map((entry: any) => (
+                {doc.entries.map((entry: HighlightedEntry) => (
                   <tr
                     key={entry.name}
                     className="border-border/60 border-b align-top last:border-b-0"

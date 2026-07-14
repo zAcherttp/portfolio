@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { codeToHast } from "shiki";
 import {
   createFileSystemGeneratorCache,
   createGenerator,
 } from "fumadocs-typescript";
+import { codeToHast } from "shiki";
 
 const CODE_THEMES = {
   light: "github-light",
@@ -20,7 +20,7 @@ async function getMdxFiles(dir: string): Promise<string[]> {
     entries.map(async (entry) => {
       const res = path.resolve(dir, entry.name);
       return entry.isDirectory() ? getMdxFiles(res) : res;
-    })
+    }),
   );
   return files.flat().filter((file) => file.endsWith(".mdx"));
 }
@@ -41,7 +41,7 @@ async function highlightPropType(typeStr: string) {
 }
 
 const typeTableCache = createFileSystemGeneratorCache(
-  ".next/fumadocs-typescript"
+  ".next/fumadocs-typescript",
 );
 
 async function main() {
@@ -56,7 +56,20 @@ async function main() {
     tsconfigPath: "tsconfig.json",
   });
 
-  const registry: Record<string, any> = {};
+  interface PrecomputedEntry {
+    name: string;
+    required: boolean;
+    description?: string;
+    highlightedType: unknown;
+  }
+
+  interface PrecomputedDoc {
+    id: string;
+    name: string;
+    entries: PrecomputedEntry[];
+  }
+
+  const registry: Record<string, PrecomputedDoc[]> = {};
 
   for (const filePath of mdxFiles) {
     const content = await fs.readFile(filePath, "utf8");
@@ -68,7 +81,10 @@ async function main() {
       console.log(`Generating type table for key: ${key}`);
 
       try {
-        const docs = await generator.generateTypeTable({ path: sourcePath, name });
+        const docs = await generator.generateTypeTable({
+          path: sourcePath,
+          name,
+        });
 
         const highlightedDocs = await Promise.all(
           docs.map(async (doc) => ({
@@ -80,9 +96,9 @@ async function main() {
                 required: entry.required,
                 description: entry.description,
                 highlightedType: await highlightPropType(entry.type),
-              }))
+              })),
             ),
-          }))
+          })),
         );
 
         registry[key] = highlightedDocs;
