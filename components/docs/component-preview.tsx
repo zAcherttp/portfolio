@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { type ComponentType, type ReactNode, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import { DitherFooter } from "@/components/DitherFooter";
 import GitHubContributions from "@/components/profile/GitHubContributions";
 import {
@@ -173,8 +173,12 @@ function GitHubPreview() {
 
 function ThemeHotkeyPreview() {
   const { resolvedTheme, setTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
+  const [mounted, setMounted] = useState(false);
+  const dark = mounted && resolvedTheme === "dark";
   const Icon = dark ? Sun : Moon;
+
+  useEffect(() => setMounted(true), []);
+
   return (
     <div className="flex min-h-40 items-center justify-center">
       <PreviewFrame mode="compact">
