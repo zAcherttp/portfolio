@@ -1,22 +1,40 @@
 import { type Jsx, toJsxRuntime } from "hast-util-to-jsx-runtime";
-import { Suspense } from "react";
+import { cacheLife } from "next/cache";
 import * as runtime from "react/jsx-runtime";
 import { highlightCode } from "@/lib/highlight-code";
 import { generateTypeTable } from "@/lib/type-table";
+import typeTablesRegistry from "@/data/type-tables-registry.json";
 
 type AutoTypeTableProps = { path: string; name: string };
 
 export function AutoTypeTable(props: AutoTypeTableProps) {
-  return (
-    <Suspense
-      fallback={<div className="h-28 animate-pulse rounded-xl bg-muted/45" />}
-    >
-      <AutoTypeTableContent {...props} />
-    </Suspense>
-  );
+  return <AutoTypeTableContent {...props} />;
 }
 
 async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
+  "use cache";
+  cacheLife("max");
+
+  const key = `${path}:${name}`;
+  const precomputed = (typeTablesRegistry as Record<string, any>)[key];
+
+  if (precomputed) {
+    const highlightedDocs = precomputed.map((doc: any) => ({
+      ...doc,
+      entries: doc.entries.map((entry: any) => ({
+        ...entry,
+        highlightedType: toJsxRuntime(entry.highlightedType, {
+          Fragment: runtime.Fragment,
+          jsx: runtime.jsx as Jsx,
+          jsxs: runtime.jsxs as Jsx,
+        }),
+      })),
+    }));
+
+    return renderTable(highlightedDocs);
+  }
+
+  // Fallback (for development / missing registry entries)
   const docs = await generateTypeTable({ path, name });
   const highlightedDocs = await Promise.all(
     docs.map(async (doc) => ({
@@ -37,6 +55,10 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
     })),
   );
 
+  return renderTable(highlightedDocs);
+}
+
+function renderTable(highlightedDocs: any[]) {
   return (
     <div className="space-y-4">
       {highlightedDocs.map((doc) => (
@@ -50,7 +72,7 @@ async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
                 </tr>
               </thead>
               <tbody>
-                {doc.entries.map((entry) => (
+                {doc.entries.map((entry: any) => (
                   <tr
                     key={entry.name}
                     className="border-border/60 border-b align-top last:border-b-0"
