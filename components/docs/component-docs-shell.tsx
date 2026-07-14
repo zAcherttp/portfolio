@@ -2,6 +2,7 @@ import { type ReactNode, Suspense } from "react";
 import { BackButton } from "@/components/BackButton";
 import SectionDivider from "@/components/SectionDivider";
 import type { RegistryEntry } from "@/data/components";
+import type { CapturedComponentUsage } from "@/lib/component-usage";
 import { CodeSnippet } from "./code-snippet";
 import { DocsTabs } from "./component-docs-tabs";
 import { ComponentSource } from "./component-source";
@@ -10,10 +11,12 @@ import { PackageCommand } from "./package-command";
 export function ComponentDocsShell({
   entry,
   preview,
+  usage,
   children,
 }: {
   entry: RegistryEntry;
   preview: ReactNode;
+  usage: CapturedComponentUsage;
   children: ReactNode;
 }) {
   const source = entry.files.map((file) => (
@@ -59,9 +62,9 @@ export function ComponentDocsShell({
                   fallback={<div className="h-32 animate-pulse bg-muted/20" />}
                 >
                   <CodeSnippet
-                    code={entry.usage.code}
-                    title={entry.usage.title}
-                    language={entry.usage.language}
+                    code={usage.code}
+                    title={usage.title}
+                    language={usage.language}
                     className="my-0 rounded-none bg-transparent"
                   />
                 </Suspense>

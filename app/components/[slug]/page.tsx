@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ComponentDocsShell } from "@/components/docs/component-docs-shell";
 import { ComponentPreview } from "@/components/docs/component-preview";
 import { componentDocs } from "@/lib/component-docs-source";
+import { captureComponentUsage } from "@/lib/component-usage";
 import { createPageJsonLd, SeoJsonLd } from "@/lib/seo/json-ld";
 import { createSeoMetadata } from "@/lib/seo/metadata";
 
@@ -32,6 +33,7 @@ export default async function ComponentPage({ params }: Props) {
   if (!page) notFound();
   const { entry } = page.data;
   const { default: Content } = await page.data.loadDocument();
+  const usage = await captureComponentUsage(entry.usage);
   return (
     <>
       <SeoJsonLd
@@ -45,6 +47,7 @@ export default async function ComponentPage({ params }: Props) {
       <ComponentDocsShell
         entry={entry}
         preview={<ComponentPreview slug={entry.slug} />}
+        usage={usage}
       >
         <Content />
       </ComponentDocsShell>
