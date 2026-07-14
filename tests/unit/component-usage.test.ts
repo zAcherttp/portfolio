@@ -13,4 +13,20 @@ describe("captureComponentUsage", () => {
       expect(usage.title).toMatch(/^[a-z\d-]+\.tsx$/);
     });
   }
+
+  it("captures GlobalHotkeys for the Theme Hotkey code example", async () => {
+    const themeHotkey = componentRegistry.find(
+      (entry) => entry.slug === "theme-hotkey",
+    );
+    if (!themeHotkey) throw new Error("Theme Hotkey is not registered.");
+
+    const usage = await captureComponentUsage(themeHotkey.usage);
+
+    expect(usage.title).toBe("global-hotkeys.tsx");
+    expect(usage.code).toContain(
+      'import GlobalHotkeys from "./GlobalHotkeys";',
+    );
+    expect(usage.code).toContain("<GlobalHotkeys />");
+    expect(usage.code).not.toContain("<Tooltip");
+  });
 });

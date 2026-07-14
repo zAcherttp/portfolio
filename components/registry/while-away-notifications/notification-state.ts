@@ -9,9 +9,16 @@ export type WhileAwayNotification = {
   tone?: NotificationTone;
 };
 
-export type WhileAwayNotificationSeed = WhileAwayNotification & {
+type WhileAwayNotificationInput = WhileAwayNotification & {
   isNew?: boolean;
   read?: boolean;
+};
+
+export type WhileAwayNotificationSeed = Omit<
+  WhileAwayNotificationInput,
+  "createdAt"
+> & {
+  createdAt: number;
 };
 
 export type WhileAwayNotificationItem = WhileAwayNotification & {
@@ -25,13 +32,13 @@ export type NotificationState = {
 };
 
 export type NotificationAction =
-  | { type: "add"; item: WhileAwayNotificationItem }
+  | { type: "add"; item: WhileAwayNotificationItem; retentionLimit?: number }
   | { type: "mark-read"; id: string }
   | { type: "mark-all-read" }
   | { type: "mark-seen"; ids: readonly string[] };
 
 export function createNotificationItem(
-  notification: WhileAwayNotificationSeed,
+  notification: WhileAwayNotificationInput,
   now?: number,
 ): WhileAwayNotificationItem {
   return {
@@ -48,7 +55,14 @@ export function notificationReducer(
 ): NotificationState {
   if (action.type === "add") {
     if (state.items.some((item) => item.id === action.item.id)) return state;
-    return { items: [action.item, ...state.items] };
+    const items = [action.item, ...state.items];
+    if (
+      action.retentionLimit !== undefined &&
+      items.length > action.retentionLimit
+    ) {
+      return { items: items.slice(0, action.retentionLimit) };
+    }
+    return { items };
   }
 
   if (action.type === "mark-read") {

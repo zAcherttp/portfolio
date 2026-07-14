@@ -34,24 +34,26 @@ function PreviewControls() {
   const { notify, phase, queueForReturn } = useWhileAwayNotifications();
   const wakeIndexRef = useRef(0);
   const immediateIndexRef = useRef(0);
+  const queuedForCurrentAwayRef = useRef(false);
 
   useEffect(() => {
-    const queueDemoNotification = () => {
-      if (document.visibilityState !== "hidden") return;
-      const index = wakeIndexRef.current;
-      const notification = wakeNotifications[index % wakeNotifications.length];
-      wakeIndexRef.current += 1;
-      queueForReturn({
-        ...notification,
-        id: `wake-${Date.now()}-${index}`,
-        createdAt: Date.now(),
-      });
-    };
+    if (phase === "active") {
+      queuedForCurrentAwayRef.current = false;
+      return;
+    }
 
-    document.addEventListener("visibilitychange", queueDemoNotification);
-    return () =>
-      document.removeEventListener("visibilitychange", queueDemoNotification);
-  }, [queueForReturn]);
+    if (phase !== "away" || queuedForCurrentAwayRef.current) return;
+
+    queuedForCurrentAwayRef.current = true;
+    const index = wakeIndexRef.current;
+    const notification = wakeNotifications[index % wakeNotifications.length];
+    wakeIndexRef.current += 1;
+    queueForReturn({
+      ...notification,
+      id: `wake-${Date.now()}-${index}`,
+      createdAt: Date.now(),
+    });
+  }, [phase, queueForReturn]);
 
   const addNow = () => {
     const index = immediateIndexRef.current;

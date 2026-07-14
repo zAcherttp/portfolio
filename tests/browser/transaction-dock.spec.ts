@@ -4,17 +4,24 @@ test.describe("transaction dock", () => {
   test("opens, capacity-collapses, restores, and re-enters", async ({
     page,
   }) => {
+    const supportsHover = await page.evaluate(
+      () => window.matchMedia("(hover: hover)").matches,
+    );
+    test.skip(!supportsHover, "requires a multi-slot, hover-capable viewport");
+
     await page.goto("/components/transaction-dock");
+    const dock = page.locator("[data-transaction-dock]");
+    await dock.evaluate((element) => {
+      element.style.width = "1100px";
+    });
+    await expect(dock).toHaveAttribute("data-slot-count", "3");
 
     const viewDetails = page.getByRole("button", { name: "View details" });
     for (let index = 0; index < 4; index += 1) {
       await viewDetails.nth(index).click();
     }
 
-    await expect(page.locator("[data-transaction-dock]")).toHaveAttribute(
-      "data-panel-count",
-      "4",
-    );
+    await expect(dock).toHaveAttribute("data-panel-count", "4");
     const cards = page.locator('[data-slot="transaction-card"]');
     await expect(cards).toHaveCount(4);
     await expect
@@ -91,5 +98,35 @@ test.describe("transaction dock", () => {
     await expect(
       page.getByRole("button", { name: "Minimize transaction" }),
     ).toHaveCount(2);
+  });
+
+  test("uses the dock container width to constrain capacity", async ({
+    page,
+  }) => {
+    await page.goto("/components/transaction-dock");
+
+    const dock = page.locator("[data-transaction-dock]");
+    await dock.evaluate((element) => {
+      element.style.width = "1000px";
+    });
+    await expect
+      .poll(async () => Number(await dock.getAttribute("data-slot-count")))
+      .toBeGreaterThan(1);
+
+    await dock.evaluate((element) => {
+      element.style.width = "360px";
+    });
+    await expect(dock).toHaveAttribute("data-slot-count", "1");
+
+    const viewDetails = page.getByRole("button", { name: "View details" });
+    for (let index = 0; index < 4; index += 1) {
+      await viewDetails.nth(index).click();
+    }
+
+    await expect(dock).toHaveAttribute("data-panel-count", "4");
+    await expect(page.locator('[data-slot="transaction-card"]')).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "Minimize transaction" }),
+    ).toHaveCount(1);
   });
 });

@@ -45,6 +45,7 @@ export type WhileAwayNotificationsProviderProps = {
   maxCatchUpToasts?: number;
   toastDurationMs?: number;
   onNotificationOpen?: (notification: WhileAwayNotificationItem) => void;
+  retentionLimit?: number;
 };
 
 type WhileAwayNotificationsContextValue = {
@@ -189,11 +190,12 @@ export function WhileAwayNotificationsProvider({
   maxCatchUpToasts = 3,
   toastDurationMs = 5000,
   onNotificationOpen,
+  retentionLimit = 30,
 }: WhileAwayNotificationsProviderProps) {
   const initialItemsRef = useRef(
-    initialNotifications.map((notification) =>
-      createNotificationItem(notification, notification.createdAt ?? 0),
-    ),
+    initialNotifications
+      .slice(0, retentionLimit)
+      .map((notification) => createNotificationItem(notification)),
   );
   const [state, dispatch] = useReducer(notificationReducer, {
     items: initialItemsRef.current,
@@ -259,7 +261,11 @@ export function WhileAwayNotificationsProvider({
             }}
           />
         ),
-        { duration: toastDurationMs },
+        {
+          duration: toastDurationMs,
+          onDismiss: (t) => activeToastIdsRef.current.delete(t.id),
+          onAutoClose: (t) => activeToastIdsRef.current.delete(t.id),
+        },
       );
       activeToastIdsRef.current.add(id);
     },
@@ -279,7 +285,11 @@ export function WhileAwayNotificationsProvider({
             }}
           />
         ),
-        { duration: toastDurationMs + 1500 },
+        {
+          duration: toastDurationMs + 1500,
+          onDismiss: (t) => activeToastIdsRef.current.delete(t.id),
+          onAutoClose: (t) => activeToastIdsRef.current.delete(t.id),
+        },
       );
       activeToastIdsRef.current.add(id);
     },
@@ -316,16 +326,34 @@ export function WhileAwayNotificationsProvider({
 
       const item = createNotificationItem(notification);
       knownIdsRef.current.add(item.id);
-      dispatch({ type: "add", item });
+
+      // Keep knownIdsRef in sync with the retention limit by removing evicted IDs
+      if (state.items.length >= retentionLimit) {
+        const evictCount = state.items.length + 1 - retentionLimit;
+        for (let i = 0; i < evictCount; i++) {
+          const evictedItem = state.items[state.items.length - 1 - i];
+          if (evictedItem) {
+            knownIdsRef.current.delete(evictedItem.id);
+          }
+        }
+      }
+
+      dispatch({ type: "add", item, retentionLimit });
 
       const shouldQueue =
         forceQueue || !tabActiveRef.current || phaseRef.current !== "active";
-      if (shouldQueue) queuedRef.current.push(item);
-      else presentNotification(item);
+      if (shouldQueue) {
+        queuedRef.current.push(item);
+        if (queuedRef.current.length > retentionLimit) {
+          queuedRef.current.shift();
+        }
+      } else {
+        presentNotification(item);
+      }
 
       return true;
     },
-    [presentNotification],
+    [presentNotification, state.items, retentionLimit],
   );
 
   const notify = useCallback(

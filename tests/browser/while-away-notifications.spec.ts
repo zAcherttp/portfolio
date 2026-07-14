@@ -6,14 +6,21 @@ test.describe("while-away notifications", () => {
   }) => {
     await page.addInitScript(() => {
       let visibilityState: DocumentVisibilityState = "visible";
+      let focused = true;
       Object.defineProperty(document, "visibilityState", {
         configurable: true,
         get: () => visibilityState,
       });
+      Object.defineProperty(document, "hasFocus", {
+        configurable: true,
+        value: () => focused,
+      });
       Object.assign(window, {
         setFixtureVisibility(nextState: DocumentVisibilityState) {
           visibilityState = nextState;
+          focused = nextState === "visible";
           document.dispatchEvent(new Event("visibilitychange"));
+          window.dispatchEvent(new Event(focused ? "focus" : "blur"));
         },
       });
     });
@@ -25,7 +32,13 @@ test.describe("while-away notifications", () => {
         }
       ).setFixtureVisibility("hidden");
     });
-    await page.waitForTimeout(1600);
+    await expect(page.getByText("Tab scoped · Waiting")).toBeVisible();
+    await expect(page.getByText("Tab scoped · Away")).toBeVisible({
+      timeout: 2500,
+    });
+    await expect(
+      page.getByRole("button", { name: "Open notifications, 2 unread" }),
+    ).toBeVisible();
 
     await page.evaluate(() => {
       (

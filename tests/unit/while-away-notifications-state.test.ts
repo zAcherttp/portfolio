@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createNotificationItem,
   getUnreadCount,
+  type NotificationState,
   notificationReducer,
+  type WhileAwayNotificationSeed,
 } from "@/components/registry/while-away-notifications/notification-state";
 
 describe("while-away notification state", () => {
@@ -16,6 +18,18 @@ describe("while-away notification state", () => {
       isNew: true,
       read: false,
     });
+  });
+
+  it("requires and preserves deterministic timestamps for initial items", () => {
+    expectTypeOf<WhileAwayNotificationSeed>().toMatchTypeOf<{
+      createdAt: number;
+    }>();
+    expect(
+      createNotificationItem(
+        { id: "seed", title: "Existing item", createdAt: 5678 },
+        1234,
+      ).createdAt,
+    ).toBe(5678);
   });
 
   it("deduplicates stable notification IDs", () => {
@@ -61,5 +75,35 @@ describe("while-away notification state", () => {
 
     expect(state.items[0]).toMatchObject({ read: true, isNew: true });
     expect(getUnreadCount(state.items)).toBe(0);
+  });
+
+  it("enforces retentionLimit by evicting oldest items", () => {
+    const item1 = createNotificationItem({ id: "1", title: "First" }, 1);
+    const item2 = createNotificationItem({ id: "2", title: "Second" }, 2);
+    const item3 = createNotificationItem({ id: "3", title: "Third" }, 3);
+
+    let state: NotificationState = { items: [] };
+    state = notificationReducer(state, {
+      type: "add",
+      item: item1,
+      retentionLimit: 2,
+    });
+    state = notificationReducer(state, {
+      type: "add",
+      item: item2,
+      retentionLimit: 2,
+    });
+    expect(state.items).toHaveLength(2);
+    expect(state.items[0].id).toBe("2");
+    expect(state.items[1].id).toBe("1");
+
+    state = notificationReducer(state, {
+      type: "add",
+      item: item3,
+      retentionLimit: 2,
+    });
+    expect(state.items).toHaveLength(2);
+    expect(state.items[0].id).toBe("3");
+    expect(state.items[1].id).toBe("2");
   });
 });

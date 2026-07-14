@@ -3,6 +3,7 @@
 import {
   createContext,
   type ReactNode,
+  type RefCallback,
   useCallback,
   useContext,
   useEffect,
@@ -29,6 +30,7 @@ type TransactionDockContextValue = {
   transactions: readonly TransactionDockItem[];
   panels: readonly TransactionPanel[];
   totalSlots: number;
+  dockRef: RefCallback<HTMLDivElement>;
   closeTransaction: (id: string) => void;
   collapseTransaction: (id: string) => void;
   openTransaction: (id: string) => void;
@@ -61,12 +63,18 @@ function findMostRecentlyAutoCollapsed(panels: readonly TransactionPanel[]) {
 
 function useAvailableDockSlots() {
   const [slots, setSlots] = useState(1);
+  const [dockElement, setDockElement] = useState<HTMLDivElement | null>(null);
+  const dockRef = useCallback((element: HTMLDivElement | null) => {
+    setDockElement(element);
+  }, []);
 
   useEffect(() => {
-    const updateSlots = () => {
+    if (!dockElement) return;
+
+    const updateSlots = (containerWidth: number) => {
       const availableWidth = Math.max(
         TRANSACTION_CARD_SLOT_WIDTH,
-        window.innerWidth - 32,
+        containerWidth - 32,
       );
       setSlots(
         Math.max(
@@ -76,12 +84,15 @@ function useAvailableDockSlots() {
       );
     };
 
-    updateSlots();
-    window.addEventListener("resize", updateSlots);
-    return () => window.removeEventListener("resize", updateSlots);
-  }, []);
+    updateSlots(dockElement.getBoundingClientRect().width);
+    const observer = new ResizeObserver(([entry]) => {
+      updateSlots(entry?.contentRect.width ?? dockElement.clientWidth);
+    });
+    observer.observe(dockElement);
+    return () => observer.disconnect();
+  }, [dockElement]);
 
-  return slots;
+  return { dockRef, slots };
 }
 
 export function TransactionDockProvider({
@@ -91,7 +102,7 @@ export function TransactionDockProvider({
 }: TransactionDockProviderProps) {
   const [panels, setPanels] = useState<TransactionPanel[]>([]);
   const sequence = useRef(0);
-  const totalSlots = useAvailableDockSlots();
+  const { dockRef, slots: totalSlots } = useAvailableDockSlots();
   const hasCollapsedPanel = panels.some((panel) => panel.mode !== "expanded");
   const reservedStackSlots = hasCollapsedPanel && totalSlots > 1 ? 1 : 0;
   const expandedCapacity = Math.max(
@@ -281,6 +292,7 @@ export function TransactionDockProvider({
       transactions,
       panels,
       totalSlots,
+      dockRef,
       closeTransaction,
       collapseTransaction,
       openTransaction,
@@ -289,6 +301,7 @@ export function TransactionDockProvider({
       transactions,
       panels,
       totalSlots,
+      dockRef,
       closeTransaction,
       collapseTransaction,
       openTransaction,
@@ -317,6 +330,7 @@ export function TransactionDock({ className }: TransactionDockProps) {
     transactions,
     panels,
     totalSlots,
+    dockRef,
     closeTransaction,
     collapseTransaction,
     openTransaction,
@@ -339,7 +353,9 @@ export function TransactionDock({ className }: TransactionDockProps) {
     <div
       className={className}
       data-panel-count={panels.length}
+      data-slot-count={totalSlots}
       data-transaction-dock=""
+      ref={dockRef}
     >
       {expandedPanels.map((panel, slot) => {
         const transaction = transactionsById.get(panel.id);

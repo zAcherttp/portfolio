@@ -1,26 +1,26 @@
 import { expect, test } from "@playwright/test";
+import { componentRegistry } from "@/data/components";
 
 test.describe("component documentation", () => {
-  test("opens every documented component from the component index", async ({
+  test("lists every documented component on the component index", async ({
     page,
   }) => {
     await page.goto("/components");
 
-    const componentLinks = page.locator('a[href^="/components/"]');
-    const hrefs = await componentLinks.evaluateAll((links) =>
-      links
-        .map((link) => link.getAttribute("href"))
-        .filter((href): href is string => href !== null),
-    );
-
-    expect(hrefs.length).toBeGreaterThan(0);
-
-    for (const href of hrefs) {
-      await page.goto(href);
-      await expect(page.locator("article h1")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Usage" })).toBeVisible();
+    for (const component of componentRegistry) {
+      await expect(
+        page.locator(`a[href="/components/${component.slug}"]`),
+      ).toHaveCount(1);
     }
   });
+
+  for (const component of componentRegistry) {
+    test(`opens the ${component.name} documentation`, async ({ page }) => {
+      await page.goto(`/components/${component.slug}`);
+      await expect(page.locator("article h1")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Usage" })).toBeVisible();
+    });
+  }
 
   test("returns not found for an unknown component", async ({ page }) => {
     const response = await page.goto("/components/not-a-component");
@@ -31,6 +31,9 @@ test.describe("component documentation", () => {
   test("offers source, share, and adjacent component actions", async ({
     page,
   }) => {
+    const supportsHover = await page.evaluate(
+      () => window.matchMedia("(hover: hover)").matches,
+    );
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "share", {
         configurable: true,
@@ -56,26 +59,36 @@ test.describe("component documentation", () => {
     const copyButtonGroup = copyPageButton.locator("..");
     await expect(copyButtonGroup).toHaveCSS("border-radius", "10px");
     await expect(copyPageButton).toHaveCSS("border-radius", "8px 0px 0px 8px");
-    await copyPageButton.hover();
-    await expect(copyPageButton).not.toHaveCSS(
-      "background-color",
-      "rgba(0, 0, 0, 0)",
-    );
-    const activeButtonBackground = await copyPageButton.evaluate(
+    await expect(viewOptionsButton).toHaveCSS("transition-duration", "0s");
+    await viewOptionsButton.click();
+    const viewAsMarkdown = page.getByRole("menuitem", {
+      name: "View as Markdown",
+    });
+    await expect(viewAsMarkdown).toBeVisible();
+    const activeButtonBackground = await viewOptionsButton.evaluate(
       (element) => getComputedStyle(element).backgroundColor,
     );
+    await page.keyboard.press("Escape");
+
+    if (supportsHover) {
+      await copyPageButton.hover();
+      await expect(copyPageButton).toHaveCSS(
+        "background-color",
+        activeButtonBackground,
+      );
+    }
     await copyPageButton.click();
     await expect(copyPageButton).toHaveAccessibleName("Copy page");
     await expect(copyPageButton).toContainText("Copy page");
-    await expect(viewOptionsButton).toHaveCSS("transition-duration", "0s");
     await viewOptionsButton.click();
     await expect(viewOptionsButton).toHaveCSS(
       "background-color",
       activeButtonBackground,
     );
-    await expect(
-      page.getByRole("menuitem", { name: "View as Markdown" }),
-    ).toHaveAttribute("href", /\/components\/activity-grid\.mdx$/);
+    await expect(viewAsMarkdown).toHaveAttribute(
+      "href",
+      /\/components\/activity-grid\.mdx$/,
+    );
     await expect(
       page.getByRole("menuitem", { name: "Open in GitHub" }),
     ).toHaveAttribute(
@@ -141,6 +154,22 @@ test.describe("component documentation", () => {
     );
   });
 
+  test("shows GlobalHotkeys in the Theme Hotkey code example", async ({
+    page,
+  }) => {
+    await page.goto("/components/theme-hotkey");
+
+    const exampleTabs = page.getByRole("tablist", {
+      name: "Theme Hotkey example",
+    });
+    await exampleTabs.getByRole("tab", { name: "Code" }).click();
+    const examplePanel = exampleTabs.locator("..").getByRole("tabpanel");
+
+    await expect(examplePanel).toContainText("global-hotkeys.tsx");
+    await expect(examplePanel).toContainText("<GlobalHotkeys />");
+    await expect(examplePanel).not.toContainText("<Tooltip");
+  });
+
   test("offers shadcn registry commands for every package runner", async ({
     page,
   }) => {
@@ -163,7 +192,9 @@ test.describe("component documentation", () => {
     } as const;
 
     for (const [manager, expectedCommand] of Object.entries(commands)) {
-      await packageManagers.getByRole("button", { name: manager }).click();
+      await packageManagers
+        .getByRole("button", { name: manager, exact: true })
+        .click();
       await expect(command).toHaveText(expectedCommand);
     }
   });
@@ -171,6 +202,11 @@ test.describe("component documentation", () => {
   test("rotates the shared arrow when a component link is hovered", async ({
     page,
   }) => {
+    const supportsHover = await page.evaluate(
+      () => window.matchMedia("(hover: hover)").matches,
+    );
+    test.skip(!supportsHover, "requires a hover-capable pointer");
+
     await page.goto("/components");
 
     const componentLink = page.locator('a[href^="/components/"]').first();

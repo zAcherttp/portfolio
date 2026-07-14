@@ -56,6 +56,8 @@ function ActivityStream() {
 
 Provides the tab-scoped notification collection, monitors whether the current tab is active, and controls how queued activity is presented when the user returns. Wrap the notification producers and `NotificationCenter` for one tab with this component.
 
+Notifications supplied through `initialNotifications` require an explicit `createdAt` timestamp so server and client renders share the same initial state. Notifications published later through `notify` may omit it and use their arrival time.
+
 <AutoTypeTable path="components/registry/while-away-notifications/while-away-notifications.tsx" name="WhileAwayNotificationsProviderProps" />
 
 **NotificationCenter**

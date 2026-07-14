@@ -106,8 +106,8 @@ export const componentRegistry = [
     registryDependencies: [],
     usage: {
       format: "jsx",
-      selector: "Tooltip",
-      source: "components/docs/component-preview.tsx",
+      selector: "GlobalHotkeys",
+      source: "components/Providers.tsx",
     },
   },
   {
