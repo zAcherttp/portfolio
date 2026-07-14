@@ -16,30 +16,46 @@ export type ActiveGridCell<T> = {
   anchor: VirtualAnchor;
 };
 
-export type ActivityGridProps<T> = Omit<
-  HTMLAttributes<HTMLDivElement>,
-  "children"
-> & {
+export type ActivityGridOwnProps<T> = {
+  /** Column-major data rendered into the SVG grid. */
   columns: Array<Array<T | undefined>>;
+  /** Width and height of each square cell in SVG units. */
   cellSize: number;
+  /** Space between adjacent cells in SVG units. */
   gap: number;
+  /** Vertical space reserved above the cells for custom labels. */
   labelHeight?: number;
+  /** Minimum scrollable content width in CSS pixels. */
   minContentWidth?: number;
+  /** Accessible title announced for the generated SVG. */
   title?: string;
+  /** Returns a stable React key for a grid position. */
   getKey: (
     item: T | undefined,
     columnIndex: number,
     rowIndex: number,
   ) => string;
+  /** Renders the SVG content for one grid position. */
   renderCell: (props: {
     item: T | undefined;
     columnIndex: number;
     rowIndex: number;
   }) => ReactNode;
+  /** Renders optional labels inside the grid SVG. */
   renderLabels?: () => ReactNode;
+  /** Determines whether a position can become the active cell. */
   isInteractive?: (item: T | undefined) => item is T;
+  /** Reports active-cell changes with a viewport-aware virtual anchor. */
   onActiveCellChange?: (cell: ActiveGridCell<T> | null) => void;
+  /** Additional classes for the scroll container. */
+  className?: string;
 };
+
+export type ActivityGridProps<T> = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  "children" | keyof ActivityGridOwnProps<T>
+> &
+  ActivityGridOwnProps<T>;
 
 export function ActivityGrid<T>({
   columns,

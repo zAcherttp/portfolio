@@ -28,6 +28,30 @@ test.describe("component documentation", () => {
     expect(response?.status()).toBe(404);
   });
 
+  test("shows focused component API props without inherited DOM attributes", async ({
+    page,
+  }) => {
+    for (const slug of ["activity-grid", "contribution-graph"]) {
+      await page.goto(`/components/${slug}`);
+
+      const apiHeading = page.getByRole("heading", { name: "API reference" });
+      const apiTable = apiHeading.locator("xpath=following-sibling::div[1]");
+
+      await expect(apiTable.getByRole("row")).toHaveCount(13);
+      await expect(
+        apiTable.getByRole("cell", { name: /^defaultChecked\??$/ }),
+      ).toHaveCount(0);
+      await expect(
+        apiTable.getByRole("cell", { name: /^className\??$/ }),
+      ).toBeVisible();
+      await expect(
+        apiTable
+          .locator('.docs-highlighted-type span[style*="--shiki-light"]')
+          .first(),
+      ).toBeVisible();
+    }
+  });
+
   test("switches preview and installation tabs with the keyboard", async ({
     page,
   }) => {

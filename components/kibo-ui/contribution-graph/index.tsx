@@ -230,20 +230,38 @@ const getMonthLabels = (
     });
 };
 
-export type ContributionGraphProps = HTMLAttributes<HTMLDivElement> & {
+export type ContributionGraphOwnProps = {
+  /** Daily contribution records to render. */
   data: Activity[];
+  /** Gap between contribution blocks in SVG units. */
   blockMargin?: number;
+  /** Corner radius of each contribution block. */
   blockRadius?: number;
+  /** Width and height of each contribution block. */
   blockSize?: number;
+  /** Font size used to calculate the month-label area. */
   fontSize?: number;
+  /** Overrides the default month, weekday, and legend labels. */
   labels?: Labels;
+  /** Highest contribution intensity level. */
   maxLevel?: number;
+  /** Inline styles for the graph container. */
   style?: CSSProperties;
+  /** Overrides the total derived from the activity data. */
   totalCount?: number;
+  /** First day of the contribution week. */
   weekStart?: WeekDay;
+  /** Composed calendar, footer, total, or legend content. */
   children: ReactNode;
+  /** Additional classes for the graph container. */
   className?: string;
 };
+
+export type ContributionGraphProps = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  keyof ContributionGraphOwnProps
+> &
+  ContributionGraphOwnProps;
 
 export const ContributionGraph = ({
   data,
