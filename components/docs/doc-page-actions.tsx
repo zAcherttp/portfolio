@@ -1,17 +1,14 @@
 "use client";
 
-import {
-  Bot,
-  Check,
-  ChevronDown,
-  Copy,
-  FileText,
-  LoaderCircle,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { Check, ChevronDown, Copy, LoaderCircle, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GitHub as GitHubIcon } from "@/components/ui/icons";
+import {
+  ChatGPT as ChatGPTIcon,
+  Claude as ClaudeIcon,
+  GitHub as GitHubIcon,
+  Markdown as MarkdownIcon,
+  V0 as V0Icon,
+} from "@/components/ui/icons";
 import { copyText } from "@/lib/copy-text";
 import { DocActionMenu, DocActionMenuLink } from "./doc-action-menu";
 
@@ -46,23 +43,23 @@ export function LLMCopyButtonWithViewOptions({
       {
         label: "View as Markdown",
         href: fullMarkdownUrl,
-        icon: FileText,
+        icon: MarkdownIcon,
       },
       { label: "Open in GitHub", href: githubUrl, icon: GitHubIcon },
       {
         label: "Open in ChatGPT",
         href: `https://chatgpt.com/?${new URLSearchParams({ hints: "search", q: prompt })}`,
-        icon: Bot,
+        icon: ChatGPTIcon,
       },
       {
         label: "Open in Claude",
         href: `https://claude.ai/new?${new URLSearchParams({ q: prompt })}`,
-        icon: Sparkles,
+        icon: ClaudeIcon,
       },
       {
         label: "Open in v0",
         href: `https://v0.app/?${new URLSearchParams({ q: prompt })}`,
-        icon: Sparkles,
+        icon: V0Icon,
       },
     ],
     [fullMarkdownUrl, githubUrl, prompt],

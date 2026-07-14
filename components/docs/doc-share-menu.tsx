@@ -2,7 +2,10 @@
 
 import { Check, Ellipsis, Link as LinkIcon, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { LinkedIn as LinkedInIcon } from "@/components/ui/icons";
+import {
+  LinkedIn as LinkedInIcon,
+  XLogo as XIcon,
+} from "@/components/ui/icons";
 import { copyText } from "@/lib/copy-text";
 import {
   DocActionMenu,
@@ -49,12 +52,7 @@ export function DocShareMenu({ title, url }: { title: string; url: string }) {
       <DocActionMenuLink
         href={`https://x.com/intent/tweet?${new URLSearchParams({ text: title, url: absoluteUrl })}`}
       >
-        <span
-          aria-hidden="true"
-          className="inline-flex size-4 items-center justify-center text-xs font-semibold"
-        >
-          X
-        </span>
+        <XIcon aria-hidden="true" className="size-4" />
         Share on X
       </DocActionMenuLink>
       <DocActionMenuLink
