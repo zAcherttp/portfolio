@@ -2,8 +2,14 @@
 
 Compose the calendar, blocks, footer, total, and legend to control the graph without replacing its data and interaction model.
 
-```tsx title="contribution-graph.tsx" {3}
-<ContributionGraph data={activity} weekStart={1}>
+```tsx title="contribution-graph.tsx"
+import {
+  ContributionGraph,
+  ContributionGraphBlock,
+  ContributionGraphCalendar,
+} from "@/components/kibo-ui/contribution-graph";
+
+<ContributionGraph data={activity}>
   <ContributionGraphCalendar>
     {(cell) => <ContributionGraphBlock {...cell} />}
   </ContributionGraphCalendar>

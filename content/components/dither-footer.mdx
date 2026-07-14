@@ -2,9 +2,16 @@
 
 Place the shader after the footer. The wrapper owns WebGL capability checks, scroll reveal, theme colors, and animation lifecycle.
 
-```tsx title="layout.tsx" {2}
-<Footer />
-<BottomShader />
+```tsx title="layout.tsx"
+import { Suspense } from "react";
+import BottomShader from "@/components/BottomShader";
+
+<>
+  <Footer />
+  <Suspense fallback={null}>
+    <BottomShader />
+  </Suspense>
+</>
 ```
 
 ## API reference

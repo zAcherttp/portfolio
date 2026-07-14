@@ -2,7 +2,10 @@
 
 Mount the listener once inside the theme provider. Pressing D toggles the resolved light or dark theme and throttles repeated key events.
 
-```tsx title="providers.tsx" {2}
+```tsx title="providers.tsx"
+import { ThemeProvider } from "next-themes";
+import GlobalHotkeys from "@/components/GlobalHotkeys";
+
 <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
   <GlobalHotkeys />
   {children}

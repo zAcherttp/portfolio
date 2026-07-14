@@ -2,14 +2,22 @@
 
 Supply column data and render each SVG cell yourself. Pointer geometry and active-cell anchors stay inside the primitive.
 
-```tsx title="activity-grid.tsx" {5}
+```tsx title="activity-grid.tsx"
+import { ActivityGrid } from "@/components/registry/activity-grid";
+
 <ActivityGrid
   columns={weeks}
   cellSize={8}
   gap={2}
   getKey={(item, column, row) => item?.date ?? `${column}-${row}`}
   renderCell={({ item, columnIndex, rowIndex }) => (
-    <ActivityCell item={item} x={columnIndex} y={rowIndex} />
+    <rect
+      data-date={item?.date}
+      height={8}
+      width={8}
+      x={columnIndex * 10}
+      y={rowIndex * 10}
+    />
   )}
 />
 ```
