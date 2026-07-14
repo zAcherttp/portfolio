@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { playPopSound } from "@/utils/playPopSound";
+import { playPopSound } from "@/lib/play-pop-sound";
 
 const Dither = dynamic(() => import("./ui/shaders/dither"), {
   ssr: false,

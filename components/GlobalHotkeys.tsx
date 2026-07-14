@@ -4,7 +4,7 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { useThrottledCallback } from "@tanstack/react-pacer/throttler";
 import { useTheme } from "next-themes";
 import { useEffect, useRef } from "react";
-import { playRandomPopSound } from "@/utils/playPopSound";
+import { playRandomPopSound } from "@/lib/play-pop-sound";
 
 export function isHotkeySandboxPath(pathname: string) {
   return pathname === "/components/kbd" || pathname === "/dev/components/kbd";

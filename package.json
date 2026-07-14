@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "portless",
     "dev:app": "next dev",
-    "build": "next build",
+    "build": "pnpm registry:build && next build",
     "start": "next start",
     "lint": "biome check",
     "check": "biome check --write",
@@ -20,7 +20,9 @@
     "test:component": "vitest run",
     "test:browser": "playwright test",
     "test:component:browser": "playwright test --project=chromium",
-    "test:component:browser:dev": "cross-env PLAYWRIGHT_BASE_URL=https://portfolio.localhost playwright test --project=chromium"
+    "test:component:browser:dev": "cross-env PLAYWRIGHT_BASE_URL=https://portfolio.localhost playwright test --project=chromium",
+    "registry:build": "pnpm registry:validate && shadcn build",
+    "registry:validate": "shadcn registry validate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

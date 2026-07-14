@@ -37,7 +37,7 @@ vi.mock("@tanstack/react-pacer/throttler", () => ({
   },
 }));
 
-vi.mock("@/utils/playPopSound", () => ({
+vi.mock("@/lib/play-pop-sound", () => ({
   playRandomPopSound: mocks.playSound,
 }));
 

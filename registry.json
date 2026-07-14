@@ -1,0 +1,185 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "zacherttp",
+  "homepage": "https://github.com/zAcherttp/portfolio",
+  "items": [
+    {
+      "name": "floating-tooltip",
+      "type": "registry:component",
+      "title": "Floating Tooltip",
+      "description": "An interruptible tooltip for DOM triggers and virtual anchors with collision-aware placement.",
+      "categories": ["interaction"],
+      "dependencies": ["motion"],
+      "files": [
+        {
+          "path": "components/registry/floating-tooltip/position.ts",
+          "type": "registry:component",
+          "target": "@components/registry/floating-tooltip/position.ts"
+        },
+        {
+          "path": "components/registry/floating-tooltip/virtual-tooltip.tsx",
+          "type": "registry:component",
+          "target": "@components/registry/floating-tooltip/virtual-tooltip.tsx"
+        },
+        {
+          "path": "components/registry/floating-tooltip/tooltip.tsx",
+          "type": "registry:component",
+          "target": "@components/registry/floating-tooltip/tooltip.tsx"
+        },
+        {
+          "path": "components/registry/floating-tooltip/index.ts",
+          "type": "registry:component",
+          "target": "@components/registry/floating-tooltip/index.ts"
+        }
+      ],
+      "meta": {
+        "status": "exploring"
+      }
+    },
+    {
+      "name": "activity-grid",
+      "type": "registry:component",
+      "title": "Activity Grid",
+      "description": "A generic SVG grid with responsive geometry and virtual-anchor cell interaction.",
+      "categories": ["data-display"],
+      "dependencies": ["cnfast"],
+      "registryDependencies": ["zAcherttp/portfolio/floating-tooltip"],
+      "files": [
+        {
+          "path": "components/registry/activity-grid.tsx",
+          "type": "registry:component",
+          "target": "@components/registry/activity-grid.tsx"
+        },
+        {
+          "path": "lib/utils.ts",
+          "type": "registry:lib",
+          "target": "@lib/utils.ts"
+        }
+      ],
+      "meta": {
+        "status": "exploring"
+      }
+    },
+    {
+      "name": "contribution-graph",
+      "type": "registry:component",
+      "title": "Contribution Graph",
+      "description": "A calendar heatmap composed from the activity grid and floating tooltip primitives.",
+      "categories": ["data-display", "composition"],
+      "dependencies": ["date-fns", "cnfast"],
+      "registryDependencies": [
+        "zAcherttp/portfolio/activity-grid",
+        "zAcherttp/portfolio/floating-tooltip"
+      ],
+      "files": [
+        {
+          "path": "components/kibo-ui/contribution-graph/index.tsx",
+          "type": "registry:component",
+          "target": "@components/kibo-ui/contribution-graph/index.tsx"
+        },
+        {
+          "path": "lib/utils.ts",
+          "type": "registry:lib",
+          "target": "@lib/utils.ts"
+        }
+      ],
+      "meta": {
+        "status": "stable"
+      }
+    },
+    {
+      "name": "dither-footer",
+      "type": "registry:component",
+      "title": "Dither Footer",
+      "description": "An interactive WebGL transition revealed after the page footer.",
+      "categories": ["visual"],
+      "dependencies": [
+        "@react-three/fiber",
+        "@react-three/postprocessing",
+        "next-themes",
+        "postprocessing",
+        "three"
+      ],
+      "files": [
+        {
+          "path": "components/BottomShader.tsx",
+          "type": "registry:component",
+          "target": "@components/BottomShader.tsx"
+        },
+        {
+          "path": "components/ui/shaders/dither.tsx",
+          "type": "registry:ui",
+          "target": "@ui/shaders/dither.tsx"
+        },
+        {
+          "path": "lib/play-pop-sound.ts",
+          "type": "registry:lib",
+          "target": "@lib/play-pop-sound.ts"
+        },
+        {
+          "path": "lib/audio-context.ts",
+          "type": "registry:lib",
+          "target": "@lib/audio-context.ts"
+        }
+      ],
+      "meta": {
+        "status": "exploring"
+      }
+    },
+    {
+      "name": "theme-hotkey",
+      "type": "registry:component",
+      "title": "Theme Hotkey",
+      "description": "A throttled global keyboard shortcut for switching the active color theme.",
+      "categories": ["utility"],
+      "dependencies": [
+        "@tanstack/react-hotkeys",
+        "@tanstack/react-pacer",
+        "next-themes"
+      ],
+      "files": [
+        {
+          "path": "components/GlobalHotkeys.tsx",
+          "type": "registry:component",
+          "target": "@components/GlobalHotkeys.tsx"
+        },
+        {
+          "path": "lib/play-pop-sound.ts",
+          "type": "registry:lib",
+          "target": "@lib/play-pop-sound.ts"
+        },
+        {
+          "path": "lib/audio-context.ts",
+          "type": "registry:lib",
+          "target": "@lib/audio-context.ts"
+        }
+      ],
+      "meta": {
+        "status": "stable"
+      }
+    },
+    {
+      "name": "kbd",
+      "type": "registry:ui",
+      "title": "KBD",
+      "description": "A keyboard key primitive with opt-in held-state visualization powered by TanStack Hotkeys.",
+      "categories": ["input"],
+      "dependencies": ["@tanstack/react-hotkeys", "cnfast"],
+      "files": [
+        {
+          "path": "components/ui/kbd.tsx",
+          "type": "registry:ui",
+          "target": "@ui/kbd.tsx"
+        },
+        {
+          "path": "lib/utils.ts",
+          "type": "registry:lib",
+          "target": "@lib/utils.ts"
+        }
+      ],
+      "meta": {
+        "status": "exploring"
+      }
+    }
+  ]
+}

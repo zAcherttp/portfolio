@@ -40,6 +40,9 @@ jobs:
       - name: Check types
         run: pnpm tsc --noEmit
 
+      - name: Validate component registry
+        run: pnpm registry:validate
+
       - name: Run unit and component tests
         run: pnpm test:run
 
