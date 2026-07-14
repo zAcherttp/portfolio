@@ -222,6 +222,7 @@ export function Keyboard60Preview() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         releaseCapture(true);
         return;
       }
@@ -232,6 +233,7 @@ export function Keyboard60Preview() {
       const preservesBrowserShortcut =
         (event.altKey || event.ctrlKey || event.metaKey) && !isModifierKey;
       if (preservesBrowserShortcut) return;
+      event.stopPropagation();
 
       const target = event.target;
       const targetKeepsSpace =
@@ -269,6 +271,7 @@ export function Keyboard60Preview() {
       const preservesBrowserShortcut =
         (event.altKey || event.ctrlKey || event.metaKey) && !isModifierKey;
       if (preservesBrowserShortcut) return;
+      event.stopPropagation();
 
       const soundKey = event.code || event.key;
       const thockProfile = pressedSoundKeysRef.current.get(soundKey);
@@ -326,7 +329,7 @@ export function Keyboard60Preview() {
     <div className="w-full" ref={captureRegionRef}>
       {captureSupported ? (
         <div
-          className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2"
+          className="mb-3 flex justify-center"
           data-testid="keyboard-capture-consent"
         >
           <button
@@ -340,15 +343,6 @@ export function Keyboard60Preview() {
               ? "Release keyboard capture"
               : "Enable keyboard capture"}
           </button>
-          <span
-            aria-live="polite"
-            className="text-muted-foreground text-xs"
-            role="status"
-          >
-            {captureEnabled
-              ? "Captured: Tab stays in the demo. Press Esc or click outside to release."
-              : "Optional: enables key reactions and sound; navigation is unchanged until enabled."}
-          </span>
         </div>
       ) : null}
       <div

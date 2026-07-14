@@ -154,6 +154,25 @@ describe("Keyboard60Preview thock lifecycle", () => {
     expect(fireEvent.keyDown(document, { code: "Tab", key: "Tab" })).toBe(true);
   });
 
+  it("blocks global key handlers only while capture is enabled", () => {
+    const globalKeyDown = vi.fn();
+    document.addEventListener("keydown", globalKeyDown);
+    render(<Keyboard60Preview />);
+
+    fireEvent.keyDown(document, { code: "KeyD", key: "d" });
+    expect(globalKeyDown).toHaveBeenCalledOnce();
+
+    enableCapture();
+    fireEvent.keyDown(document, { code: "KeyD", key: "d" });
+    expect(globalKeyDown).toHaveBeenCalledOnce();
+
+    fireEvent.keyDown(document, { code: "Escape", key: "Escape" });
+    fireEvent.keyDown(document, { code: "KeyD", key: "d" });
+    expect(globalKeyDown).toHaveBeenCalledTimes(2);
+
+    document.removeEventListener("keydown", globalKeyDown);
+  });
+
   it("stays static and omits consent controls on unsupported mobile", () => {
     setCaptureSupport(false);
     render(<Keyboard60Preview />);

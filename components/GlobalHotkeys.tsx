@@ -6,10 +6,6 @@ import { useTheme } from "next-themes";
 import { useEffect, useRef } from "react";
 import { playRandomPopSound } from "@/lib/play-pop-sound";
 
-export function isHotkeySandboxPath(pathname: string) {
-  return pathname === "/components/kbd" || pathname === "/dev/components/kbd";
-}
-
 export default function GlobalHotkeys() {
   const { theme, setTheme, systemTheme } = useTheme();
   const activeTheme = theme === "system" ? systemTheme : theme;
@@ -34,8 +30,6 @@ export default function GlobalHotkeys() {
   useHotkey(
     "D",
     (event) => {
-      if (isHotkeySandboxPath(window.location.pathname)) return;
-
       // Windows Telex IME doesn't use browser composition APIs (isComposing is
       // always false). Instead it synthesises raw keydown events when replaying
       // buffered input — these synthetic events have an empty `code` string.

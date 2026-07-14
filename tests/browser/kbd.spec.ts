@@ -156,6 +156,19 @@ test.describe("KBD", () => {
     const menu = keyboard.getByText("Menu", { exact: true });
     const fn = keyboard.getByText("Fn", { exact: true });
     await expect(keyboard).toHaveAttribute("data-ready", "true");
+
+    const themeBeforeCapture = await page.evaluate(() =>
+      document.documentElement.classList.contains("dark"),
+    );
+    await page.keyboard.press("D");
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.documentElement.classList.contains("dark"),
+        ),
+      )
+      .toBe(!themeBeforeCapture);
+
     await page.getByRole("button", { name: "Enable keyboard capture" }).click();
 
     const nativeBehavior = await page.evaluate(() => {
