@@ -3,7 +3,21 @@ import {
   createGenerator,
 } from "fumadocs-typescript";
 
-export const typeTableGenerator = createGenerator({
-  cache: createFileSystemGeneratorCache(".next/fumadocs-typescript"),
-  tsconfigPath: "tsconfig.json",
-});
+const typeTableCache = createFileSystemGeneratorCache(
+  ".next/fumadocs-typescript",
+);
+
+type GenerateTypeTableArgs = Parameters<
+  ReturnType<typeof createGenerator>["generateTypeTable"]
+>;
+
+export function generateTypeTable(...args: GenerateTypeTableArgs) {
+  // A generator retains its ts-morph Project. Keeping it request-scoped lets
+  // old TypeScript ASTs be collected after edits and hot reloads.
+  const generator = createGenerator({
+    cache: typeTableCache,
+    tsconfigPath: "tsconfig.json",
+  });
+
+  return generator.generateTypeTable(...args);
+}

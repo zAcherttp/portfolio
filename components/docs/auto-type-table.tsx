@@ -2,7 +2,7 @@ import { type Jsx, toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { Suspense } from "react";
 import * as runtime from "react/jsx-runtime";
 import { highlightCode } from "@/lib/highlight-code";
-import { typeTableGenerator } from "@/lib/type-table";
+import { generateTypeTable } from "@/lib/type-table";
 
 type AutoTypeTableProps = { path: string; name: string };
 
@@ -17,7 +17,7 @@ export function AutoTypeTable(props: AutoTypeTableProps) {
 }
 
 async function AutoTypeTableContent({ path, name }: AutoTypeTableProps) {
-  const docs = await typeTableGenerator.generateTypeTable({ path, name });
+  const docs = await generateTypeTable({ path, name });
   const highlightedDocs = await Promise.all(
     docs.map(async (doc) => ({
       ...doc,

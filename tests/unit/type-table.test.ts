@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { typeTableGenerator } from "@/lib/type-table";
+import { generateTypeTable } from "@/lib/type-table";
 
 const documentedTypes = [
   {
@@ -43,7 +43,7 @@ const documentedTypes = [
 describe("component API type tables", () => {
   for (const documentedType of documentedTypes) {
     it(`documents only ${documentedType.name} component props`, async () => {
-      const docs = await typeTableGenerator.generateTypeTable({
+      const docs = await generateTypeTable({
         path: documentedType.path,
         name: documentedType.name,
       });
