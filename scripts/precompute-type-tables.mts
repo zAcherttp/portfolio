@@ -113,7 +113,11 @@ async function main() {
   await fs.mkdir(outputDir, { recursive: true });
   const outputPath = path.join(outputDir, "type-tables-registry.json");
 
-  await fs.writeFile(outputPath, JSON.stringify(registry, null, 2), "utf8");
+  await fs.writeFile(
+    outputPath,
+    `${JSON.stringify(registry, null, 2)}\n`,
+    "utf8",
+  );
   console.log(`Successfully wrote precomputed type tables to: ${outputPath}`);
 }
 
