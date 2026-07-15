@@ -164,7 +164,7 @@
       "title": "Transaction Dock",
       "description": "A non-modal transaction detail dock with swipeable snap points, automatic capacity collapse, and deterministic re-entry.",
       "categories": ["interaction", "data-display"],
-      "dependencies": ["lucide-react"],
+      "dependencies": ["lucide-react", "motion"],
       "registryDependencies": ["drawer"],
       "files": [
         {
@@ -181,6 +181,11 @@
           "path": "components/registry/transaction-dock/index.ts",
           "type": "registry:component",
           "target": "@components/registry/transaction-dock/index.ts"
+        },
+        {
+          "path": "constants/motion.ts",
+          "type": "registry:lib",
+          "target": "@constants/motion.ts"
         }
       ],
       "meta": {

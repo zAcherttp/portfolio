@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence } from "motion/react";
 import {
   createContext,
   type ReactNode,
@@ -34,7 +35,7 @@ type TransactionDockContextValue = {
   dockRef: RefCallback<HTMLDivElement>;
   closeTransaction: (id: string) => void;
   collapseTransaction: (id: string) => void;
-  openTransaction: (id: string) => void;
+  openTransaction: (id: string, trigger?: HTMLElement | null) => void;
 };
 
 export type TransactionDockProviderProps = {
@@ -102,6 +103,7 @@ export function TransactionDockProvider({
   maxExpanded = 3,
 }: TransactionDockProviderProps) {
   const [panels, setPanels] = useState<TransactionPanel[]>([]);
+  const focusOrigins = useRef(new Map<string, HTMLElement>());
   const sequence = useRef(0);
   const { dockRef, slots: totalSlots } = useAvailableDockSlots();
   const hasCollapsedPanel = panels.some((panel) => panel.mode !== "expanded");
@@ -163,12 +165,16 @@ export function TransactionDockProvider({
 
   useEffect(() => {
     const ids = new Set(transactions.map((transaction) => transaction.id));
+    for (const id of focusOrigins.current.keys()) {
+      if (!ids.has(id)) focusOrigins.current.delete(id);
+    }
     setPanels((current) => current.filter((panel) => ids.has(panel.id)));
   }, [transactions]);
 
   const openTransaction = useCallback(
-    (id: string) => {
+    (id: string, trigger?: HTMLElement | null) => {
       if (!transactions.some((transaction) => transaction.id === id)) return;
+      if (trigger?.isConnected) focusOrigins.current.set(id, trigger);
 
       setPanels((current) => {
         const existing = current.find((panel) => panel.id === id);
@@ -261,6 +267,8 @@ export function TransactionDockProvider({
 
   const closeTransaction = useCallback(
     (id: string) => {
+      const focusOrigin = focusOrigins.current.get(id);
+      focusOrigins.current.delete(id);
       setPanels((current) => {
         const closing = current.find((panel) => panel.id === id);
         if (!closing) return current;
@@ -286,6 +294,27 @@ export function TransactionDockProvider({
           }
         }
         return next;
+      });
+
+      requestAnimationFrame(() => {
+        if (focusOrigin?.isConnected) {
+          focusOrigin.focus();
+          return;
+        }
+
+        const nextHandle = Array.from(
+          document.querySelectorAll<HTMLButtonElement>(
+            '[data-slot="transaction-card-handle"]',
+          ),
+        ).find((handle) => {
+          const card = handle.closest<HTMLElement>("[data-transaction-id]");
+          return (
+            card?.dataset.transactionId !== id &&
+            !handle.closest("[inert]") &&
+            handle.getClientRects().length > 0
+          );
+        });
+        nextHandle?.focus();
       });
     },
     [expandedCapacity, nextSequence],
@@ -364,51 +393,53 @@ export function TransactionDock({ className }: TransactionDockProps) {
       data-transaction-dock=""
       ref={dockRef}
     >
-      {expandedPanels.map((panel, slot) => {
-        const transaction = transactionsById.get(panel.id);
-        if (!transaction) return null;
-        const mobileQueueCount =
-          totalSlots === 1 && slot === 0 ? collapsedPanels.length + 1 : 1;
+      <AnimatePresence initial={false}>
+        {expandedPanels.map((panel, slot) => {
+          const transaction = transactionsById.get(panel.id);
+          if (!transaction) return null;
+          const mobileQueueCount =
+            totalSlots === 1 && slot === 0 ? collapsedPanels.length + 1 : 1;
 
-        return (
-          <TransactionCard
-            key={panel.id}
-            transaction={transaction}
-            mode={panel.mode}
-            slot={slot}
-            stackedCount={mobileQueueCount}
-            onStackOpen={() => {
-              if (topCollapsed) openTransaction(topCollapsed.id);
-            }}
-            onClose={() => closeTransaction(panel.id)}
-            onCollapse={() => collapseTransaction(panel.id)}
-            onExpand={() => openTransaction(panel.id)}
-          />
-        );
-      })}
+          return (
+            <TransactionCard
+              key={panel.id}
+              transaction={transaction}
+              mode={panel.mode}
+              slot={slot}
+              stackedCount={mobileQueueCount}
+              onStackOpen={() => {
+                if (topCollapsed) openTransaction(topCollapsed.id);
+              }}
+              onClose={() => closeTransaction(panel.id)}
+              onCollapse={() => collapseTransaction(panel.id)}
+              onExpand={() => openTransaction(panel.id)}
+            />
+          );
+        })}
 
-      {showCollapsedDeck
-        ? collapsedPanels.map((panel, index) => {
-            const transaction = transactionsById.get(panel.id);
-            if (!transaction) return null;
+        {showCollapsedDeck
+          ? collapsedPanels.map((panel, index) => {
+              const transaction = transactionsById.get(panel.id);
+              if (!transaction) return null;
 
-            return (
-              <TransactionCard
-                key={panel.id}
-                transaction={transaction}
-                mode={panel.mode}
-                slot={expandedPanels.length}
-                stackDepth={index}
-                stackedCount={collapsedPanels.length}
-                interactive={index === 0}
-                onStackOpen={() => openTransaction(panel.id)}
-                onClose={() => closeTransaction(panel.id)}
-                onCollapse={() => collapseTransaction(panel.id)}
-                onExpand={() => openTransaction(panel.id)}
-              />
-            );
-          })
-        : null}
+              return (
+                <TransactionCard
+                  key={panel.id}
+                  transaction={transaction}
+                  mode={panel.mode}
+                  slot={expandedPanels.length}
+                  stackDepth={index}
+                  stackedCount={collapsedPanels.length}
+                  interactive={index === 0}
+                  onStackOpen={() => openTransaction(panel.id)}
+                  onClose={() => closeTransaction(panel.id)}
+                  onCollapse={() => collapseTransaction(panel.id)}
+                  onExpand={() => openTransaction(panel.id)}
+                />
+              );
+            })
+          : null}
+      </AnimatePresence>
     </div>
   );
 }

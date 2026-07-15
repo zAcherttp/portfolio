@@ -1,6 +1,6 @@
 ## Usage
 
-Mount the provider around the table or feed that opens transactions, then render one dock near the application root. A card begins expanded when opened. Swiping downward minimizes it; swiping a collapsed card upward restores it.
+Mount the provider around the table or feed that opens transactions, then render one dock near the application root. A card begins expanded when opened. Swiping downward minimizes it; swiping a collapsed card upward restores it. Clicking its handle—or focusing it and pressing Enter or Space—toggles the same states.
 
 ```tsx title="transaction-dock.tsx"
 import {
@@ -16,7 +16,9 @@ function TransactionTable() {
     <button
       key={transaction.id}
       type="button"
-      onClick={() => openTransaction(transaction.id)}
+      onClick={(event) =>
+        openTransaction(transaction.id, event.currentTarget)
+      }
     >
       View details
     </button>
@@ -28,6 +30,8 @@ function TransactionTable() {
   <TransactionDock />
 </TransactionDockProvider>;
 ```
+
+Pass the opening button as the optional second argument to `openTransaction`. The dock uses it to restore focus when that card closes.
 
 ## Stack behavior
 

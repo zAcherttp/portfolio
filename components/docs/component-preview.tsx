@@ -382,7 +382,9 @@ function TransactionTablePreview() {
                 <button
                   type="button"
                   className="rounded-md border border-border px-2.5 py-1.5 font-medium text-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-                  onClick={() => openTransaction(transaction.id)}
+                  onClick={(event) =>
+                    openTransaction(transaction.id, event.currentTarget)
+                  }
                 >
                   View details
                 </button>
