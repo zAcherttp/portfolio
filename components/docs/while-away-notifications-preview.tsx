@@ -93,7 +93,7 @@ function PreviewControls() {
       size="sm"
     >
       <CardHeader
-        className="!grid-rows-[auto] gap-0 border-b"
+        className="grid-rows-[auto]! gap-0 border-b"
         data-notification-preview-header
       >
         <div className="flex min-w-0 items-center gap-3">

@@ -116,7 +116,7 @@ export function ComponentDocsShell({
                         .
                       </p>
                     )}
-                    <div className="space-y-4 [&_[data-code-frame]]:my-0">
+                    <div className="space-y-4 **:data-code-frame:my-0">
                       {source}
                     </div>
                   </div>
