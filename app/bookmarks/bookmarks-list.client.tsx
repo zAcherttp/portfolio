@@ -48,7 +48,7 @@ export function BookmarksList() {
       </div>
 
       {filteredBookmarks.length > 0 ? (
-        <div className="-mx-3 flex flex-col pb-4">
+        <div className="-ml-3 flex flex-col pb-4">
           {filteredBookmarks.map((bookmark) => (
             <BookmarkRow
               key={bookmark.url}
