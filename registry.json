@@ -43,7 +43,7 @@
       "description": "A generic SVG grid with responsive geometry and virtual-anchor cell interaction.",
       "categories": ["data-display"],
       "dependencies": ["cnfast"],
-      "registryDependencies": ["zAcherttp/portfolio/floating-tooltip"],
+      "registryDependencies": ["@zacherttp/floating-tooltip"],
       "files": [
         {
           "path": "components/registry/activity-grid.tsx",
@@ -68,8 +68,8 @@
       "categories": ["data-display", "composition"],
       "dependencies": ["date-fns", "cnfast"],
       "registryDependencies": [
-        "zAcherttp/portfolio/activity-grid",
-        "zAcherttp/portfolio/floating-tooltip"
+        "@zacherttp/activity-grid",
+        "@zacherttp/floating-tooltip"
       ],
       "files": [
         {

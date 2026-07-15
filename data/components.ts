@@ -1,172 +1,95 @@
-export type RegistryStatus = "stable" | "exploring";
+import componentsConfig from "@/components.json";
+import {
+  type RegistryEntry as CanonicalRegistryEntry,
+  type ComponentDocsMetadata,
+  createComponentRegistry,
+} from "@/lib/component-registry";
+import registryManifest from "@/registry.json";
 
-export type RegistryEntry = {
-  slug: string;
-  name: string;
-  category: string;
-  description: string;
-  status: RegistryStatus;
-  files: readonly string[];
-  dependencies: readonly string[];
-  registryDependencies: readonly string[];
-  usage: {
-    format: "jsx";
-    selector: string;
-    source: string;
-  };
-};
-
-export const componentRegistry = [
-  {
-    slug: "floating-tooltip",
-    name: "Floating Tooltip",
-    category: "Interaction",
-    description:
-      "An interruptible tooltip for DOM triggers and virtual anchors with collision-aware placement.",
-    status: "exploring",
-    files: [
-      "components/registry/floating-tooltip/position.ts",
-      "components/registry/floating-tooltip/virtual-tooltip.tsx",
-      "components/registry/floating-tooltip/tooltip.tsx",
-      "components/registry/floating-tooltip/index.ts",
-    ],
-    dependencies: ["motion"],
-    registryDependencies: [],
+const componentDocsMetadataDefinition = {
+  "floating-tooltip": {
     usage: {
       format: "jsx",
       selector: "VirtualTooltip",
       source: "components/docs/component-preview.tsx",
     },
   },
-  {
-    slug: "activity-grid",
-    name: "Activity Grid",
-    category: "Data Display",
-    description:
-      "A generic SVG grid with responsive geometry and virtual-anchor cell interaction.",
-    status: "exploring",
-    files: ["components/registry/activity-grid.tsx"],
-    dependencies: [],
-    registryDependencies: [],
+  "activity-grid": {
     usage: {
       format: "jsx",
       selector: "ActivityGrid",
       source: "components/kibo-ui/contribution-graph/index.tsx",
     },
   },
-  {
-    slug: "contribution-graph",
-    name: "Contribution Graph",
-    category: "Composition",
-    description:
-      "A calendar heatmap composed from the activity grid and floating tooltip primitives.",
-    status: "stable",
-    files: ["components/kibo-ui/contribution-graph/index.tsx"],
-    dependencies: ["date-fns"],
-    registryDependencies: ["activity-grid", "floating-tooltip"],
+  "contribution-graph": {
+    primaryCategory: "composition",
     usage: {
       format: "jsx",
       selector: "ContributionGraph",
       source: "components/profile/GitHubContributions.tsx",
     },
   },
-  {
-    slug: "dither-footer",
-    name: "Dither Footer",
-    category: "Visual",
-    description:
-      "An interactive WebGL transition revealed after the page footer.",
-    status: "exploring",
-    files: [
-      "components/DitherFooter.tsx",
-      "components/BottomShader.tsx",
-      "components/ui/shaders/dither.tsx",
-    ],
-    dependencies: ["three", "@react-three/fiber"],
-    registryDependencies: [],
+  "dither-footer": {
+    additionalSourceFiles: ["components/DitherFooter.tsx"],
     usage: {
       format: "jsx",
       selector: "DitherFooter",
       source: "components/docs/component-preview.tsx",
     },
   },
-  {
-    slug: "theme-hotkey",
-    name: "Theme Hotkey",
-    category: "Utility",
-    description:
-      "A throttled global keyboard shortcut for switching the active color theme.",
-    status: "stable",
-    files: ["components/GlobalHotkeys.tsx", "components/Providers.tsx"],
-    dependencies: [
-      "next-themes",
-      "@tanstack/react-hotkeys",
-      "@tanstack/react-pacer",
-    ],
-    registryDependencies: [],
+  "theme-hotkey": {
+    additionalSourceFiles: ["components/Providers.tsx"],
     usage: {
       format: "jsx",
       selector: "GlobalHotkeys",
       source: "components/Providers.tsx",
     },
   },
-  {
-    slug: "transaction-dock",
-    name: "Transaction Dock",
-    category: "Interaction",
-    description:
-      "A non-modal transaction detail dock with swipeable snap points, automatic capacity collapse, and deterministic re-entry.",
-    status: "exploring",
-    files: [
-      "components/registry/transaction-dock/transaction-card.tsx",
-      "components/registry/transaction-dock/transaction-dock.tsx",
-      "components/registry/transaction-dock/index.ts",
-    ],
-    dependencies: ["lucide-react"],
-    registryDependencies: ["drawer"],
+  "transaction-dock": {
     usage: {
       format: "jsx",
       selector: "TransactionDockProvider",
       source: "components/docs/component-preview.tsx",
     },
   },
-  {
-    slug: "while-away-notifications",
-    name: "While Away Notifications",
-    category: "Interaction",
-    description:
-      "A tab-scoped notification center that queues background activity and presents it when the user returns.",
-    status: "exploring",
-    files: [
-      "components/registry/while-away-notifications/notification-state.ts",
-      "components/registry/while-away-notifications/while-away-notifications.tsx",
-      "components/registry/while-away-notifications/index.ts",
-    ],
-    dependencies: ["lucide-react", "sonner"],
-    registryDependencies: ["popover", "sonner"],
+  "while-away-notifications": {
     usage: {
       format: "jsx",
       selector: "WhileAwayNotificationsProvider",
       source: "components/docs/while-away-notifications-usage.tsx",
     },
   },
-  {
-    slug: "kbd",
-    name: "KBD",
-    category: "Input",
-    description:
-      "A keyboard key primitive with opt-in held-state visualization powered by TanStack Hotkeys.",
-    status: "exploring",
-    files: ["components/ui/kbd.tsx"],
-    dependencies: ["@tanstack/react-hotkeys"],
-    registryDependencies: [],
+  kbd: {
     usage: {
       format: "jsx",
       selector: "Kbd",
       source: "components/docs/keyboard-60-preview.tsx",
     },
   },
-] as const satisfies readonly RegistryEntry[];
+} as const;
+
+export type RegistrySlug = keyof typeof componentDocsMetadataDefinition;
+export type ComponentSlug = RegistrySlug;
+
+const componentDocsMetadata = componentDocsMetadataDefinition satisfies Record<
+  RegistrySlug,
+  ComponentDocsMetadata
+>;
+
+export const componentRegistry = createComponentRegistry(
+  registryManifest,
+  componentDocsMetadata,
+  componentsConfig,
+);
 
 export type RegisteredComponent = (typeof componentRegistry)[number];
-export type ComponentSlug = (typeof componentRegistry)[number]["slug"];
+export type RegistryEntry = CanonicalRegistryEntry<ComponentSlug>;
+export type RegistryStatus = RegistryEntry["status"];
+
+const componentSlugSet: ReadonlySet<string> = new Set(
+  componentRegistry.map((entry) => entry.slug),
+);
+
+export function isComponentSlug(value: string): value is ComponentSlug {
+  return componentSlugSet.has(value);
+}

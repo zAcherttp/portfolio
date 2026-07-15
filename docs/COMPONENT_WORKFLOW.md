@@ -11,9 +11,17 @@ This workflow is mandatory for every component added to the portfolio component 
 
 ## 2. Register The Component
 
-- Add one stable slug and metadata entry to `data/components.ts`.
-- List every source file, package dependency, and local registry dependency.
-- Provide the smallest realistic usage example. Do not put implementation source in the usage example.
+- Add one stable slug and all distributable metadata to `registry.json`.
+- List every installable source file, package dependency, local registry
+  dependency, category, and status there; do not duplicate those fields in
+  `data/components.ts`.
+- Add a documentation overlay keyed by the same slug to `data/components.ts`.
+  Keep it limited to usage extraction and explicit presentation overrides.
+- Address dependencies on another item in this registry as
+  `@<registry-name>/<item>`. The namespace must match `registry.json`, be
+  configured in `components.json`, and resolve to an existing local item.
+- Provide the smallest realistic usage example. Do not put implementation
+  source in the usage example.
 - Keep registry slugs compatible with route segments and fixture IDs.
 
 ## 3. Add Fixtures Before Polishing Documentation
