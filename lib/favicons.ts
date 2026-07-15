@@ -10,7 +10,9 @@ const FAVICON_TIMEOUT_MS = 5_000;
 
 // Fetches all bookmarks' favicons in one shot, cached server-side monthly.
 // Uses Promise.allSettled so a single failure never blocks the rest.
-export async function getAllFavicons(): Promise<FaviconMap> {
+export async function getAllFavicons(
+  _cacheBuster: string,
+): Promise<FaviconMap> {
   "use cache";
   cacheLife("monthly");
 
