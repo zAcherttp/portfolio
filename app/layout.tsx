@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { VercelToolbar } from "@vercel/toolbar/next";
 import { OutboundLinkTracker } from "@/components/OutboundLinkTracker";
 import { MOTION_CSS_VARIABLES } from "@/constants/motion";
@@ -57,6 +58,7 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <OutboundLinkTracker />
         <Analytics />
+        <SpeedInsights />
         {shouldInjectToolbar && <VercelToolbar />}
       </body>
     </html>

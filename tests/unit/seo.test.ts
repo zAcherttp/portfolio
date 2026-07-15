@@ -13,7 +13,7 @@ describe("SEO metadata", () => {
   it("keeps the public identity contract explicit", () => {
     expect(profile).toMatchObject({
       name: "Tuấn Phát",
-      role: "Frontend Developer",
+      role: "Software Developer",
     });
   });
 
