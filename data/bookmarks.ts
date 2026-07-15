@@ -251,6 +251,14 @@ export const bookmarksData: Bookmark[] = [
     tags: ["React", "Tailwind", "Library"],
     date: "2026-06-23",
   },
+  {
+    title: "Alex Harri",
+    description: "Interactive essays on software, graphics, and web APIs.",
+    url: "https://alexharri.com/",
+    category: "Inspiration",
+    tags: ["Blog", "Engineering", "Interactive"],
+    date: "2026-07-15",
+  },
 ];
 
 export const getSortedBookmarks = (): Bookmark[] => {
