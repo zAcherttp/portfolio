@@ -27,7 +27,7 @@ function DefaultFixtureControls() {
 
   return (
     <div className="flex items-center gap-3">
-      <output className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+      <output className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
         {phase}
       </output>
       <NotificationCenter />
@@ -85,7 +85,7 @@ function ControlledFixtureControls({
   return (
     <div className="flex w-full max-w-lg flex-col items-center gap-5">
       <div className="flex items-center gap-3">
-        <output className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+        <output className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
           {phase}
         </output>
         <NotificationCenter />

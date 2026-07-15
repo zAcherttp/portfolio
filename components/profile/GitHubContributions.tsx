@@ -75,7 +75,7 @@ export default function GitHubContributions({
             />
           )}
         </ContributionGraphCalendar>
-        <ContributionGraphFooter className="mt-1.5 text-[10px] text-muted-foreground">
+        <ContributionGraphFooter className="mt-1.5 text-xs text-muted-foreground">
           {!mounted || isLoading ? (
             <span className="animate-pulse text-muted-foreground">
               Loading contributions...

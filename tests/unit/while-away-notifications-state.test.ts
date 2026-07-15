@@ -4,6 +4,7 @@ import {
   getUnreadCount,
   type NotificationState,
   notificationReducer,
+  sortNotificationsForCenter,
   type WhileAwayNotificationSeed,
 } from "@/components/registry/while-away-notifications/notification-state";
 
@@ -66,15 +67,54 @@ describe("while-away notification state", () => {
     expect(getUnreadCount(read.items)).toBe(1);
   });
 
-  it("marks every notification read without clearing new labels", () => {
-    const item = createNotificationItem({ id: "alert", title: "Alert" }, 1);
+  it("marks every notification read and clears every new label", () => {
+    const newItem = createNotificationItem(
+      { id: "new-alert", title: "New alert" },
+      1,
+    );
+    const readNewItem = createNotificationItem(
+      { id: "read-new-alert", title: "Read new alert", read: true },
+      2,
+    );
     const state = notificationReducer(
-      { items: [item] },
+      { items: [newItem, readNewItem] },
       { type: "mark-all-read" },
     );
 
-    expect(state.items[0]).toMatchObject({ read: true, isNew: true });
+    expect(state.items).toEqual([
+      expect.objectContaining({ id: "new-alert", read: true, isNew: false }),
+      expect.objectContaining({
+        id: "read-new-alert",
+        read: true,
+        isNew: false,
+      }),
+    ]);
     expect(getUnreadCount(state.items)).toBe(0);
+  });
+
+  it("sorts new notifications first without mutating the source list", () => {
+    const notifications = [
+      createNotificationItem(
+        { id: "seen-newer", title: "Seen newer", isNew: false },
+        4,
+      ),
+      createNotificationItem({ id: "new-older", title: "New older" }, 1),
+      createNotificationItem(
+        { id: "seen-older", title: "Seen older", isNew: false },
+        2,
+      ),
+      createNotificationItem({ id: "new-newer", title: "New newer" }, 3),
+    ];
+    const originalOrder = notifications.map((notification) => notification.id);
+
+    expect(
+      sortNotificationsForCenter(notifications).map(
+        (notification) => notification.id,
+      ),
+    ).toEqual(["new-newer", "new-older", "seen-newer", "seen-older"]);
+    expect(notifications.map((notification) => notification.id)).toEqual(
+      originalOrder,
+    );
   });
 
   it("enforces retentionLimit by evicting oldest items", () => {

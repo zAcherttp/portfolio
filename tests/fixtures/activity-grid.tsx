@@ -55,7 +55,7 @@ function GridExample({
           />
         )}
       />
-      <output className="block font-mono text-[10px] text-muted-foreground">
+      <output className="block font-mono text-xs text-muted-foreground">
         {active
           ? `${active.item.id} · level ${active.item.level}`
           : "No active cell"}
@@ -82,7 +82,7 @@ export function ActivityGridEmptyFixture() {
         getKey={(_, column, row) => `${column}-${row}`}
         renderCell={() => null}
       />
-      <p className="text-center font-mono text-[10px] text-muted-foreground">
+      <p className="text-center font-mono text-xs text-muted-foreground">
         Empty input renders no grid
       </p>
     </div>

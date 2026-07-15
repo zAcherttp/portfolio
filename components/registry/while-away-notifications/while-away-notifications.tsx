@@ -13,18 +13,40 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemSeparator,
+  ItemTitle,
+} from "@/components/ui/item";
 import {
   Popover,
   PopoverContent,
+  PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   createNotificationItem,
   getUnreadCount,
   type NotificationTone,
   notificationReducer,
+  sortNotificationsForCenter,
   type WhileAwayNotification,
   type WhileAwayNotificationItem,
   type WhileAwayNotificationSeed,
@@ -58,6 +80,7 @@ type WhileAwayNotificationsContextValue = {
   queueForReturn: (notification: WhileAwayNotification) => boolean;
   markRead: (id: string) => void;
   markAllRead: () => void;
+  markSeen: (ids: readonly string[]) => void;
   openNotification: (notification: WhileAwayNotificationItem) => void;
 };
 
@@ -98,86 +121,27 @@ function toneDotClassName(tone: NotificationTone | undefined) {
   return "bg-foreground/70";
 }
 
-function NotificationToast({
-  notification,
-  onOpen,
-}: {
-  notification: WhileAwayNotificationItem;
-  onOpen: () => void;
-}) {
-  return (
-    <div
-      className="w-[min(23rem,calc(100vw-2rem))] rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-lg"
-      data-notification-toast={notification.id}
-    >
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "mt-1.5 size-2 shrink-0 rounded-full",
-            toneDotClassName(notification.tone),
-          )}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium leading-5">{notification.title}</p>
-          {notification.description ? (
-            <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">
-              {notification.description}
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-[background-color,color,transform] duration-120 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-          onClick={onOpen}
-        >
-          Open
-        </button>
-      </div>
-    </div>
-  );
-}
+const notificationRailStyles = {
+  neutral: "bg-muted-foreground",
+  success: "bg-emerald-500",
+  warning: "bg-amber-500",
+  info: "bg-sky-500",
+} as const;
 
-function CatchUpDigest({
-  notifications,
-  onOpen,
+function NotificationStatusRail({
+  tone,
 }: {
-  notifications: readonly WhileAwayNotificationItem[];
-  onOpen: () => void;
+  tone: keyof typeof notificationRailStyles;
 }) {
   return (
-    <div
-      className="w-[min(23rem,calc(100vw-2rem))] rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-lg"
-      data-notification-digest={notifications.length}
-    >
-      <div className="flex items-start gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-          <Bell aria-hidden="true" className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">
-            {notifications.length} notifications while you were away
-          </p>
-          <div className="mt-1 space-y-0.5">
-            {notifications.slice(0, 2).map((notification) => (
-              <p
-                className="truncate text-xs text-muted-foreground"
-                key={notification.id}
-              >
-                {notification.title}
-              </p>
-            ))}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-[background-color,color,transform] duration-120 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
-          onClick={onOpen}
-        >
-          View all
-        </button>
-      </div>
-    </div>
+    <span
+      aria-hidden="true"
+      className={cn(
+        "block h-4 w-0.5 rounded-full",
+        notificationRailStyles[tone],
+      )}
+      data-slot="notification-status-rail"
+    />
   );
 }
 
@@ -251,22 +215,18 @@ export function WhileAwayNotificationsProvider({
   const presentNotification = useCallback(
     (notification: WhileAwayNotificationItem) => {
       if (centerOpenRef.current) return;
-      const id = toast.custom(
-        (toastId) => (
-          <NotificationToast
-            notification={notification}
-            onOpen={() => {
-              setCenterOpen(true);
-              toast.dismiss(toastId);
-            }}
-          />
-        ),
-        {
-          duration: toastDurationMs,
-          onDismiss: (t) => activeToastIdsRef.current.delete(t.id),
-          onAutoClose: (t) => activeToastIdsRef.current.delete(t.id),
+      const id = toast(notification.title, {
+        action: {
+          label: "Open",
+          onClick: () => setCenterOpen(true),
         },
-      );
+        description: notification.description,
+        duration: toastDurationMs,
+        icon: <NotificationStatusRail tone={notification.tone ?? "neutral"} />,
+        onDismiss: (t) => activeToastIdsRef.current.delete(t.id),
+        onAutoClose: (t) => activeToastIdsRef.current.delete(t.id),
+        testId: `notification-toast-${notification.id}`,
+      });
       activeToastIdsRef.current.add(id);
     },
     [setCenterOpen, toastDurationMs],
@@ -275,20 +235,22 @@ export function WhileAwayNotificationsProvider({
   const presentDigest = useCallback(
     (notifications: readonly WhileAwayNotificationItem[]) => {
       if (centerOpenRef.current) return;
-      const id = toast.custom(
-        (toastId) => (
-          <CatchUpDigest
-            notifications={notifications}
-            onOpen={() => {
-              setCenterOpen(true);
-              toast.dismiss(toastId);
-            }}
-          />
-        ),
+      const id = toast(
+        `${notifications.length} notifications while you were away`,
         {
+          action: {
+            label: "View all",
+            onClick: () => setCenterOpen(true),
+          },
+          description: notifications
+            .slice(0, 2)
+            .map((notification) => notification.title)
+            .join(" · "),
           duration: toastDurationMs + 1500,
+          icon: <NotificationStatusRail tone="info" />,
           onDismiss: (t) => activeToastIdsRef.current.delete(t.id),
           onAutoClose: (t) => activeToastIdsRef.current.delete(t.id),
+          testId: "notification-digest",
         },
       );
       activeToastIdsRef.current.add(id);
@@ -376,6 +338,11 @@ export function WhileAwayNotificationsProvider({
     dispatch({ type: "mark-all-read" });
   }, []);
 
+  const markSeen = useCallback((ids: readonly string[]) => {
+    if (ids.length === 0) return;
+    dispatch({ type: "mark-seen", ids });
+  }, []);
+
   const openNotification = useCallback(
     (notification: WhileAwayNotificationItem) => {
       markRead(notification.id);
@@ -383,19 +350,6 @@ export function WhileAwayNotificationsProvider({
     },
     [markRead, onNotificationOpen],
   );
-
-  useEffect(() => {
-    if (!centerOpen) return;
-    const newIds = state.items
-      .filter((notification) => notification.isNew)
-      .map((notification) => notification.id);
-    if (newIds.length === 0) return;
-
-    const timer = setTimeout(() => {
-      dispatch({ type: "mark-seen", ids: newIds });
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [centerOpen, state.items]);
 
   useEffect(() => {
     if (!tabActive) {
@@ -460,12 +414,14 @@ export function WhileAwayNotificationsProvider({
       queueForReturn,
       markRead,
       markAllRead,
+      markSeen,
       openNotification,
     }),
     [
       centerOpen,
       markAllRead,
       markRead,
+      markSeen,
       notify,
       openNotification,
       phase,
@@ -509,6 +465,118 @@ export type NotificationCenterProps = {
   emptyMessage?: string;
 };
 
+type NotificationListItemProps = {
+  centerOpen: boolean;
+  clock: number | null;
+  notification: WhileAwayNotificationItem;
+  onOpen: (notification: WhileAwayNotificationItem) => void;
+  onSeen: (ids: readonly string[]) => void;
+  showSeparator: boolean;
+};
+
+function NotificationListItem({
+  centerOpen,
+  clock,
+  notification,
+  onOpen,
+  onSeen,
+  showSeparator,
+}: NotificationListItemProps) {
+  const itemRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (!centerOpen || !notification.isNew) return;
+
+    const item = itemRef.current;
+    const viewport = item?.closest('[data-slot="scroll-area-viewport"]');
+    if (!item || !viewport || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
+    let viewed = false;
+    let cleared = false;
+    const clearNewLabel = () => {
+      if (!viewed || cleared) return;
+      cleared = true;
+      onSeen([notification.id]);
+    };
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting && entry.intersectionRatio >= 0.75) {
+          viewed = true;
+          return;
+        }
+
+        if (entry && !entry.isIntersecting) clearNewLabel();
+      },
+      { root: viewport, threshold: [0, 0.75] },
+    );
+
+    observer.observe(item);
+    return () => {
+      observer.disconnect();
+      clearNewLabel();
+    };
+  }, [centerOpen, notification.id, notification.isNew, onSeen]);
+
+  return (
+    <li ref={itemRef}>
+      <Item
+        className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 rounded-lg px-3 pt-2 pb-3 text-left hover:bg-muted/60 focus-visible:z-10 focus-visible:bg-muted"
+        data-new={notification.isNew || undefined}
+        data-notification-id={notification.id}
+        data-read={notification.read || undefined}
+        onClick={() => onOpen(notification)}
+        render={<button type="button" />}
+        size="xs"
+      >
+        <ItemMedia className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          {notification.read ? (
+            <Check aria-hidden="true" className="size-3.5" />
+          ) : (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-2 rounded-full",
+                toneDotClassName(notification.tone),
+              )}
+            />
+          )}
+        </ItemMedia>
+        <ItemContent className="min-w-0 gap-0.5">
+          <ItemTitle
+            className={cn(
+              "text-xs leading-5 font-normal",
+              notification.read ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {notification.title}
+          </ItemTitle>
+          {notification.description ? (
+            <ItemDescription className="text-xs leading-4">
+              {notification.description}
+            </ItemDescription>
+          ) : null}
+          {notification.source ? (
+            <span className="mt-1 block text-xs text-subtle">
+              {notification.source}
+            </span>
+          ) : null}
+        </ItemContent>
+        <ItemActions className="min-w-10 flex-col items-end gap-1.5 self-start pt-0.5">
+          <span className="font-mono text-xs text-subtle">
+            {formatNotificationTime(notification.createdAt, clock)}
+          </span>
+          {notification.isNew ? (
+            <Badge className="font-mono text-xs tracking-wide">NEW</Badge>
+          ) : null}
+        </ItemActions>
+      </Item>
+      {showSeparator ? <ItemSeparator className="my-0" /> : null}
+    </li>
+  );
+}
+
 export function NotificationCenter({
   className,
   title = "Notifications",
@@ -520,9 +588,13 @@ export function NotificationCenter({
     centerOpen,
     setCenterOpen,
     markAllRead,
+    markSeen,
     openNotification,
   } = useWhileAwayNotifications();
   const [clock, setClock] = useState<number | null>(null);
+  const [notificationOrder, setNotificationOrder] = useState<readonly string[]>(
+    [],
+  );
 
   useEffect(() => {
     if (!centerOpen) return;
@@ -531,6 +603,56 @@ export function NotificationCenter({
     const timer = setInterval(updateClock, 60_000);
     return () => clearInterval(timer);
   }, [centerOpen]);
+
+  useEffect(() => {
+    if (!centerOpen) {
+      setNotificationOrder((currentOrder) =>
+        currentOrder.length === 0 ? currentOrder : [],
+      );
+      return;
+    }
+
+    setNotificationOrder((currentOrder) => {
+      const sortedIds = sortNotificationsForCenter(notifications).map(
+        (notification) => notification.id,
+      );
+      const availableIds = new Set(sortedIds);
+      const currentIds = new Set(currentOrder);
+      const incomingIds = sortedIds.filter((id) => !currentIds.has(id));
+      const nextOrder = [
+        ...incomingIds,
+        ...currentOrder.filter((id) => availableIds.has(id)),
+      ];
+
+      return nextOrder.length === currentOrder.length &&
+        nextOrder.every((id, index) => id === currentOrder[index])
+        ? currentOrder
+        : nextOrder;
+    });
+  }, [centerOpen, notifications]);
+
+  const orderedNotifications = useMemo(() => {
+    const sortedNotifications = sortNotificationsForCenter(notifications);
+    if (!centerOpen || notificationOrder.length === 0) {
+      return sortedNotifications;
+    }
+
+    const notificationsById = new Map(
+      notifications.map((notification) => [notification.id, notification]),
+    );
+    const ordered = notificationOrder.flatMap((id) => {
+      const notification = notificationsById.get(id);
+      return notification ? [notification] : [];
+    });
+    const orderedIds = new Set(notificationOrder);
+
+    return [
+      ...ordered,
+      ...sortedNotifications.filter(
+        (notification) => !orderedIds.has(notification.id),
+      ),
+    ];
+  }, [centerOpen, notificationOrder, notifications]);
 
   const badge = unreadCount > 99 ? "99+" : String(unreadCount);
 
@@ -542,121 +664,80 @@ export function NotificationCenter({
             ? "Open notifications"
             : `Open notifications, ${unreadCount} unread`
         }
-        className={cn(
-          "relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-background text-foreground outline-none transition-[background-color,transform,box-shadow] duration-120 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]",
-          className,
-        )}
+        render={
+          <Button
+            className={cn("relative rounded-lg", className)}
+            size="icon-lg"
+            variant="outline"
+          />
+        }
       >
         <Bell aria-hidden="true" className="size-4" />
         {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-foreground px-1 font-mono text-[9px] font-semibold leading-4 text-background ring-2 ring-background">
+          <Badge className="absolute -right-1 -top-1 h-5 min-w-5 px-1 font-mono text-xs font-semibold leading-none ring-2 ring-background">
             {badge}
-          </span>
+          </Badge>
         ) : null}
       </PopoverTrigger>
 
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[min(23rem,calc(100vw-2rem))] origin-(--transform-origin) gap-0 overflow-hidden rounded-2xl p-0 shadow-xl transition-[opacity,transform] duration-180 ease-[cubic-bezier(0.23,1,0.32,1)] data-closed:animate-none data-closed:opacity-0 data-closed:scale-[0.97] data-ending-style:opacity-0 data-ending-style:scale-[0.97] data-open:animate-none data-starting-style:opacity-0 data-starting-style:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-opacity"
+        className="w-[min(23rem,calc(100vw-2rem))] origin-(--transform-origin) gap-0 overflow-hidden rounded-4xl p-0 shadow-xl transition-[opacity,transform] duration-180 ease-[cubic-bezier(0.23,1,0.32,1)] data-closed:animate-none data-closed:opacity-0 data-closed:scale-[0.97] data-ending-style:opacity-0 data-ending-style:scale-[0.97] data-open:animate-none data-starting-style:opacity-0 data-starting-style:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-opacity"
         data-notification-center
       >
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="min-w-0">
+        <div
+          className="flex items-center justify-between gap-3 border-b border-border pl-(--radius-4xl) pr-4 py-4"
+          data-notification-center-header
+        >
+          <PopoverHeader className="min-w-0 gap-0.5">
             <PopoverTitle className="text-sm font-semibold">
               {title}
             </PopoverTitle>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {unreadCount === 0
-                ? "No unread notifications"
-                : `${unreadCount} unread`}
-            </p>
-          </div>
+          </PopoverHeader>
           {unreadCount > 0 ? (
-            <button
-              type="button"
-              className="rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground outline-none transition-[background-color,color,transform] duration-120 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+            <Button
               onClick={markAllRead}
+              size="xs"
+              type="button"
+              variant="ghost"
             >
               Mark all read
-            </button>
+            </Button>
           ) : null}
         </div>
 
         {notifications.length === 0 ? (
-          <div className="flex min-h-52 flex-col items-center justify-center px-6 text-center">
-            <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Inbox aria-hidden="true" className="size-4" />
-            </span>
-            <p className="mt-3 text-sm font-medium">{emptyMessage}</p>
-            <p className="mt-1 max-w-52 text-xs leading-5 text-muted-foreground">
-              New activity will stay in this tab until you return.
-            </p>
-          </div>
+          <Empty className="min-h-52 rounded-none border-0 px-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Inbox aria-hidden="true" className="size-4" />
+              </EmptyMedia>
+              <EmptyTitle>{emptyMessage}</EmptyTitle>
+              <EmptyDescription className="max-w-52 text-xs leading-5">
+                New activity will stay in this tab until you return.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
-          <ul
-            aria-label="Notification list"
-            className="max-h-88 overflow-y-auto overscroll-contain py-1"
+          <ScrollArea
+            className="max-h-[min(22rem,calc(100dvh-7rem))] overscroll-contain **:data-[slot=scroll-area-viewport]:max-h-[min(22rem,calc(100dvh-7rem))]"
+            data-notification-scroll-area
           >
-            {notifications.map((notification) => (
-              <li key={notification.id}>
-                <button
-                  type="button"
-                  className="group grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 text-left outline-none transition-[background-color,transform] duration-120 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-muted/70 focus-visible:bg-muted active:scale-[0.99]"
-                  data-new={notification.isNew || undefined}
-                  data-notification-id={notification.id}
-                  data-read={notification.read || undefined}
-                  onClick={() => openNotification(notification)}
-                >
-                  <span className="relative flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    {notification.read ? (
-                      <Check aria-hidden="true" className="size-3.5" />
-                    ) : (
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "size-2 rounded-full",
-                          toneDotClassName(notification.tone),
-                        )}
-                      />
-                    )}
-                  </span>
-                  <span className="min-w-0">
-                    <span
-                      className={cn(
-                        "block truncate text-xs leading-5",
-                        notification.read
-                          ? "font-normal text-muted-foreground"
-                          : "font-medium text-foreground",
-                      )}
-                    >
-                      {notification.title}
-                    </span>
-                    {notification.description ? (
-                      <span className="mt-0.5 line-clamp-2 block text-[11px] leading-4 text-muted-foreground">
-                        {notification.description}
-                      </span>
-                    ) : null}
-                    {notification.source ? (
-                      <span className="mt-1 block text-[10px] text-subtle">
-                        {notification.source}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="flex min-w-10 flex-col items-end gap-1.5 pt-0.5">
-                    <span className="font-mono text-[9px] text-subtle">
-                      {formatNotificationTime(notification.createdAt, clock)}
-                    </span>
-                    {notification.isNew ? (
-                      <span className="rounded-full bg-foreground px-1.5 py-0.5 font-mono text-[8px] font-semibold tracking-wide text-background">
-                        NEW
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+            <ItemGroup aria-label="Notification list">
+              {orderedNotifications.map((notification) => (
+                <NotificationListItem
+                  centerOpen={centerOpen}
+                  clock={clock}
+                  key={notification.id}
+                  notification={notification}
+                  onOpen={openNotification}
+                  onSeen={markSeen}
+                  showSeparator={false}
+                />
+              ))}
+            </ItemGroup>
+          </ScrollArea>
         )}
       </PopoverContent>
     </Popover>

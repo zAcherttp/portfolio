@@ -48,6 +48,8 @@ function ActivityStream() {
 - A qualified return waits briefly for late events, then presents up to three individual toasts.
 - Larger batches collapse into one digest toast while every item remains in the notification center.
 - Opening the center dismisses this component's visible toasts without marking notifications as read.
+- Mark all read clears both unread state and every NEW label immediately.
+- A NEW label remains while its item is visible, clears after that viewed item leaves the viewport or the center closes, and any remaining NEW items return to the top on the next open.
 - Read, new, and toast-presentation state remain local to the current tab and reset on reload.
 
 ## API reference
@@ -66,6 +68,10 @@ Renders the notification trigger, unread badge, and anchored notification popove
 
 <AutoTypeTable path="components/registry/while-away-notifications/while-away-notifications.tsx" name="NotificationCenterProps" />
 
+**Toaster**
+
+Provides the shadcn Sonner host used for individual notifications and catch-up digests. Keep one near the application root; notification copy, actions, spacing, and variable height use Sonner's base presentation, while this component supplies only the semantic status rail.
+
 **useWhileAwayNotifications**
 
 Provides the current notifications, unread count, tab-attention phase, and actions for publishing, queuing, reading, and opening notifications. Call `notify` for normal application activity; use `queueForReturn` only when an event must wait for the next tab return.
@@ -78,7 +84,7 @@ Describes one notification published to the provider. Give every notification a 
 
 ## Credits
 
-- Toast presentation uses the shadcn/ui Sonner component.
+- Toast presentation uses the shadcn/ui Sonner base with a compact semantic status rail.
 - The notification center uses the shadcn/ui Popover component backed by Base UI.
 
 ## References

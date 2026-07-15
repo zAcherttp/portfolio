@@ -50,7 +50,7 @@ function ProfilePlot({
 }) {
   return (
     <div className="min-w-0">
-      <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px] text-muted-foreground">
+      <div className="mb-2 flex items-center justify-between gap-3 font-mono text-xs text-muted-foreground">
         <span>{profile}</span>
         <span>40 Hz–12 kHz</span>
       </div>
@@ -104,7 +104,7 @@ function ProfileMetrics({
   ] as const;
 
   return (
-    <div className="grid grid-cols-3 gap-3 border-border/60 border-t pt-2 font-mono text-[10px]">
+    <div className="grid grid-cols-3 gap-3 border-border/60 border-t pt-2 font-mono text-xs">
       {metrics.map((metric) => (
         <div className="min-w-0" key={metric.key}>
           <span className="block text-muted-foreground">{metric.label}</span>
@@ -218,7 +218,7 @@ export function KbdSoundProfilesFixture() {
             value={volume}
           />
           <output
-            className="w-11 text-right font-mono text-[10px] tabular-nums text-muted-foreground"
+            className="w-11 text-right font-mono text-xs tabular-nums text-muted-foreground"
             htmlFor="thock-volume"
           >
             {volume}%
@@ -226,7 +226,7 @@ export function KbdSoundProfilesFixture() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[minmax(5rem,1fr)_repeat(3,4.5rem)] items-end gap-3 border-b border-border pb-2 font-mono text-[10px] text-muted-foreground">
+      <div className="grid grid-cols-[minmax(5rem,1fr)_repeat(3,4.5rem)] items-end gap-3 border-b border-border pb-2 font-mono text-xs text-muted-foreground">
         <span>Event</span>
         {soundSizes.map((size) => (
           <span className="text-center" key={size.id}>
@@ -242,7 +242,7 @@ export function KbdSoundProfilesFixture() {
           key={soundEvent.id}
         >
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               0{eventIndex + 1}
             </span>
             <span className="text-sm font-medium">
@@ -286,11 +286,11 @@ export function KbdSoundProfilesFixture() {
         <div className="mb-5 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium">Reference comparison</p>
-            <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
               Recorded Up reference · designed Down voice · six variations each
             </p>
           </div>
-          <div className="flex items-center gap-3 font-mono text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <i className="block h-px w-3 bg-foreground" /> Reference
             </span>

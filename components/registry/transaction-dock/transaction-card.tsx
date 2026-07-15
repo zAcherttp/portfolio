@@ -140,7 +140,7 @@ function DetailRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[1rem_5.6rem_minmax(0,1fr)] items-center gap-2 text-[0.72rem] leading-5">
+    <div className="grid grid-cols-[1rem_5.6rem_minmax(0,1fr)] items-center gap-2 text-xs leading-5">
       <Icon className="size-3.5 text-muted-foreground/75" aria-hidden="true" />
       <span className="text-muted-foreground">{label}</span>
       <div className="min-w-0 font-medium text-foreground">{children}</div>
@@ -150,7 +150,7 @@ function DetailRow({
 
 function BillingRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[5.6rem_minmax(0,1fr)] gap-2 text-[0.7rem] leading-5">
+    <div className="grid grid-cols-[5.6rem_minmax(0,1fr)] gap-2 text-xs leading-5">
       <span className="text-muted-foreground">{label}</span>
       <span className="truncate font-medium text-foreground">{value}</span>
     </div>
@@ -295,10 +295,10 @@ export function TransactionCard({
 
       <header className="flex min-h-16 shrink-0 items-center gap-2 px-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[0.78rem] font-semibold text-foreground">
+          <h2 className="truncate text-sm font-semibold text-foreground">
             Transaction details
           </h2>
-          <p className="truncate font-mono text-[0.62rem] text-muted-foreground">
+          <p className="truncate font-mono text-xs text-muted-foreground">
             {transaction.invoice} · ${transaction.amount}
             {transaction.cents ? `.${transaction.cents}` : ""}
           </p>
@@ -308,7 +308,7 @@ export function TransactionCard({
           <button
             type="button"
             aria-label={`Open next transaction; ${stackedCount - 1} more in the stack`}
-            className="rounded-full bg-foreground/8 px-2 py-0.5 text-[0.62rem] font-medium text-muted-foreground outline-none transition-colors hover:bg-foreground/12 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-full bg-foreground/8 px-2 py-0.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-foreground/12 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             onClick={(event) => {
               stopPropagation(event);
               onStackOpen?.();
@@ -347,7 +347,7 @@ export function TransactionCard({
         data-slot="transaction-card-scroll"
       >
         <div className="rounded-xl border border-border/65 bg-background p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-          <p className="text-[0.68rem] text-muted-foreground">Amount</p>
+          <p className="text-xs text-muted-foreground">Amount</p>
           <p className="mt-0.5 tracking-[-0.04em] text-3xl font-medium text-foreground">
             ${transaction.amount}
             <span className="ml-0.5 text-base font-normal text-muted-foreground/60">
@@ -365,7 +365,7 @@ export function TransactionCard({
             <DetailRow icon={Check} label="Status">
               <span
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem]",
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs",
                   statusStyles[transaction.status],
                 )}
               >
@@ -377,7 +377,7 @@ export function TransactionCard({
             </DetailRow>
             <DetailRow icon={UserRound} label="Sender">
               <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border px-1.5 py-0.5">
-                <span className="inline-flex size-4 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-300 text-[0.5rem] font-semibold text-neutral-800">
+                <span className="inline-flex size-5 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-rose-300 text-xs font-semibold text-neutral-800">
                   {transaction.sender.initials}
                 </span>
                 <span className="truncate">{transaction.sender.name}</span>
@@ -401,7 +401,7 @@ export function TransactionCard({
             <DetailRow icon={CalendarDays} label="Date">
               <span className="flex flex-wrap items-center gap-1.5">
                 {transaction.date}
-                <span className="rounded-full border border-border px-1.5 py-0.5 text-[0.58rem] text-muted-foreground">
+                <span className="rounded-full border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
                   {transaction.timezone}
                 </span>
               </span>
@@ -412,7 +412,7 @@ export function TransactionCard({
             <button
               type="button"
               aria-expanded={billingOpen}
-              className="flex w-full items-center justify-between rounded-md py-1 text-left text-[0.75rem] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-full items-center justify-between rounded-md py-1 text-left text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setBillingOpen((open) => !open)}
             >
               Billing information
@@ -458,17 +458,17 @@ export function TransactionCard({
 
           {transaction.attachment ? (
             <section className="mt-4">
-              <p className="mb-1.5 text-[0.65rem] text-muted-foreground">
+              <p className="mb-1.5 text-xs text-muted-foreground">
                 Attachments
               </p>
               <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5">
                 <span className="inline-flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground">
                   <FileText className="size-3.5" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[0.7rem] font-medium">
+                <span className="min-w-0 flex-1 truncate text-xs font-medium">
                   {transaction.attachment.name}
                 </span>
-                <span className="text-[0.62rem] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {transaction.attachment.size}
                 </span>
                 <IconButton label="Attachment actions">

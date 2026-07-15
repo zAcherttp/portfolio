@@ -242,7 +242,7 @@ export default function PlaygroundClient() {
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 flex flex-col justify-start gap-8 z-10 pointer-events-auto">
         <div className="text-center space-y-3">
           <div
-            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] font-mono tracking-wide uppercase ${
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono tracking-wide uppercase ${
               isDark
                 ? "bg-zinc-900/60 border-zinc-800 text-zinc-400 shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
                 : "bg-zinc-100/60 border-zinc-200 text-zinc-600 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
@@ -275,11 +275,11 @@ export default function PlaygroundClient() {
               className={`px-5 py-4 border-b flex flex-col gap-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono tracking-wider uppercase opacity-50">
+                <span className="text-xs font-mono tracking-wider uppercase opacity-50">
                   Pass 01
                 </span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono ${
+                  className={`px-2 py-0.5 rounded text-xs font-mono ${
                     isDark
                       ? "bg-zinc-800 text-zinc-300"
                       : "bg-zinc-100 text-zinc-700"
@@ -330,11 +330,11 @@ export default function PlaygroundClient() {
               className={`px-5 py-4 border-b flex flex-col gap-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono tracking-wider uppercase opacity-50">
+                <span className="text-xs font-mono tracking-wider uppercase opacity-50">
                   Pass 02
                 </span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono ${
+                  className={`px-2 py-0.5 rounded text-xs font-mono ${
                     isDark
                       ? "bg-zinc-800 text-zinc-300"
                       : "bg-zinc-100 text-zinc-700"
@@ -385,11 +385,11 @@ export default function PlaygroundClient() {
               className={`px-5 py-4 border-b flex flex-col gap-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono tracking-wider uppercase opacity-50">
+                <span className="text-xs font-mono tracking-wider uppercase opacity-50">
                   Pass 03
                 </span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-mono ${
+                  className={`px-2 py-0.5 rounded text-xs font-mono ${
                     isDark
                       ? "bg-zinc-800 text-zinc-300"
                       : "bg-zinc-100 text-zinc-700"

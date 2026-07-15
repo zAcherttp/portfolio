@@ -32,7 +32,7 @@ function CodeTitle({
   language?: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 border-b border-border/70 px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
+    <div className="flex min-w-0 items-center gap-2 border-b border-border/70 px-4 py-2.5 font-mono text-xs text-muted-foreground">
       <CodeLanguageIcon language={language} />
       <span className="truncate">{title}</span>
     </div>

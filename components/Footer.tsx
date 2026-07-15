@@ -49,7 +49,7 @@ export default function Footer() {
             Vercel
           </ExternalLink>
         </div>
-        <div className="flex items-center justify-center gap-2 text-[10px] text-subtle font-mono">
+        <div className="flex items-center justify-center gap-2 font-mono text-xs text-subtle">
           <ExternalLink
             attributionContext="footer-resource"
             href="https://github.com/zAcherttp/portfolio"

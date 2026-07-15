@@ -346,7 +346,7 @@ function TransactionTablePreview() {
             Open several rows, then swipe a collapsed card upward.
           </p>
         </div>
-        <span className="hidden rounded-full bg-muted px-2.5 py-1 font-mono text-[0.62rem] text-muted-foreground sm:inline-flex">
+        <span className="hidden rounded-full bg-muted px-2.5 py-1 font-mono text-xs text-muted-foreground sm:inline-flex">
           max 3 expanded
         </span>
       </div>

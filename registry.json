@@ -193,8 +193,15 @@
       "title": "While Away Notifications",
       "description": "A tab-scoped notification center that queues background activity and presents it when the user returns.",
       "categories": ["interaction", "notification"],
-      "dependencies": ["lucide-react", "sonner"],
-      "registryDependencies": ["popover", "sonner"],
+      "dependencies": ["lucide-react", "next-themes", "sonner"],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "empty",
+        "item",
+        "popover",
+        "scroll-area"
+      ],
       "files": [
         {
           "path": "components/registry/while-away-notifications/notification-state.ts",
@@ -210,6 +217,11 @@
           "path": "components/registry/while-away-notifications/index.ts",
           "type": "registry:component",
           "target": "@components/registry/while-away-notifications/index.ts"
+        },
+        {
+          "path": "components/ui/sonner.tsx",
+          "type": "registry:ui",
+          "target": "@components/ui/sonner.tsx"
         }
       ],
       "meta": {

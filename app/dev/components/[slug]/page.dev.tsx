@@ -51,7 +51,7 @@ async function ComponentFixtureContent({ params, searchParams }: Props) {
 
         <header className="mb-6 flex items-baseline gap-3">
           <h1 className="text-xl font-bold">{entry.name}</h1>
-          <span className="font-mono text-[10px] text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             {entry.category}
           </span>
         </header>
