@@ -1,0 +1,4 @@
+interface:
+  display_name: "shadcn/ui"
+  short_description: "Project shadcn and Base UI workflow"
+  default_prompt: "Use $shadcn to add or update a component with project UI and registry conventions."
