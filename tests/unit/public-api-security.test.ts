@@ -73,7 +73,9 @@ describe("public API guard", () => {
     );
 
     expect(limitedResponse.status).toBe(429);
-    expect(limitedResponse.headers.get("Retry-After")).toBeTruthy();
+    expect(Number(limitedResponse.headers.get("Retry-After"))).toBeGreaterThan(
+      0,
+    );
     expect(otherClientResponse.status).toBe(200);
   });
 

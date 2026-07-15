@@ -51,10 +51,6 @@ describe("registry metadata contract", () => {
         throw new Error(`${entry.slug} is missing from registry.json.`);
       }
 
-      it("exists in registry.json", () => {
-        expect(registryItem).toBeDefined();
-      });
-
       it("has a matching title", () => {
         expect(registryItem.title).toBe(entry.name);
       });
