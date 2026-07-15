@@ -6,14 +6,16 @@ test.describe("activity grid", () => {
     const stage = page.getByTestId("fixture-stage");
     const region = stage.locator(".overflow-x-auto");
     const svg = region.locator("svg");
-    const regionBox = await region.boundingBox();
-    const svgBox = await svg.boundingBox();
-
-    expect(regionBox).not.toBeNull();
-    expect(svgBox).not.toBeNull();
-    expect(
-      Math.abs((regionBox?.width ?? 0) - (svgBox?.width ?? 0)),
-    ).toBeLessThan(1);
+    await expect
+      .poll(async () => {
+        const [regionBox, svgBox] = await Promise.all([
+          region.boundingBox(),
+          svg.boundingBox(),
+        ]);
+        if (!regionBox || !svgBox) return Number.POSITIVE_INFINITY;
+        return Math.abs(regionBox.width - svgBox.width);
+      })
+      .toBeLessThan(1);
   });
 
   test("reports cells and clears the active state on pointer leave", async ({
@@ -45,11 +47,11 @@ test.describe("activity grid", () => {
     const stage = page.getByTestId("fixture-stage");
     const region = stage.locator(".overflow-x-auto");
 
-    const dimensions = await region.evaluate((element) => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-    }));
-    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth);
+    await expect
+      .poll(() =>
+        region.evaluate((element) => element.scrollWidth - element.clientWidth),
+      )
+      .toBeGreaterThan(0);
 
     await region.evaluate((element) => {
       element.scrollLeft = element.scrollWidth;

@@ -28,10 +28,11 @@ test.describe("dither footer", () => {
       page.getByTestId("fixture-stage").locator("canvas"),
     ).toBeVisible();
     const first = await canvasFrame(page);
-    await page.waitForTimeout(250);
-    const second = await canvasFrame(page);
-
-    expect(second.equals(first)).toBe(false);
+    await expect
+      .poll(async () =>
+        (await canvasFrame(page)).equals(first) ? "unchanged" : "changed",
+      )
+      .toBe("changed");
   });
 
   test("holds the same pixels when animation is disabled", async ({ page }) => {
@@ -39,12 +40,19 @@ test.describe("dither footer", () => {
     await expect(
       page.getByTestId("fixture-stage").locator("canvas"),
     ).toBeVisible();
-    await page.waitForTimeout(100);
     const first = await canvasFrame(page);
-    await page.waitForTimeout(250);
-    const second = await canvasFrame(page);
-
-    expect(second.equals(first)).toBe(true);
+    const comparisonStart = Date.now();
+    await expect
+      .poll(
+        async () => {
+          if (Date.now() - comparisonStart < 200) return "sampling";
+          return (await canvasFrame(page)).equals(first)
+            ? "unchanged"
+            : "changed";
+        },
+        { intervals: [100], timeout: 3_000 },
+      )
+      .toBe("unchanged");
   });
 
   test("only mounts the footer wrapper on the home route", async ({ page }) => {
@@ -83,7 +91,6 @@ test.describe("dither footer", () => {
 
     const canvas = page.getByTestId("dither-showcase").locator("canvas");
     await expect(canvas).toBeVisible();
-    await page.waitForTimeout(750);
     await expect
       .poll(() =>
         canvas.evaluate((element) => {
@@ -96,9 +103,11 @@ test.describe("dither footer", () => {
       )
       .toBe(false);
     const first = await canvas.screenshot();
-    await page.waitForTimeout(250);
-    const second = await canvas.screenshot();
-    expect(second.equals(first)).toBe(false);
+    await expect
+      .poll(async () =>
+        (await canvas.screenshot()).equals(first) ? "unchanged" : "changed",
+      )
+      .toBe("changed");
   });
 
   test("uses the fallback without creating a WebGL canvas", async ({
@@ -133,8 +142,12 @@ test.describe("dither footer", () => {
     await expect(shader.locator("canvas")).toBeVisible();
 
     const first = await shader.locator("canvas").screenshot();
-    await page.waitForTimeout(250);
-    const second = await shader.locator("canvas").screenshot();
-    expect(second.equals(first)).toBe(false);
+    await expect
+      .poll(async () =>
+        (await shader.locator("canvas").screenshot()).equals(first)
+          ? "unchanged"
+          : "changed",
+      )
+      .toBe("changed");
   });
 });

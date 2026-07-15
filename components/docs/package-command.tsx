@@ -27,7 +27,10 @@ export function PackageCommand({ slug }: { slug: string }) {
 
   const Icon = copied ? Check : Copy;
   return (
-    <div className="overflow-hidden rounded-xl bg-muted/55">
+    <div
+      className="overflow-hidden rounded-xl bg-muted/55"
+      data-installation-content
+    >
       <div className="flex min-h-11 items-center gap-2 border-b border-border/70 px-3">
         <SquareTerminal
           aria-hidden="true"

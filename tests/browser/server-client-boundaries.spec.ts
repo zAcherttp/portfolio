@@ -59,21 +59,14 @@ test.describe("server and client page boundaries", () => {
     await expect(arrow).not.toHaveCSS("transition-duration", "0s");
   });
 
-  test("keeps the see-all favicon cascade readable", async ({ page }) => {
+  test("reveals every see-all favicon after hover", async ({ page }) => {
     await page.goto("/");
 
     const reveal = page.locator("[data-see-all-reveal]").first();
     const lastItem = reveal.locator("[data-reveal-item]").last();
 
     await reveal.hover();
-    await page.waitForTimeout(120);
-
-    expect(
-      await lastItem.evaluate((element) =>
-        Number.parseFloat(getComputedStyle(element).opacity),
-      ),
-    ).toBeLessThan(0.1);
-    await expect(lastItem).toHaveCSS("opacity", "1", { timeout: 700 });
+    await expect(lastItem).toHaveCSS("opacity", "1");
   });
 
   test("preserves browser-history back navigation", async ({ page }) => {

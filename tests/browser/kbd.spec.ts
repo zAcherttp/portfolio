@@ -220,27 +220,30 @@ test.describe("KBD", () => {
     await expect(menu).toHaveAttribute("data-state", "idle");
     await expect(fn).toHaveAttribute("data-state", "pressed");
 
-    await page.waitForTimeout(260);
-    expect(
-      await page.evaluate(() => {
-        const event = new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-        });
-        document.dispatchEvent(event);
-        return event.defaultPrevented;
-      }),
-    ).toBe(false);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const event = new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+          });
+          document.dispatchEvent(event);
+          return event.defaultPrevented;
+        }),
+      )
+      .toBe(false);
 
     const initialTheme = await page.evaluate(() =>
       document.documentElement.classList.contains("dark"),
     );
     await page.keyboard.press("D");
-    expect(
-      await page.evaluate(() =>
-        document.documentElement.classList.contains("dark"),
-      ),
-    ).toBe(initialTheme);
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.documentElement.classList.contains("dark"),
+        ),
+      )
+      .toBe(initialTheme);
   });
 
   test("offers down and up key-size profiles with adjustable volume", async ({
