@@ -253,11 +253,9 @@ test.describe("while-away notifications", () => {
     await expect(
       digest.locator('[data-slot="notification-status-rail"]'),
     ).toHaveCSS("width", "2px");
-    expect(
-      await digest.evaluate(
-        (element) => element.getBoundingClientRect().height,
-      ),
-    ).toBeGreaterThan(72);
+    await expect(digest).toContainText(
+      "Queued notification 1 · Queued notification 2",
+    );
     await expect(
       page.locator('[data-testid^="notification-toast-"]'),
     ).toHaveCount(0);

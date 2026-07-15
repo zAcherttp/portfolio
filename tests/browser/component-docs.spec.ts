@@ -125,10 +125,15 @@ test.describe("component documentation", () => {
   test("navigates to the adjacent component", async ({ page }) => {
     await page.goto("/components/activity-grid");
 
-    await page
-      .getByRole("link", { name: "Next component: Contribution Graph" })
-      .click();
-    await expect(page).toHaveURL(/\/components\/contribution-graph$/);
+    const nextComponent = page.getByRole("link", {
+      name: "Next component: Contribution Graph",
+    });
+    await Promise.all([
+      page.waitForURL(/\/components\/contribution-graph$/, {
+        timeout: 15_000,
+      }),
+      nextComponent.click(),
+    ]);
   });
 
   test("serves component documentation as Markdown", async ({ request }) => {

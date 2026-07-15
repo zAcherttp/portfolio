@@ -80,14 +80,20 @@ test.describe("dither footer", () => {
       page.getByTestId("dither-showcase").locator("canvas"),
     ).toBeVisible();
 
-    await page
-      .getByRole("link", { name: "Next component: Theme Hotkey" })
-      .click();
-    await expect(page).toHaveURL(/\/components\/theme-hotkey$/);
-    await page
-      .getByRole("link", { name: "Previous component: Dither Footer" })
-      .click();
-    await expect(page).toHaveURL(/\/components\/dither-footer$/);
+    const nextComponent = page.getByRole("link", {
+      name: "Next component: Theme Hotkey",
+    });
+    await Promise.all([
+      page.waitForURL(/\/components\/theme-hotkey$/, { timeout: 15_000 }),
+      nextComponent.click(),
+    ]);
+    const previousComponent = page.getByRole("link", {
+      name: "Previous component: Dither Footer",
+    });
+    await Promise.all([
+      page.waitForURL(/\/components\/dither-footer$/, { timeout: 15_000 }),
+      previousComponent.click(),
+    ]);
 
     const canvas = page.getByTestId("dither-showcase").locator("canvas");
     await expect(canvas).toBeVisible();
