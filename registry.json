@@ -43,7 +43,7 @@
       "description": "A generic SVG grid with responsive geometry and virtual-anchor cell interaction.",
       "categories": ["data-display"],
       "dependencies": ["cnfast"],
-      "registryDependencies": ["zAcherttp/portfolio/floating-tooltip"],
+      "registryDependencies": ["@zacherttp/floating-tooltip"],
       "files": [
         {
           "path": "components/registry/activity-grid.tsx",
@@ -68,8 +68,8 @@
       "categories": ["data-display", "composition"],
       "dependencies": ["date-fns", "cnfast"],
       "registryDependencies": [
-        "zAcherttp/portfolio/activity-grid",
-        "zAcherttp/portfolio/floating-tooltip"
+        "@zacherttp/activity-grid",
+        "@zacherttp/floating-tooltip"
       ],
       "files": [
         {
@@ -164,7 +164,7 @@
       "title": "Transaction Dock",
       "description": "A non-modal transaction detail dock with swipeable snap points, automatic capacity collapse, and deterministic re-entry.",
       "categories": ["interaction", "data-display"],
-      "dependencies": ["lucide-react"],
+      "dependencies": ["lucide-react", "motion"],
       "registryDependencies": ["drawer"],
       "files": [
         {
@@ -181,6 +181,11 @@
           "path": "components/registry/transaction-dock/index.ts",
           "type": "registry:component",
           "target": "@components/registry/transaction-dock/index.ts"
+        },
+        {
+          "path": "constants/motion.ts",
+          "type": "registry:lib",
+          "target": "@constants/motion.ts"
         }
       ],
       "meta": {
@@ -193,8 +198,15 @@
       "title": "While Away Notifications",
       "description": "A tab-scoped notification center that queues background activity and presents it when the user returns.",
       "categories": ["interaction", "notification"],
-      "dependencies": ["lucide-react", "sonner"],
-      "registryDependencies": ["popover", "sonner"],
+      "dependencies": ["lucide-react", "next-themes", "sonner"],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "empty",
+        "item",
+        "popover",
+        "scroll-area"
+      ],
       "files": [
         {
           "path": "components/registry/while-away-notifications/notification-state.ts",
@@ -210,6 +222,11 @@
           "path": "components/registry/while-away-notifications/index.ts",
           "type": "registry:component",
           "target": "@components/registry/while-away-notifications/index.ts"
+        },
+        {
+          "path": "components/ui/sonner.tsx",
+          "type": "registry:ui",
+          "target": "@components/ui/sonner.tsx"
         }
       ],
       "meta": {

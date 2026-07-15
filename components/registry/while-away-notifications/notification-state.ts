@@ -76,7 +76,7 @@ export function notificationReducer(
   if (action.type === "mark-all-read") {
     return {
       items: state.items.map((item) =>
-        item.read ? item : { ...item, read: true },
+        item.read && !item.isNew ? item : { ...item, isNew: false, read: true },
       ),
     };
   }
@@ -91,4 +91,16 @@ export function notificationReducer(
 
 export function getUnreadCount(items: readonly WhileAwayNotificationItem[]) {
   return items.reduce((count, item) => count + Number(!item.read), 0);
+}
+
+export function sortNotificationsForCenter(
+  items: readonly WhileAwayNotificationItem[],
+) {
+  return [...items].sort((first, second) => {
+    if (first.isNew !== second.isNew) {
+      return Number(second.isNew) - Number(first.isNew);
+    }
+
+    return second.createdAt - first.createdAt;
+  });
 }

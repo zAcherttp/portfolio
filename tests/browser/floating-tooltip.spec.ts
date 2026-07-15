@@ -1,4 +1,28 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+
+async function expectInsideViewport(page: Page, locator: Locator) {
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("Viewport size is unavailable.");
+
+  await expect
+    .poll(async () => (await locator.boundingBox())?.x)
+    .toBeGreaterThanOrEqual(0);
+  await expect
+    .poll(async () => (await locator.boundingBox())?.y)
+    .toBeGreaterThanOrEqual(0);
+  await expect
+    .poll(async () => {
+      const box = await locator.boundingBox();
+      return box ? box.x + box.width : Number.POSITIVE_INFINITY;
+    })
+    .toBeLessThanOrEqual(viewport.width);
+  await expect
+    .poll(async () => {
+      const box = await locator.boundingBox();
+      return box ? box.y + box.height : Number.POSITIVE_INFINITY;
+    })
+    .toBeLessThanOrEqual(viewport.height);
+}
 
 test.describe("floating tooltip", () => {
   test("supports pointer and keyboard discovery", async ({ page }) => {
@@ -44,19 +68,14 @@ test.describe("floating tooltip", () => {
         name: placement,
         exact: true,
       });
-      const resolvedPlacement = await tooltip.getAttribute("data-placement");
-
-      expect(placements).toContain(resolvedPlacement);
       if (testInfo.project.name === "chromium") {
-        expect(resolvedPlacement).toBe(placement);
+        await expect(tooltip).toHaveAttribute("data-placement", placement);
       } else {
-        const box = await tooltip.boundingBox();
-        const viewport = page.viewportSize();
-        expect(box).not.toBeNull();
-        expect((box?.x ?? -1) >= 0).toBe(true);
-        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
-          viewport?.width ?? 0,
+        await expect(tooltip).toHaveAttribute(
+          "data-placement",
+          new RegExp(`^(${placements.join("|")})$`),
         );
+        await expectInsideViewport(page, tooltip);
       }
     }
   });
@@ -77,19 +96,46 @@ test.describe("floating tooltip", () => {
         exact: true,
       });
       await expect(tooltip).toBeVisible();
-      const box = await tooltip.boundingBox();
-      const viewport = page.viewportSize();
-      expect(box).not.toBeNull();
-      expect(viewport).not.toBeNull();
-      expect(box?.x).toBeGreaterThanOrEqual(0);
-      expect(box?.y).toBeGreaterThanOrEqual(0);
-      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
-        viewport?.width ?? 0,
-      );
-      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(
-        viewport?.height ?? 0,
-      );
+      await expectInsideViewport(page, tooltip);
     }
+  });
+
+  test("positions a tooltip from a virtual target", async ({ page }) => {
+    await page.goto("/dev/components/floating-tooltip?case=virtual-targets");
+    const target = page.getByRole("button", { name: "Large target" });
+
+    await target.hover();
+
+    const tooltip = page.getByRole("tooltip", { name: "Large target" });
+    await expect(tooltip).toBeVisible();
+    await expectInsideViewport(page, tooltip);
+  });
+
+  test("follows externally controlled open state", async ({ page }) => {
+    await page.goto("/dev/components/floating-tooltip?case=controlled");
+    const tooltip = page.getByRole("tooltip", {
+      name: "Controlled and stable",
+    });
+
+    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await expect(tooltip).toBeVisible();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(tooltip).toBeHidden();
+  });
+
+  test("hides controlled content while its anchor is unstable", async ({
+    page,
+  }) => {
+    await page.goto("/dev/components/floating-tooltip?case=controlled");
+    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await expect(page.getByRole("tooltip")).toBeVisible();
+
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
+
+    await expect(page.getByRole("tooltip")).toHaveCSS("opacity", "0");
+    await expect(
+      page.getByRole("button", { name: "Resume", exact: true }),
+    ).toBeVisible();
   });
 
   test("updates content size without replacing the tooltip", async ({

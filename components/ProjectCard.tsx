@@ -75,7 +75,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
         {project.languages.map((lang) => (
           <span
             key={lang}
-            className="inline-flex items-center gap-1.5 text-[10px] font-mono py-0.5 px-2 bg-muted dark:bg-zinc-900/70 text-muted-foreground rounded-md"
+            className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground dark:bg-zinc-900/70"
           >
             {renderLanguageIcon(lang)}
             {lang}
@@ -85,7 +85,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
         {project.tags.map((tag) => (
           <span
             key={tag}
-            className="text-[10px] font-mono py-0.5 px-2 bg-muted text-muted-foreground rounded-md"
+            className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
           >
             {tag}
           </span>

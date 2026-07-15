@@ -20,23 +20,26 @@ test.describe("contribution graph", () => {
       const viewport = graph.locator(
         "xpath=ancestor::div[contains(@class, 'overflow-x-auto')][1]",
       );
-      const graphBox = await graph.boundingBox();
-      const viewportBox = await viewport.boundingBox();
-      const intrinsicWidth = await graph
-        .locator("..")
-        .evaluate((element) =>
-          Number.parseFloat(getComputedStyle(element).minWidth),
-        );
-
-      expect(graphBox, `${route} graph bounds`).not.toBeNull();
-      expect(viewportBox, `${route} viewport bounds`).not.toBeNull();
-      expect(
-        Math.abs(
-          (graphBox?.width ?? 0) -
-            Math.max(viewportBox?.width ?? 0, intrinsicWidth),
-        ),
-        `${route} should fill its viewport without shrinking below its intrinsic width`,
-      ).toBeLessThan(1);
+      await expect
+        .poll(
+          async () => {
+            const [graphBox, viewportBox, intrinsicWidth] = await Promise.all([
+              graph.boundingBox(),
+              viewport.boundingBox(),
+              graph
+                .locator("..")
+                .evaluate((element) =>
+                  Number.parseFloat(getComputedStyle(element).minWidth),
+                ),
+            ]);
+            if (!graphBox || !viewportBox) return Number.POSITIVE_INFINITY;
+            return Math.abs(
+              graphBox.width - Math.max(viewportBox.width, intrinsicWidth),
+            );
+          },
+          { message: `${route} should fill its viewport` },
+        )
+        .toBeLessThan(1);
     }
   });
 

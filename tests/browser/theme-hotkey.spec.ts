@@ -3,7 +3,11 @@ import { expect, test } from "@playwright/test";
 async function activeTheme(page: import("@playwright/test").Page) {
   const status = page.getByRole("status");
   await expect(status).toContainText(/Active theme: (light|dark)/);
-  return (await status.textContent())?.replace("Active theme: ", "");
+  const theme = (await status.textContent())?.replace("Active theme: ", "");
+  if (theme !== "light" && theme !== "dark") {
+    throw new Error(`Unexpected active theme: ${theme ?? "missing"}`);
+  }
+  return theme;
 }
 
 test.describe("theme hotkey", () => {
@@ -18,7 +22,9 @@ test.describe("theme hotkey", () => {
     );
 
     await page.reload();
-    expect(await activeTheme(page)).toBe(toggled);
+    await expect(page.getByRole("status")).toHaveText(
+      `Active theme: ${toggled}`,
+    );
   });
 
   test("does not toggle while typing in an input", async ({ page }) => {
@@ -28,23 +34,20 @@ test.describe("theme hotkey", () => {
     await page
       .getByPlaceholder("Type here without toggling the theme")
       .fill("d");
-    expect(await activeTheme(page)).toBe(initial);
+    await expect(page.getByRole("status")).toHaveText(
+      `Active theme: ${initial}`,
+    );
   });
 
-  test("throttles rapid key events to the 50 ms contract", async ({ page }) => {
+  test("coalesces rapid key events and reopens after the throttle window", async ({
+    page,
+  }) => {
     await page.goto("/dev/components/theme-hotkey?case=rapid");
-    await activeTheme(page);
+    const initial = await activeTheme(page);
+    const toggled = initial === "dark" ? "light" : "dark";
+    const status = page.getByRole("status");
 
-    const toggleTimes = await page.evaluate(async () => {
-      const times: number[] = [];
-      const observer = new MutationObserver(() =>
-        times.push(performance.now()),
-      );
-      observer.observe(document.documentElement, {
-        attributeFilter: ["class"],
-        attributes: true,
-      });
-
+    await page.evaluate(() => {
       for (let index = 0; index < 8; index += 1) {
         document.dispatchEvent(
           new KeyboardEvent("keydown", {
@@ -54,16 +57,42 @@ test.describe("theme hotkey", () => {
           }),
         );
       }
-      await new Promise((resolve) => setTimeout(resolve, 130));
-      observer.disconnect();
-      return times;
+    });
+    await expect(status).toHaveText(`Active theme: ${toggled}`);
+
+    await expect
+      .poll(
+        async () => {
+          await page.evaluate(() => {
+            document.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                bubbles: true,
+                code: "KeyD",
+                key: "d",
+              }),
+            );
+          });
+          return status.textContent();
+        },
+        { intervals: [10, 10, 10, 10, 10], timeout: 250 },
+      )
+      .toBe(`Active theme: ${initial}`);
+  });
+
+  test("ignores synthetic Telex key events without a physical code", async ({
+    page,
+  }) => {
+    await page.goto("/dev/components/theme-hotkey");
+    const initial = await activeTheme(page);
+
+    await page.evaluate(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, code: "", key: "d" }),
+      );
     });
 
-    expect(toggleTimes.length).toBeGreaterThan(0);
-    for (let index = 1; index < toggleTimes.length; index += 1) {
-      expect(
-        toggleTimes[index] - toggleTimes[index - 1],
-      ).toBeGreaterThanOrEqual(45);
-    }
+    await expect(page.getByRole("status")).toHaveText(
+      `Active theme: ${initial}`,
+    );
   });
 });

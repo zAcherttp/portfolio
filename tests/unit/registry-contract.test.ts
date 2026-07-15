@@ -1,104 +1,233 @@
-import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { ZodError } from "zod";
 import { componentRegistry } from "@/data/components";
+import {
+  createComponentRegistry,
+  parseRegistryManifest,
+} from "@/lib/component-registry";
+import registryManifest from "@/registry.json";
 
-type RegistryJsonItem = {
-  name: string;
-  title: string;
-  description: string;
-  categories: string[];
-  dependencies?: string[];
-  registryDependencies?: string[];
-  files: { path: string; type: string }[];
-  meta?: { status?: string };
-};
-
-type RegistryJson = {
-  items: RegistryJsonItem[];
-};
-
-const registryJson: RegistryJson = JSON.parse(
-  readFileSync(resolve(__dirname, "../../registry.json"), "utf-8"),
-);
-
-/**
- * Registry dependencies in registry.json use qualified names like
- * "zAcherttp/portfolio/activity-grid" while data/components.ts uses
- * bare slugs like "activity-grid". This extracts the bare slug.
- */
-function bareSlug(qualifiedOrBare: string): string {
-  const lastSlash = qualifiedOrBare.lastIndexOf("/");
-  return lastSlash === -1
-    ? qualifiedOrBare
-    : qualifiedOrBare.slice(lastSlash + 1);
+function bareSlug(qualifiedOrBare: string) {
+  return qualifiedOrBare.slice(qualifiedOrBare.lastIndexOf("/") + 1);
 }
 
-describe("registry metadata contract", () => {
-  it("has the same set of component slugs", () => {
-    const dataSlugs = componentRegistry.map((entry) => entry.slug).sort();
-    const registrySlugs = registryJson.items.map((item) => item.name).sort();
+function getValidationMessages(action: () => unknown) {
+  try {
+    action();
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return error.issues.map((issue) => issue.message);
+    }
+    throw error;
+  }
 
-    expect(registrySlugs).toEqual(dataSlugs);
+  throw new Error("Expected registry validation to fail.");
+}
+
+const parsedRegistryManifest = parseRegistryManifest(registryManifest);
+
+const exampleManifest = {
+  name: "example",
+  items: [
+    {
+      name: "example",
+      type: "registry:component",
+      title: "Example Component",
+      description: "Canonical registry metadata.",
+      categories: ["data-display", "composition"],
+      dependencies: ["example-package"],
+      registryDependencies: ["owner/repository/dependency"],
+      files: [
+        {
+          path: "components/example.tsx",
+          type: "registry:component",
+        },
+        {
+          path: "lib/example.ts",
+          type: "registry:lib",
+        },
+      ],
+      meta: { status: "stable" },
+    },
+  ],
+};
+
+const exampleResolverConfig = {
+  registries: {
+    "@example": "https://example.com/r/{name}.json",
+  },
+};
+
+const exampleDocsMetadata = {
+  example: {
+    primaryCategory: "composition",
+    additionalSourceFiles: ["components/example-preview.tsx"],
+    usage: {
+      format: "jsx" as const,
+      selector: "Example",
+      source: "components/example-preview.tsx",
+    },
+  },
+};
+
+describe("registry metadata contract", () => {
+  it("derives every distributable field from registry.json", () => {
+    expect(componentRegistry.map((entry) => entry.slug)).toEqual(
+      parsedRegistryManifest.items.map((item) => item.name),
+    );
+
+    for (const item of parsedRegistryManifest.items) {
+      const entry = componentRegistry.find(
+        (component) => component.slug === item.name,
+      );
+
+      expect(entry).toBeDefined();
+      expect(entry).toMatchObject({
+        slug: item.name,
+        name: item.title,
+        description: item.description,
+        categories: item.categories,
+        status: item.meta.status,
+        dependencies: item.dependencies,
+        registryDependencies: item.registryDependencies.map(bareSlug),
+      });
+
+      for (const file of item.files.filter((candidate) =>
+        candidate.path.startsWith("components/"),
+      )) {
+        expect(entry?.files).toContain(file.path);
+      }
+    }
   });
 
-  for (const entry of componentRegistry) {
-    describe(entry.slug, () => {
-      const registryItem = registryJson.items.find(
-        (item) => item.name === entry.slug,
-      );
-      if (!registryItem) {
-        throw new Error(`${entry.slug} is missing from registry.json.`);
+  it("keeps every documented source file resolvable", () => {
+    for (const entry of componentRegistry) {
+      for (const file of entry.files) {
+        expect(existsSync(resolve(__dirname, "../..", file)), file).toBe(true);
       }
+    }
+  });
 
-      it("exists in registry.json", () => {
-        expect(registryItem).toBeDefined();
-      });
+  it("merges only documentation presentation metadata", () => {
+    expect(
+      createComponentRegistry(
+        exampleManifest,
+        exampleDocsMetadata,
+        exampleResolverConfig,
+      ),
+    ).toEqual([
+      {
+        slug: "example",
+        name: "Example Component",
+        category: "Composition",
+        categories: ["data-display", "composition"],
+        description: "Canonical registry metadata.",
+        status: "stable",
+        files: ["components/example.tsx", "components/example-preview.tsx"],
+        dependencies: ["example-package"],
+        registryDependencies: ["dependency"],
+        usage: exampleDocsMetadata.example.usage,
+      },
+    ]);
+  });
 
-      it("has a matching title", () => {
-        expect(registryItem.title).toBe(entry.name);
-      });
+  it("rejects registry and documentation slug drift", () => {
+    expect(() =>
+      createComponentRegistry(
+        exampleManifest,
+        {
+          other: exampleDocsMetadata.example,
+        },
+        exampleResolverConfig,
+      ),
+    ).toThrow(
+      'Registry item "example" is missing documentation metadata in data/components.ts.',
+    );
 
-      it("has a matching description", () => {
-        expect(registryItem.description).toBe(entry.description);
-      });
+    expect(() =>
+      createComponentRegistry(
+        exampleManifest,
+        {
+          ...exampleDocsMetadata,
+          orphan: exampleDocsMetadata.example,
+        },
+        exampleResolverConfig,
+      ),
+    ).toThrow('Documentation metadata "orphan" is missing from registry.json.');
+  });
 
-      it("has a matching status", () => {
-        expect(registryItem.meta?.status).toBe(entry.status);
-      });
+  it("rejects a presentation category outside canonical registry categories", () => {
+    expect(() =>
+      createComponentRegistry(
+        exampleManifest,
+        {
+          example: {
+            ...exampleDocsMetadata.example,
+            primaryCategory: "utility",
+          },
+        },
+        exampleResolverConfig,
+      ),
+    ).toThrow(
+      'Documentation category "utility" is not declared by registry item "example".',
+    );
+  });
 
-      it("shows every installable component file in the docs Source tab", () => {
-        // registry.json component files must appear in data/components.ts
-        // so the docs Source tab shows all installable source.
-        // data/components.ts may include extra files (app wrappers, usage
-        // examples) that are not part of the install manifest.
-        const dataFiles = new Set(entry.files);
-        const installableComponentFiles = registryItem.files
-          .filter((f) => f.type === "registry:component")
-          .map((f) => f.path);
+  it("requires the registry namespace in components.json", () => {
+    expect(() =>
+      createComponentRegistry(exampleManifest, exampleDocsMetadata, {
+        registries: {},
+      }),
+    ).toThrow('Registry namespace "@example" is missing from components.json.');
+  });
 
-        for (const file of installableComponentFiles) {
-          expect(dataFiles).toContain(file);
-        }
-      });
+  it("rejects unstable or missing same-registry dependency targets", () => {
+    const consumer = {
+      ...exampleManifest.items[0],
+      name: "consumer",
+      title: "Consumer",
+      files: [
+        {
+          path: "components/consumer.tsx",
+          type: "registry:component",
+        },
+      ],
+    };
 
-      it("includes every listed npm dependency", () => {
-        const registryDeps = registryItem.dependencies ?? [];
+    expect(
+      getValidationMessages(() =>
+        parseRegistryManifest({
+          ...exampleManifest,
+          items: [
+            exampleManifest.items[0],
+            {
+              ...consumer,
+              registryDependencies: ["owner/repository/example"],
+            },
+          ],
+        }),
+      ),
+    ).toContain(
+      'Same-registry dependency "owner/repository/example" must use "@example/example".',
+    );
 
-        for (const dep of entry.dependencies) {
-          expect(registryDeps).toContain(dep);
-        }
-      });
-
-      it("includes every listed registry dependency (bare slug comparison)", () => {
-        const registryRegDeps = (registryItem.registryDependencies ?? []).map(
-          bareSlug,
-        );
-
-        for (const dep of entry.registryDependencies) {
-          expect(registryRegDeps).toContain(dep);
-        }
-      });
-    });
-  }
+    expect(
+      getValidationMessages(() =>
+        parseRegistryManifest({
+          ...exampleManifest,
+          items: [
+            exampleManifest.items[0],
+            {
+              ...consumer,
+              registryDependencies: ["@example/missing"],
+            },
+          ],
+        }),
+      ),
+    ).toContain(
+      'Same-registry dependency "@example/missing" does not match an item in registry.json.',
+    );
+  });
 });

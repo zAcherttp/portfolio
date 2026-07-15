@@ -392,7 +392,7 @@ export function VirtualTooltip({
         id={id}
         role="tooltip"
         className={joinClassNames(
-          "pointer-events-none absolute z-9999 whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium opacity-0 shadow-md",
+          "pointer-events-none absolute z-9999 whitespace-nowrap rounded px-2 py-1 text-xs font-medium opacity-0 shadow-md",
           contentClassName,
         )}
         style={{

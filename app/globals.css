@@ -164,10 +164,7 @@
   /* Semantic extras (exact Tailwind zinc values) */
   --subtle: oklch(70.5% 0.015 286.067); /* zinc-400 — dim icons, metadata */
   --subtle-2: oklch(87.1% 0.006 286.286); /* zinc-300 — very dim separators */
-  --surface-hover: oklch(
-    96.7% 0.001 286.375 /
-    70%
-  ); /* zinc-100/70 — row hover bg */
+  --surface-hover: oklch(96.7% 0 0 / 70%); /* neutral row hover bg */
   --card-hover-bg: oklch(98.5% 0 0 / 40%); /* zinc-50/40 — card hover bg */
   --card-hover-border: oklch(
     92% 0.004 286.32 /
@@ -218,10 +215,7 @@
   --subtle-2: oklch(
     37% 0.013 285.805
   ); /* zinc-700 — dim separators on dark bg */
-  --surface-hover: oklch(
-    27.4% 0.006 286.033 /
-    70%
-  ); /* zinc-800/70 — row hover bg in dark */
+  --surface-hover: oklch(27.4% 0 0 / 70%); /* neutral row hover bg in dark */
   --card-hover-bg: oklch(
     27.4% 0.006 286.033 /
     40%

@@ -39,7 +39,9 @@ function TransactionDockFixtureTable() {
     <button
       type="button"
       className="rounded-md border border-border px-3 py-2 text-sm"
-      onClick={() => openTransaction("fixture-transaction")}
+      onClick={(event) =>
+        openTransaction("fixture-transaction", event.currentTarget)
+      }
     >
       View transaction details
     </button>

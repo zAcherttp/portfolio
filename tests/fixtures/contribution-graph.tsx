@@ -49,7 +49,7 @@ function GraphExample({ sparse = false }: { sparse?: boolean }) {
             />
           )}
         </ContributionGraphCalendar>
-        <ContributionGraphFooter className="mt-1.5 text-[10px] text-muted-foreground">
+        <ContributionGraphFooter className="mt-1.5 text-xs text-muted-foreground">
           <ContributionGraphTotalCount />
           <ContributionGraphLegend />
         </ContributionGraphFooter>

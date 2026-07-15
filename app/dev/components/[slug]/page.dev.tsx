@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackButton } from "@/components/BackButton";
 import RotatingArrow from "@/components/ui/RotatingArrow";
-import { type ComponentSlug, componentRegistry } from "@/data/components";
+import { componentRegistry, isComponentSlug } from "@/data/components";
 import { requireDevelopmentFixtures } from "@/lib/dev-fixtures";
 import { createSeoMetadata } from "@/lib/seo/metadata";
 import { cn } from "@/lib/utils";
@@ -26,9 +26,9 @@ async function ComponentFixtureContent({ params, searchParams }: Props) {
   const { slug } = await params;
   const { case: requestedCase } = await searchParams;
   const entry = componentRegistry.find((component) => component.slug === slug);
-  if (!entry) notFound();
+  if (!entry || !isComponentSlug(slug)) notFound();
 
-  const fixture = fixtureRegistry[slug as ComponentSlug];
+  const fixture = fixtureRegistry[slug];
   const activeCase = requestedCase
     ? fixture.cases.find((item) => item.id === requestedCase)
     : fixture.cases[0];
@@ -51,7 +51,7 @@ async function ComponentFixtureContent({ params, searchParams }: Props) {
 
         <header className="mb-6 flex items-baseline gap-3">
           <h1 className="text-xl font-bold">{entry.name}</h1>
-          <span className="font-mono text-[10px] text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             {entry.category}
           </span>
         </header>

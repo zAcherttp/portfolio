@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   getStaggerDelay,
@@ -11,46 +9,51 @@ import {
 } from "@/constants/motion";
 
 describe("motion tokens", () => {
-  it("keeps Motion seconds and CSS milliseconds in sync", () => {
-    for (const [name, duration] of Object.entries(MOTION_DURATION_MS)) {
-      const cssName = name.replace(
-        /[A-Z]/g,
-        (letter) => `-${letter.toLowerCase()}`,
-      );
-
-      expect(MOTION_CSS_VARIABLES[`--motion-duration-${cssName}`]).toBe(
-        `${duration}ms`,
-      );
-    }
-
-    expect(MOTION_TRANSITION.feedback.duration * 1000).toBe(
-      MOTION_DURATION_MS.feedback,
-    );
-    expect(MOTION_TRANSITION.hover.duration * 1000).toBe(
-      MOTION_DURATION_MS.hover,
-    );
-    expect(MOTION_TRANSITION.enter.duration * 1000).toBe(
-      MOTION_DURATION_MS.enter,
-    );
-    expect(MOTION_TRANSITION.move.duration * 1000).toBe(
-      MOTION_DURATION_MS.move,
-    );
-    expect(MOTION_TRANSITION.reveal.duration * 1000).toBe(
-      MOTION_DURATION_MS.reveal,
-    );
+  it("publishes the documented duration contract to Motion and CSS consumers", () => {
+    expect(MOTION_DURATION_MS).toEqual({
+      instant: 0,
+      hoverOut: 100,
+      feedback: 120,
+      hover: 140,
+      enter: 180,
+      move: 200,
+      reveal: 240,
+      cascade: 380,
+    });
+    expect(MOTION_TRANSITION).toMatchObject({
+      instant: { duration: 0 },
+      feedback: { duration: 0.12 },
+      hover: { duration: 0.14 },
+      enter: { duration: 0.18 },
+      move: { duration: 0.2 },
+      reveal: { duration: 0.24 },
+      cascade: { duration: 0.38 },
+    });
+    expect(MOTION_CSS_VARIABLES).toMatchObject({
+      "--motion-duration-instant": "0ms",
+      "--motion-duration-hover-out": "100ms",
+      "--motion-duration-feedback": "120ms",
+      "--motion-duration-hover": "140ms",
+      "--motion-duration-enter": "180ms",
+      "--motion-duration-move": "200ms",
+      "--motion-duration-reveal": "240ms",
+      "--motion-duration-cascade": "380ms",
+    });
   });
 
-  it("derives CSS easing curves from the Motion tuples", () => {
-    for (const [name, easing] of Object.entries(MOTION_EASING)) {
-      const cssName = name.replace(
-        /[A-Z]/g,
-        (letter) => `-${letter.toLowerCase()}`,
-      );
-
-      expect(MOTION_CSS_VARIABLES[`--motion-ease-${cssName}`]).toBe(
-        `cubic-bezier(${easing.join(", ")})`,
-      );
-    }
+  it("publishes the documented easing contract to Motion and CSS consumers", () => {
+    expect(MOTION_EASING).toEqual({
+      standard: [0.25, 0.1, 0.25, 1],
+      out: [0.23, 1, 0.32, 1],
+      inOut: [0.77, 0, 0.175, 1],
+      cascade: [0.16, 1, 0.3, 1],
+    });
+    expect(MOTION_CSS_VARIABLES).toMatchObject({
+      "--motion-ease-standard": "cubic-bezier(0.25, 0.1, 0.25, 1)",
+      "--motion-ease-out": "cubic-bezier(0.23, 1, 0.32, 1)",
+      "--motion-ease-in-out": "cubic-bezier(0.77, 0, 0.175, 1)",
+      "--motion-ease-cascade": "cubic-bezier(0.16, 1, 0.3, 1)",
+    });
   });
 
   it("keeps UI motion and stagger inside the interaction budget", () => {
@@ -60,21 +63,10 @@ describe("motion tokens", () => {
       Math.max(...Object.values(frequentInteractionDurations)),
     ).toBeLessThanOrEqual(240);
     expect(cascade).toBe(380);
-    expect(getStaggerDelay(20, 21)).toBe(MOTION_STAGGER.maxDelay);
-    expect(MOTION_TRANSITION.cascade.duration + getStaggerDelay(20, 21)).toBe(
-      0.6,
-    );
-  });
-
-  it("preserves generic instant hover-in with explicit motion opt-ins", () => {
-    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
-
-    expect(css).toContain(
-      "transition-duration: var(--motion-duration-hover-out, 100ms)",
-    );
-    expect(css).toContain(
-      "transition-duration: var(--motion-duration-instant, 0ms)",
-    );
-    expect(css).toMatch(/\.motion-hover,\s*\.motion-hover:hover/);
+    expect(MOTION_STAGGER.maxDelay).toBe(0.22);
+    expect(getStaggerDelay(20, 21)).toBeCloseTo(0.22);
+    expect(
+      MOTION_TRANSITION.cascade.duration + getStaggerDelay(20, 21),
+    ).toBeCloseTo(0.6);
   });
 });

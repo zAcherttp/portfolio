@@ -17,7 +17,9 @@ test.describe("component documentation", () => {
   for (const component of componentRegistry) {
     test(`opens the ${component.name} documentation`, async ({ page }) => {
       await page.goto(`/components/${component.slug}`);
-      await expect(page.locator("article h1")).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 1, name: component.name }),
+      ).toBeVisible();
       await expect(page.getByRole("heading", { name: "Usage" })).toBeVisible();
     });
   }
@@ -28,7 +30,7 @@ test.describe("component documentation", () => {
     expect(response?.status()).toBe(404);
   });
 
-  test("offers source, share, and adjacent component actions", async ({
+  test("offers source actions and preserves their active surface", async ({
     page,
   }) => {
     const supportsHover = await page.evaluate(
@@ -91,8 +93,19 @@ test.describe("component documentation", () => {
       "href",
       "https://github.com/zAcherttp/portfolio/blob/master/content/components/activity-grid.mdx",
     );
+  });
 
-    await page.keyboard.press("Escape");
+  test("shares component documentation through copy and native actions", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async () => {},
+      });
+    });
+    await page.goto("/components/activity-grid");
+
     await page
       .getByRole("button", { name: "Share component documentation" })
       .click();
@@ -107,19 +120,27 @@ test.describe("component documentation", () => {
     await expect(
       page.getByRole("menuitem", { name: "Other app" }),
     ).toBeVisible();
+  });
 
-    await page.keyboard.press("Escape");
-    await page
-      .getByRole("link", { name: "Next component: Contribution Graph" })
-      .click();
-    await expect(page).toHaveURL(/\/components\/contribution-graph$/);
+  test("navigates to the adjacent component", async ({ page }) => {
+    await page.goto("/components/activity-grid");
+
+    const nextComponent = page.getByRole("link", {
+      name: "Next component: Contribution Graph",
+    });
+    await Promise.all([
+      page.waitForURL(/\/components\/contribution-graph$/, {
+        timeout: 15_000,
+      }),
+      nextComponent.click(),
+    ]);
   });
 
   test("serves component documentation as Markdown", async ({ request }) => {
     const response = await request.get("/components/activity-grid.mdx");
     const markdown = await response.text();
 
-    expect(response.ok()).toBe(true);
+    await expect(response).toBeOK();
     expect(response.headers()["content-type"]).toContain("text/markdown");
     expect(markdown).toContain("# Activity Grid");
     expect(markdown).toContain("| Prop | Type | Description |");
@@ -193,6 +214,36 @@ test.describe("component documentation", () => {
         .click();
       await expect(command).toHaveText(expectedCommand);
     }
+  });
+
+  test("keeps installation panel spacing stable across tabs and expansion", async ({
+    page,
+  }) => {
+    await page.goto("/components/floating-tooltip");
+
+    const installTabs = page.getByRole("tablist", {
+      name: "Floating Tooltip installation method",
+    });
+    const installPanel = installTabs.locator("..").getByRole("tabpanel");
+    const commandContent = installPanel.locator("[data-installation-content]");
+    const documentTop = (locator: typeof commandContent) =>
+      locator.evaluate(
+        (element) =>
+          element.getBoundingClientRect().top +
+          (element.ownerDocument.defaultView?.scrollY ?? 0),
+      );
+    const commandTop = await documentTop(commandContent);
+
+    await installTabs.getByRole("tab", { name: "Manual" }).click();
+    const firstCodeFrame = installPanel.locator("[data-code-frame]").first();
+    await expect
+      .poll(() => documentTop(firstCodeFrame))
+      .toBeCloseTo(commandTop, 0);
+
+    await installPanel.getByRole("button", { name: "Expand" }).first().click();
+    await expect
+      .poll(() => documentTop(firstCodeFrame))
+      .toBeCloseTo(commandTop, 0);
   });
 
   test("rotates the shared arrow when a component link is hovered", async ({

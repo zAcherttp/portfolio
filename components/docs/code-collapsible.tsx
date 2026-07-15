@@ -7,7 +7,9 @@ export function CodeCollapsible({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="relative">
-      <div className={expanded ? undefined : "max-h-80 overflow-hidden"}>
+      <div
+        className={expanded ? "overflow-hidden" : "max-h-80 overflow-hidden"}
+      >
         {children}
       </div>
       {!expanded && (

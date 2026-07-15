@@ -53,7 +53,7 @@ export function ComponentDocsShell({
             <h1 className="text-xl font-semibold tracking-tight">
               {entry.name}
             </h1>
-            <span className="font-mono text-[11px] text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               {entry.category} / {entry.status}
             </span>
           </div>
@@ -116,7 +116,9 @@ export function ComponentDocsShell({
                         .
                       </p>
                     )}
-                    <div className="space-y-4 [&>div]:my-0">{source}</div>
+                    <div className="space-y-4 **:data-code-frame:my-0">
+                      {source}
+                    </div>
                   </div>
                 ),
               },

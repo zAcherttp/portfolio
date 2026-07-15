@@ -27,7 +27,10 @@ export function PackageCommand({ slug }: { slug: string }) {
 
   const Icon = copied ? Check : Copy;
   return (
-    <div className="overflow-hidden rounded-xl bg-muted/55">
+    <div
+      className="overflow-hidden rounded-xl bg-muted/55"
+      data-installation-content
+    >
       <div className="flex min-h-11 items-center gap-2 border-b border-border/70 px-3">
         <SquareTerminal
           aria-hidden="true"
@@ -41,7 +44,7 @@ export function PackageCommand({ slug }: { slug: string }) {
               type="button"
               aria-pressed={manager === item}
               onClick={() => setManager(item)}
-              className={`docs-pressable shrink-0 rounded-md px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring ${manager === item ? "bg-background text-foreground shadow-xs ring-1 ring-border/70" : "text-muted-foreground hover:text-foreground"}`}
+              className={`docs-pressable shrink-0 rounded-md px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring ${manager === item ? "bg-background text-foreground shadow-xs ring-1 ring-inset ring-border/70" : "text-muted-foreground hover:text-foreground"}`}
             >
               {item}
             </button>

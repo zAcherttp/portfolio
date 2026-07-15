@@ -27,7 +27,7 @@ export default function ComponentFixturesPage() {
         <header className="mb-8">
           <div className="flex items-baseline gap-3">
             <h1 className="text-xl font-bold">Component fixtures</h1>
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               development
             </span>
           </div>
@@ -42,7 +42,7 @@ export default function ComponentFixturesPage() {
                 href={`/dev/components/${entry.slug}`}
                 key={entry.slug}
               >
-                <span className="font-mono text-[10px] text-subtle">
+                <span className="font-mono text-xs text-subtle">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="truncate font-medium">{entry.name}</span>
