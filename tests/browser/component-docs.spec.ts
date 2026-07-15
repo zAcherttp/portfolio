@@ -195,6 +195,44 @@ test.describe("component documentation", () => {
     }
   });
 
+  test("keeps installation panel spacing stable across tabs and expansion", async ({
+    page,
+  }) => {
+    await page.goto("/components/floating-tooltip");
+
+    const installTabs = page.getByRole("tablist", {
+      name: "Floating Tooltip installation method",
+    });
+    const installPanel = installTabs.locator("..").getByRole("tabpanel");
+    const commandTop = await installPanel
+      .locator(":scope > div")
+      .first()
+      .evaluate(
+        (element) =>
+          element.getBoundingClientRect().top +
+          (element.ownerDocument.defaultView?.scrollY ?? 0),
+      );
+
+    await installTabs.getByRole("tab", { name: "Manual" }).click();
+    const firstCodeFrame = installPanel.locator("[data-code-frame]").first();
+    const collapsedTop = await firstCodeFrame.evaluate(
+      (element) =>
+        element.getBoundingClientRect().top +
+        (element.ownerDocument.defaultView?.scrollY ?? 0),
+    );
+
+    expect(collapsedTop).toBeCloseTo(commandTop, 0);
+
+    await installPanel.getByRole("button", { name: "Expand" }).first().click();
+    const expandedTop = await firstCodeFrame.evaluate(
+      (element) =>
+        element.getBoundingClientRect().top +
+        (element.ownerDocument.defaultView?.scrollY ?? 0),
+    );
+
+    expect(expandedTop).toBeCloseTo(collapsedTop, 0);
+  });
+
   test("rotates the shared arrow when a component link is hovered", async ({
     page,
   }) => {
