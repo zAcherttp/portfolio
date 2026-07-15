@@ -4,7 +4,7 @@ import { BookmarksList } from "./bookmarks-list.client";
 
 export default function BookmarksPage() {
   return (
-    <div className="min-h-screen text-foreground font-sans antialiased relative z-10">
+    <main className="min-h-screen text-foreground font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-12 sm:py-20">
         <nav className="mb-12">
           <BackButton />
@@ -24,6 +24,6 @@ export default function BookmarksPage() {
 
         <Footer />
       </div>
-    </div>
+    </main>
   );
 }

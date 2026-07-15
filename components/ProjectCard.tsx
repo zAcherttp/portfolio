@@ -51,7 +51,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
       target="_blank"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group/p flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border p-4 transition-colors hover:bg-surface-hover"
+      className="group/p flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border px-3 py-4 transition-colors hover:bg-surface-hover"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
             {project.title}
           </h3>
         </div>
-        <div className="inline-flex items-center gap-0.5 text-xs text-subtle group-hover/p:text-foreground transition-colors">
+        <div className="inline-flex items-center text-xs text-subtle group-hover/p:text-foreground/80 transition-colors">
           <span>{project.urlLabel}</span>
           <RotatingArrow isHovered={isHovered} />
         </div>

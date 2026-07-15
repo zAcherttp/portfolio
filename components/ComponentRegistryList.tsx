@@ -11,7 +11,7 @@ export default function ComponentRegistryList({
   entries = componentRegistry,
 }: ComponentRegistryListProps) {
   return (
-    <div className="-mx-3 flex flex-col">
+    <div className="-ml-3 flex flex-col">
       {entries.map((entry, index) => (
         <ListRowFrame
           key={entry.slug}

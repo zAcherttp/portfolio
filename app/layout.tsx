@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { VercelToolbar } from "@vercel/toolbar/next";
 import { OutboundLinkTracker } from "@/components/OutboundLinkTracker";
 import { MOTION_CSS_VARIABLES } from "@/constants/motion";
 import {
@@ -42,6 +43,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const shouldInjectToolbar = process.env.NODE_ENV === "development";
+
   return (
     <html
       lang="en"
@@ -54,6 +57,7 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <OutboundLinkTracker />
         <Analytics />
+        {shouldInjectToolbar && <VercelToolbar />}
       </body>
     </html>
   );

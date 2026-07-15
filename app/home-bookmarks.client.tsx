@@ -16,7 +16,7 @@ export function HomeBookmarks() {
         <h2 className="text-sm font-normal text-muted-foreground">Bookmarks</h2>
       </div>
 
-      <div className="-mx-3 flex flex-col pb-4">
+      <div className="-ml-3 flex flex-col pb-4">
         {sortedBookmarks.slice(0, 3).map((bookmark) => (
           <BookmarkRow
             key={bookmark.url}

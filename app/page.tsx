@@ -137,7 +137,7 @@ export default function Home() {
   const featuredProjects = projectsData.slice(0, 3);
 
   return (
-    <div className="min-h-screen text-foreground font-sans antialiased relative z-10">
+    <main className="min-h-screen text-foreground font-sans antialiased relative z-10">
       <div className="max-w-3xl mx-auto px-6 py-8 sm:py-12">
         <header className="mb-12">
           <HomeProfile />
@@ -148,6 +148,7 @@ export default function Home() {
               target="_blank"
               className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-subtle transition-colors hover:border-border hover:bg-muted hover:text-foreground"
               aria-label="GitHub"
+              title="GitHub Profile"
             >
               <GitHub className="w-3.5 h-3.5" />
             </ExternalLink>
@@ -157,6 +158,7 @@ export default function Home() {
               target="_blank"
               className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-subtle transition-colors hover:border-border hover:bg-muted hover:text-foreground"
               aria-label="LinkedIn"
+              title="LinkedIn Profile"
             >
               <LinkedIn className="w-3.5 h-3.5" />
             </ExternalLink>
@@ -214,11 +216,11 @@ export default function Home() {
                 key={group.label}
                 className="grid gap-2 border-b border-border py-2 last:border-b-0 sm:grid-cols-[11rem_1fr] sm:gap-5"
               >
-                <div className="flex items-baseline gap-2 text-sm text-muted-foreground">
+                <div className="flex items-baseline gap-2 text-sm">
                   <span className="font-mono text-xs text-subtle-2">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  <span>{group.label}</span>
+                  <span className="text-foreground">{group.label}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-x-1 gap-y-1 text-sm leading-6 text-muted-foreground">
@@ -271,6 +273,6 @@ export default function Home() {
         <Footer />
       </div>
       <BottomShader />
-    </div>
+    </main>
   );
 }
