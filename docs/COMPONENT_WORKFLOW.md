@@ -46,11 +46,32 @@ The typed fixture registry must cover every `componentRegistry` slug. Missing fi
 
 ## 6. Preserve Behavior With Tests
 
+- Start from the public contract: inputs, user actions, rendered output, emitted events, side effects, errors, and accessibility semantics.
+- Structure tests as arrange, act, assert, with one meaningful behavior per test and a name that describes the regression it prevents.
 - Unit-test pure resolvers and transformations.
 - Test DOM interactions, accessibility, timers, and controlled state in a component environment.
 - Test real geometry, scrolling, portals, interruption, viewport collision, and animation in a browser.
 - Reuse fixture URLs as the authoritative browser-test harness.
 - Add visual regression cases only for states where pixel output is part of the contract.
+- Prefer queries and assertions based on roles, accessible names, visible content, and user-observable state. Do not couple tests to internal state, helper calls, child-component structure, CSS classes, or DOM shape unless that detail is an explicit contract.
+- Keep tests isolated and deterministic. Use controlled fixtures instead of depending on another test, mutable production data, or a third-party service.
+- In browser tests, use retrying locators and web-first assertions instead of reading a value once and wrapping the result in a synchronous boolean assertion.
+
+### Test Value Gate
+
+Every test must be capable of failing when a plausible behavior regression is introduced. Before keeping a test, name the regression it protects against and verify that changing or removing the behavior would make the test fail.
+
+Do not add tests that only increase test counts without increasing confidence. Reject tests that:
+
+- Assert a constant or condition that is always true, such as `expect(true).toBe(true)`.
+- Calculate the expected value with the same constant, branch, or algorithm used by the implementation.
+- Assert that a hardcoded default, token, class name, coordinate, duration, or internal object has its current exact value when consumers do not depend on that exact value.
+- Assert only that rendering did not throw, an element exists, or a callback is defined when the intended interaction and outcome can be tested instead.
+- Snapshot large or incidental DOM output without identifying which consumer-visible behavior the snapshot protects.
+
+Exact-value assertions are appropriate only when the exact value is part of the public contract, such as formatted output, an accessible name, a persisted wire format, boundary math, or a published design token. Otherwise, assert the smallest meaningful semantic outcome, invariant, range, relationship, state transition, or error path.
+
+Prefer precise matchers that express the contract. For example, assert `toBeDefined()` when presence matters, a visible role and name when accessibility matters, `toBeCloseTo()` for floating-point behavior, or an object subset when unrelated fields are allowed to change. Avoid broad truthiness checks that could pass for the wrong reason.
 
 ## 7. Completion Gate
 
@@ -86,3 +107,10 @@ Before a component is considered complete:
 - Pull requests run the production build and full desktop/mobile browser suite after the fast checks pass.
 - Pushes to `master` repeat the production build and browser gate against the merged commit.
 - Pushes to `dev` intentionally run only the fast tier; open a pull request to exercise the merge gate.
+
+## Testing References
+
+- [Testing Library: Introduction and guiding philosophy](https://testing-library.com/docs/)
+- [Playwright: Best practices](https://playwright.dev/docs/best-practices)
+- [Vitest: Testing in practice](https://vitest.dev/guide/learn/testing-in-practice)
+- [Vitest: Using matchers](https://vitest.dev/guide/learn/matchers)
