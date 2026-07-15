@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ListRowFrame from "@/components/ui/ListRowFrame";
 import RotatingArrow from "@/components/ui/RotatingArrow";
 import { componentRegistry, type RegistryEntry } from "@/data/components";
 
@@ -10,22 +11,26 @@ export default function ComponentRegistryList({
   entries = componentRegistry,
 }: ComponentRegistryListProps) {
   return (
-    <div className="border-y border-border">
+    <div className="-mx-3 flex flex-col">
       {entries.map((entry, index) => (
-        <Link
+        <ListRowFrame
           key={entry.slug}
-          href={`/components/${entry.slug}`}
-          className="group grid grid-cols-[2rem_1fr_auto] items-center gap-2 border-b border-border py-2.5 text-sm last:border-b-0 hover:bg-surface-hover sm:grid-cols-[2.25rem_1fr_8rem_auto]"
+          render={<Link href={`/components/${entry.slug}`} />}
         >
-          <span className="pl-1 font-mono text-xs text-subtle-2">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <span className="text-foreground">{entry.name}</span>
-          <span className="hidden text-xs text-muted-foreground sm:block">
-            {entry.category}
-          </span>
-          <RotatingArrow className="mr-4.5 text-subtle group-hover:text-foreground" />
-        </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center font-mono text-xs text-subtle-2">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span className="truncate text-sm text-foreground">
+              {entry.name}
+            </span>
+          </div>
+
+          <div className="ml-4 flex shrink-0 items-center text-xs font-medium text-subtle transition-colors group-hover:text-foreground/80">
+            <span className="hidden sm:inline">{entry.category}</span>
+            <RotatingArrow />
+          </div>
+        </ListRowFrame>
       ))}
     </div>
   );
