@@ -11,6 +11,19 @@ describe("captureComponentUsage", () => {
       expect(usage.code).not.toContain("function ");
       expect(usage.language).toBe("tsx");
       expect(usage.title).toMatch(/^[a-z\d-]+\.tsx$/);
+
+      // Verify that multi-line code is relatively dedented
+      const lines = usage.code.split("\n");
+      const jsxStartIndex = lines.findIndex((l) =>
+        l.includes(`<${entry.usage.selector}`),
+      );
+      if (jsxStartIndex !== -1 && jsxStartIndex + 1 < lines.length) {
+        const nextLine = lines[jsxStartIndex + 1];
+        if (nextLine.trim() !== "" && !nextLine.startsWith("import")) {
+          const leadingSpaces = nextLine.match(/^\s*/)?.[0].length ?? 0;
+          expect(leadingSpaces).toBeLessThanOrEqual(4);
+        }
+      }
     });
   }
 
