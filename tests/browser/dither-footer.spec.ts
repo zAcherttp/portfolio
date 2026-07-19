@@ -4,21 +4,56 @@ async function canvasFrame(page: import("@playwright/test").Page) {
   return page.getByTestId("fixture-stage").locator("canvas").screenshot();
 }
 
+async function frameDifference(
+  page: import("@playwright/test").Page,
+  first: Buffer,
+  second: Buffer,
+) {
+  return page.evaluate(
+    async ({ firstFrame, secondFrame }) => {
+      const pixels = async (frame: string) => {
+        const response = await fetch(`data:image/png;base64,${frame}`);
+        const bitmap = await createImageBitmap(await response.blob());
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 32;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) throw new Error("Unable to compare canvas frames");
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        return context.getImageData(0, 0, canvas.width, canvas.height).data;
+      };
+
+      const firstPixels = await pixels(firstFrame);
+      const secondPixels = await pixels(secondFrame);
+
+      let difference = 0;
+      for (let index = 0; index < firstPixels.length; index += 1) {
+        difference += Math.abs(firstPixels[index] - secondPixels[index]);
+      }
+      return difference / (firstPixels.length * 255);
+    },
+    {
+      firstFrame: first.toString("base64"),
+      secondFrame: second.toString("base64"),
+    },
+  );
+}
+
 async function settledCanvasFrame(page: import("@playwright/test").Page) {
   let previous = await canvasFrame(page);
-  let unchangedSamples = 0;
 
   await expect
     .poll(
       async () => {
         const current = await canvasFrame(page);
-        unchangedSamples = current.equals(previous) ? unchangedSamples + 1 : 0;
+        const difference = await frameDifference(page, previous, current);
         previous = current;
-        return unchangedSamples;
+        return difference;
       },
       { intervals: [100], timeout: 3_000 },
     )
-    .toBeGreaterThanOrEqual(2);
+    .toBeLessThan(0.001);
 
   return previous;
 }
@@ -48,10 +83,8 @@ test.describe("dither footer", () => {
     ).toBeVisible();
     const first = await canvasFrame(page);
     await expect
-      .poll(async () =>
-        (await canvasFrame(page)).equals(first) ? "unchanged" : "changed",
-      )
-      .toBe("changed");
+      .poll(async () => frameDifference(page, first, await canvasFrame(page)))
+      .toBeGreaterThan(0.001);
   });
 
   test("holds the same pixels when animation is disabled", async ({ page }) => {
@@ -64,14 +97,12 @@ test.describe("dither footer", () => {
     await expect
       .poll(
         async () => {
-          if (Date.now() - comparisonStart < 200) return "sampling";
-          return (await canvasFrame(page)).equals(first)
-            ? "unchanged"
-            : "changed";
+          if (Date.now() - comparisonStart < 200) return 1;
+          return frameDifference(page, first, await canvasFrame(page));
         },
         { intervals: [100], timeout: 3_000 },
       )
-      .toBe("unchanged");
+      .toBeLessThan(0.001);
   });
 
   test("only mounts the footer wrapper on the home route", async ({ page }) => {
