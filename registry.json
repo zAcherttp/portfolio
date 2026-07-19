@@ -149,6 +149,11 @@
           "target": "@lib/play-pop-sound.ts"
         },
         {
+          "path": "lib/keyboard.ts",
+          "type": "registry:lib",
+          "target": "@lib/keyboard.ts"
+        },
+        {
           "path": "lib/audio-context.ts",
           "type": "registry:lib",
           "target": "@lib/audio-context.ts"
@@ -250,6 +255,11 @@
           "path": "lib/utils.ts",
           "type": "registry:lib",
           "target": "@lib/utils.ts"
+        },
+        {
+          "path": "lib/keyboard.ts",
+          "type": "registry:lib",
+          "target": "@lib/keyboard.ts"
         }
       ],
       "meta": {

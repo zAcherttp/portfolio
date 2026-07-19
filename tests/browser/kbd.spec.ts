@@ -128,6 +128,30 @@ test.describe("KBD", () => {
     await expect(reactive).toHaveAttribute("data-state", "idle");
   });
 
+  test("ignores held state without a physical keyboard code", async ({
+    page,
+  }) => {
+    await page.goto("/dev/components/kbd?case=states");
+    const reactive = page.getByTestId("kbd-reactive");
+
+    await expect(page.getByTestId("kbd-states")).toHaveAttribute(
+      "data-ready",
+      "true",
+    );
+    await page.evaluate(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, code: "", key: "d" }),
+      );
+    });
+    await expect(reactive).toHaveAttribute("data-state", "idle");
+
+    await page.evaluate(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keyup", { bubbles: true, code: "", key: "d" }),
+      );
+    });
+  });
+
   test("removes key transitions when reduced motion is requested", async ({
     page,
   }) => {
