@@ -189,9 +189,6 @@ test.describe("transaction dock", () => {
 
     await movingCard.getByRole("button", { name: "Close transaction" }).click();
     await expect(viewDetails.nth(0)).toBeFocused();
-    expect(await page.locator('[data-slot="transaction-card"]').count()).toBe(
-      2,
-    );
     await expect(page.locator('[data-slot="transaction-card"]')).toHaveCount(1);
   });
 

@@ -5,10 +5,11 @@ const baseURL = externalBaseURL ?? "http://localhost:3000";
 
 export default defineConfig({
   expect: { timeout: 5_000 },
-  fullyParallel: true,
+  fullyParallel: false,
   reporter: process.env.CI ? "github" : "list",
   retries: process.env.CI ? 2 : 0,
   testDir: "./tests/browser",
+  workers: 2,
   use: {
     baseURL,
     ignoreHTTPSErrors: Boolean(externalBaseURL),
