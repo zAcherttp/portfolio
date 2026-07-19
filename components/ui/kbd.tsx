@@ -1,8 +1,8 @@
 "use client";
 
-import type { IndividualKey } from "@tanstack/react-hotkeys";
-import { useKeyHold } from "@tanstack/react-hotkeys";
+import { type IndividualKey, useHeldKeyCodes } from "@tanstack/react-hotkeys";
 import type { HTMLAttributes, ReactNode } from "react";
+import { hasPhysicalKeyCode } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 
 export type KbdOwnProps = {
@@ -46,13 +46,23 @@ function KbdElement({ className, pressed = false, ...props }: KbdBaseProps) {
   );
 }
 
+function usePhysicalKeyHold(keyName: IndividualKey) {
+  const heldKeyCodes = useHeldKeyCodes();
+  const normalizedKey = keyName.toLowerCase();
+
+  return Object.entries(heldKeyCodes).some(
+    ([heldKey, code]) =>
+      heldKey.toLowerCase() === normalizedKey && hasPhysicalKeyCode(code),
+  );
+}
+
 function ReactiveKbd({
   keyName,
   pressed,
   reactive: _,
   ...props
 }: ReactiveKbdProps) {
-  const held = useKeyHold(keyName);
+  const held = usePhysicalKeyHold(keyName);
   return <KbdElement {...props} data-key={keyName} pressed={pressed ?? held} />;
 }
 

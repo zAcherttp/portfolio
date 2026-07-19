@@ -4,6 +4,25 @@ async function canvasFrame(page: import("@playwright/test").Page) {
   return page.getByTestId("fixture-stage").locator("canvas").screenshot();
 }
 
+async function settledCanvasFrame(page: import("@playwright/test").Page) {
+  let previous = await canvasFrame(page);
+  let unchangedSamples = 0;
+
+  await expect
+    .poll(
+      async () => {
+        const current = await canvasFrame(page);
+        unchangedSamples = current.equals(previous) ? unchangedSamples + 1 : 0;
+        previous = current;
+        return unchangedSamples;
+      },
+      { intervals: [100], timeout: 3_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
+
+  return previous;
+}
+
 test.describe("dither footer", () => {
   test("mounts a responsive WebGL canvas", async ({ page }) => {
     await page.goto("/dev/components/dither-footer");
@@ -40,7 +59,7 @@ test.describe("dither footer", () => {
     await expect(
       page.getByTestId("fixture-stage").locator("canvas"),
     ).toBeVisible();
-    const first = await canvasFrame(page);
+    const first = await settledCanvasFrame(page);
     const comparisonStart = Date.now();
     await expect
       .poll(

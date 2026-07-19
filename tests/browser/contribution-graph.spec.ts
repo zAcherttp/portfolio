@@ -1,17 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("contribution graph", () => {
-  test("fills the available width in every portfolio host", async ({
-    page,
-  }) => {
-    const routes = [
-      "/",
-      "/components/activity-grid",
-      "/components/contribution-graph",
-      "/dev/components/contribution-graph",
-    ];
-
-    for (const route of routes) {
+  for (const route of [
+    "/",
+    "/components/activity-grid",
+    "/components/contribution-graph",
+    "/dev/components/contribution-graph",
+  ]) {
+    test(`fills the available width in ${route}`, async ({ page }) => {
       await page.goto(route);
       const graph = page
         .locator('svg:has(> title:text-is("Contribution Graph"))')
@@ -40,8 +36,8 @@ test.describe("contribution graph", () => {
           { message: `${route} should fill its viewport` },
         )
         .toBeLessThan(1);
-    }
-  });
+    });
+  }
 
   test("shows contribution details for an active day", async ({
     page,
