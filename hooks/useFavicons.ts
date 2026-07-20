@@ -7,7 +7,7 @@ export const useFavicons = () => {
   return useQuery<FaviconMap>({
     queryKey: ["favicons"],
     queryFn: async () => {
-      const res = await fetch("/api/favicons");
+      const res = await fetch("/api/favicons", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch favicons");
       return res.json() as Promise<FaviconMap>;
     },
