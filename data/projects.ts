@@ -11,6 +11,17 @@ export interface Project {
 
 export const projectsData: Project[] = [
   {
+    id: "10",
+    title: "electron-boilerplate",
+    url: "https://github.com/zAcherttp/electron-boilerplate",
+    urlLabel: "github.com",
+    tags: ["Electron", "React", "Hono", "Vite"],
+    primaryLanguage: "TypeScript",
+    description:
+      "An opinionated Electron foundation for secure, polished desktop apps—powered by Vite, React, TypeScript, Hono, shadcn/Base UI, typed IPC, automated packaging, testing, and cross-platform CI.",
+    languages: ["TypeScript", "CSS", "HTML"],
+  },
+  {
     id: "1",
     title: "miniclaw",
     url: "https://github.com/zAcherttp/miniclaw",

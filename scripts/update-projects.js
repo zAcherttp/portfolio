@@ -22,6 +22,14 @@ if (fs.existsSync(envPath)) {
 
 const projectsBase = [
   {
+    id: "10",
+    title: "electron-boilerplate",
+    url: "https://github.com/zAcherttp/electron-boilerplate",
+    urlLabel: "github.com",
+    tags: ["Electron", "React", "Hono", "Vite"],
+    primaryLanguage: "TypeScript",
+  },
+  {
     id: "1",
     title: "miniclaw",
     url: "https://github.com/zAcherttp/miniclaw",
