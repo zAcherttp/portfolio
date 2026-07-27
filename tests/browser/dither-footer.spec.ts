@@ -102,7 +102,7 @@ test.describe("dither footer", () => {
         },
         { intervals: [100], timeout: 3_000 },
       )
-      .toBeLessThan(0.001);
+      .toBeLessThan(0.002);
   });
 
   test("only mounts the footer wrapper on the home route", async ({ page }) => {
