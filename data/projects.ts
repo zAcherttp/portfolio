@@ -26,7 +26,7 @@ export const projectsData: Project[] = [
     title: "miniclaw",
     url: "https://github.com/zAcherttp/miniclaw",
     urlLabel: "github.com",
-    tags: [],
+    tags: ["LangGraph", "Telegram"],
     primaryLanguage: "TypeScript",
     description:
       "A local-first personal AI virtual assistant daemon running as a Telegram bot and CLI app. Built with LangGraph and TypeScript to manage schedules, tasks, and files.",
@@ -37,10 +37,10 @@ export const projectsData: Project[] = [
     title: "next-wms",
     url: "https://github.com/zAcherttp/next-wms",
     urlLabel: "github.com",
-    tags: [],
+    tags: ["Next.js", "Convex", "Better Auth", "Drizzle ORM"],
     primaryLanguage: "TypeScript",
     description:
-      "A warehouse management system built as a Turborepo monorepo with Next.js, tRPC, Drizzle ORM, and Better Auth.",
+      "A warehouse management system built as a Turborepo monorepo with Next.js, Convex, Better Auth, Drizzle ORM, and PostgreSQL.",
     languages: ["TypeScript", "PowerShell", "CSS", "JavaScript"],
   },
   {

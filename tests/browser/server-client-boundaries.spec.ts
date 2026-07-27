@@ -21,7 +21,7 @@ test.describe("server and client page boundaries", () => {
   test("filters projects inside the client list", async ({ page }) => {
     await page.goto("/projects");
 
-    await expect(page.locator("h3")).toHaveCount(9);
+    await expect(page.locator("h3")).toHaveCount(10);
     await page.getByRole("button", { name: "PowerShell" }).click();
 
     await expect(page.locator("h3")).toHaveCount(1);
