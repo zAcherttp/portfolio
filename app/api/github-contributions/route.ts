@@ -4,69 +4,43 @@ import { z } from "zod";
 import type { Activity } from "../../../components/kibo-ui/contribution-graph";
 import { fetchBoundedJson } from "../../../lib/bounded-fetch";
 
-const contributionLevelSchema = z.enum([
-  "NONE",
-  "FIRST_QUARTILE",
-  "SECOND_QUARTILE",
-  "THIRD_QUARTILE",
-  "FOURTH_QUARTILE",
-]);
 const apiActivitySchema = z.object({
   date: z.iso.date(),
-  contributionCount: z.number().int().nonnegative().max(100_000),
-  contributionLevel: contributionLevelSchema,
-});
-const githubContributionsSchema = z.object({
-  contributions: z.array(z.array(apiActivitySchema).max(7)).max(60),
+  count: z.number().int().nonnegative().max(100_000),
+  level: z.number().int().min(0).max(4),
 });
 
-type APIActivity = z.infer<typeof apiActivitySchema>;
+const githubContributionsSchema = z.object({
+  contributions: z.array(apiActivitySchema).max(400),
+});
 
 const CONTRIBUTIONS_MAX_BYTES = 512 * 1024;
 const CONTRIBUTIONS_TIMEOUT_MS = 5_000;
-
-const mapLevel = (levelStr: APIActivity["contributionLevel"]): number => {
-  switch (levelStr) {
-    case "NONE":
-      return 0;
-    case "FIRST_QUARTILE":
-      return 1;
-    case "SECOND_QUARTILE":
-      return 2;
-    case "THIRD_QUARTILE":
-      return 3;
-    case "FOURTH_QUARTILE":
-      return 4;
-    default:
-      return 0;
-  }
-};
+const DEFAULT_BASE_URL = "https://github-contributions-api.jogruber.de";
 
 // Cached server function (Layer 2)
 async function getCachedContributions(username: string, baseUrl: string) {
   "use cache";
   cacheLife("daily");
 
-  const url = `${baseUrl}/${username}.json`;
+  const cleanBase = baseUrl.endsWith("/v4")
+    ? baseUrl
+    : `${baseUrl.replace(/\/$/, "")}/v4`;
+  const url = `${cleanBase}/${username}?y=last`;
+
   const data = await fetchBoundedJson(url, githubContributionsSchema, {
     maxBytes: CONTRIBUTIONS_MAX_BYTES,
     timeoutMs: CONTRIBUTIONS_TIMEOUT_MS,
   });
-  const weeks = data.contributions;
-  const contributions: Activity[] = weeks.flat().map((item) => ({
-    date: item.date,
-    count: item.contributionCount,
-    level: mapLevel(item.contributionLevel),
-  }));
 
-  return contributions;
+  return data.contributions as Activity[];
 }
 
 export async function GET() {
   const username = process.env.GITHUB_USERNAME;
-  const baseUrl = process.env.GITHUB_CONTRIBUTIONS_API_URL;
+  const baseUrl = process.env.GITHUB_CONTRIBUTIONS_API_URL || DEFAULT_BASE_URL;
 
-  if (!username || !baseUrl) {
+  if (!username) {
     return NextResponse.json(
       {
         error: {
