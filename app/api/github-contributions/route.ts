@@ -38,9 +38,7 @@ async function getCachedContributions(username: string, baseUrl: string) {
 
 export async function GET() {
   const username = process.env.GITHUB_USERNAME;
-  const envUrl = process.env.GITHUB_CONTRIBUTIONS_API_URL;
-  const baseUrl =
-    envUrl && !envUrl.includes("deno.dev") ? envUrl : DEFAULT_BASE_URL;
+  const baseUrl = process.env.GITHUB_CONTRIBUTIONS_API_URL || DEFAULT_BASE_URL;
 
   if (!username) {
     return NextResponse.json(
