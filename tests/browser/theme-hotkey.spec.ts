@@ -79,7 +79,7 @@ test.describe("theme hotkey", () => {
       .toBe(`Active theme: ${initial}`);
   });
 
-  test("ignores synthetic Telex key events without a physical code", async ({
+  test("ignores synthetic key events without a physical code", async ({
     page,
   }) => {
     await page.goto("/dev/components/theme-hotkey");

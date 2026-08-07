@@ -11,11 +11,22 @@ export interface Project {
 
 export const projectsData: Project[] = [
   {
+    id: "10",
+    title: "electron-boilerplate",
+    url: "https://github.com/zAcherttp/electron-boilerplate",
+    urlLabel: "github.com",
+    tags: ["Electron", "React", "Hono", "Vite"],
+    primaryLanguage: "TypeScript",
+    description:
+      "An opinionated Electron foundation for secure, polished desktop apps—powered by Vite, React, TypeScript, Hono, shadcn/Base UI, typed IPC, automated packaging, testing, and cross-platform CI.",
+    languages: ["TypeScript", "CSS", "HTML"],
+  },
+  {
     id: "1",
     title: "miniclaw",
     url: "https://github.com/zAcherttp/miniclaw",
     urlLabel: "github.com",
-    tags: [],
+    tags: ["LangGraph", "Telegram"],
     primaryLanguage: "TypeScript",
     description:
       "A local-first personal AI virtual assistant daemon running as a Telegram bot and CLI app. Built with LangGraph and TypeScript to manage schedules, tasks, and files.",
@@ -26,10 +37,10 @@ export const projectsData: Project[] = [
     title: "next-wms",
     url: "https://github.com/zAcherttp/next-wms",
     urlLabel: "github.com",
-    tags: [],
+    tags: ["Next.js", "Convex", "Better Auth", "Drizzle ORM"],
     primaryLanguage: "TypeScript",
     description:
-      "A warehouse management system built as a Turborepo monorepo with Next.js, tRPC, Drizzle ORM, and Better Auth.",
+      "A warehouse management system built as a Turborepo monorepo with Next.js, Convex, Better Auth, Drizzle ORM, and PostgreSQL.",
     languages: ["TypeScript", "PowerShell", "CSS", "JavaScript"],
   },
   {

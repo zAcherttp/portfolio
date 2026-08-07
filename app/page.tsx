@@ -48,7 +48,6 @@ const stackGroups = [
         color: "#f7df1e",
         url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
       },
-      { name: "Go", color: "#00add8", url: "https://go.dev/" },
     ],
   },
   {
@@ -99,7 +98,7 @@ const stackGroups = [
     ],
   },
   {
-    label: "Workflow & AI",
+    label: "Tooling",
     items: [
       { name: "Git", color: "#f05032", url: "https://git-scm.com/" },
       { name: "GitHub", color: "#111827", url: "https://github.com/" },
@@ -108,19 +107,6 @@ const stackGroups = [
       { name: "Postman", color: "#ff6c37", url: "https://www.postman.com/" },
       { name: "Vitest", color: "#6e9f18", url: "https://vitest.dev/" },
       { name: "Linear", color: "#5e6ad2", url: "https://linear.app/" },
-      { name: "Claude", color: "#cc5a37", url: "https://claude.ai/" },
-      {
-        name: "Antigravity",
-        color: "#8b5cf6",
-        url: "https://github.com/google-deepmind/antigravity",
-      },
-      { name: "Gemini", color: "#4f46e5", url: "https://gemini.google.com/" },
-      { name: "ChatGPT", color: "#10a37f", url: "https://chatgpt.com/" },
-      {
-        name: "Codex",
-        color: "#10a37f",
-        url: "https://openai.com/blog/openai-codex/",
-      },
     ],
   },
   {
@@ -179,9 +165,9 @@ export default function Home() {
               <span className="font-medium text-foreground">TypeScript</span>,
               and backend systems with{" "}
               <span className="font-medium text-foreground">Hono</span>,{" "}
-              <span className="font-medium text-foreground">Docker</span>, and a
-              bit of <span className="font-medium text-foreground">Go</span>{" "}
-              when I want to try something lower-level.
+              <span className="font-medium text-foreground">Convex</span>,{" "}
+              <span className="font-medium text-foreground">PostgreSQL</span>,
+              and <span className="font-medium text-foreground">Docker</span>.
             </p>
             <p>
               I&apos;m drawn to design engineering: polished UI, small

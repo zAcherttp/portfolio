@@ -128,12 +128,10 @@ test.describe("component documentation", () => {
     const nextComponent = page.getByRole("link", {
       name: "Next component: Contribution Graph",
     });
-    await Promise.all([
-      page.waitForURL(/\/components\/contribution-graph$/, {
-        timeout: 15_000,
-      }),
-      nextComponent.click(),
-    ]);
+    await nextComponent.click();
+    await expect(page).toHaveURL(/\/components\/contribution-graph$/, {
+      timeout: 15_000,
+    });
   });
 
   test("serves component documentation as Markdown", async ({ request }) => {

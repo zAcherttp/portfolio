@@ -11,8 +11,9 @@ export async function GET() {
 
   return NextResponse.json(faviconMap, {
     headers: {
-      // Browser caches for 30 days; matches server-side monthly cache
-      "Cache-Control": "public, max-age=2592000, immutable",
+      // The monthly cache is owned by getAllFavicons. Keeping this response out
+      // of browser/CDN caches prevents a transient empty result from persisting.
+      "Cache-Control": "no-store",
     },
   });
 }

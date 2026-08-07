@@ -64,7 +64,6 @@ jobs:
 
   browser:
     name: Build and browser behavior
-    if: github.event_name == 'pull_request'
     needs: quality
     runs-on: ubuntu-latest
     steps:
