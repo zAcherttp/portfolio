@@ -3,6 +3,7 @@ import type { ZodType } from "zod";
 type BoundedFetchOptions = {
   maxBytes: number;
   timeoutMs: number;
+  headers?: HeadersInit;
 };
 
 type BoundedBytes = {
@@ -16,6 +17,12 @@ async function fetchBoundedResponse(
 ): Promise<Response> {
   const response = await fetch(url, {
     signal: AbortSignal.timeout(options.timeoutMs),
+    headers: {
+      Accept: "application/json, text/plain, */*",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      ...options.headers,
+    },
   });
   if (!response.ok) {
     throw new Error(`Upstream request failed with status ${response.status}`);
