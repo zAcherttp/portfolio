@@ -17,6 +17,34 @@ function getJsxTagName(node: ts.JsxTagNameExpression) {
   return ts.isIdentifier(node) ? node.text : node.getText();
 }
 
+function getBaseIndent(source: string, pos: number): string {
+  let lineStart = pos;
+  while (
+    lineStart > 0 &&
+    source[lineStart - 1] !== "\n" &&
+    source[lineStart - 1] !== "\r"
+  ) {
+    lineStart--;
+  }
+  const leadingText = source.slice(lineStart, pos);
+  const match = leadingText.match(/^\s*/);
+  return match ? match[0] : "";
+}
+
+function dedentText(text: string, baseIndent: string): string {
+  if (!baseIndent) return text;
+  const lines = text.split(/\r?\n/);
+  const dedentedLines = lines.map((line, index) => {
+    if (index === 0) return line;
+    if (line.startsWith(baseIndent)) {
+      return line.slice(baseIndent.length);
+    }
+    if (line.trim() === "") return "";
+    return line;
+  });
+  return dedentedLines.join("\n");
+}
+
 function extractJsxUsage(source: string, selector: string, fileName: string) {
   const sourceFile = ts.createSourceFile(
     fileName,
@@ -67,9 +95,14 @@ function extractJsxUsage(source: string, selector: string, fileName: string) {
       );
     },
   );
+
+  const usageNodeStart = usageNode.getStart(sourceFile);
+  const baseIndent = getBaseIndent(source, usageNodeStart);
+  const usageNodeText = dedentText(usageNode.getText(sourceFile), baseIndent);
+
   const parts = [
     ...imports.map((statement) => statement.getText(sourceFile)),
-    usageNode.getText(sourceFile),
+    usageNodeText,
   ];
 
   return parts.join("\n\n");
