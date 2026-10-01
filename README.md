@@ -1,42 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tuấn Phát's portfolio
 
-## Getting Started
+Personal portfolio and reusable interface component registry built with Next.js,
+React, TypeScript, Tailwind CSS, and Base UI.
 
-Use Node.js 24 or newer, install dependencies, then start the named local
-development server:
+[Live portfolio](https://zachrttp.vercel.app) ·
+[Projects](https://zachrttp.vercel.app/projects) ·
+[Components](https://zachrttp.vercel.app/components)
+
+## Local development
+
+Use Node.js 24 or newer and the pnpm version pinned in `package.json`:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
 Portless serves the app at [https://portfolio.localhost](https://portfolio.localhost)
-and automatically gives linked Git worktrees their own branch-prefixed subdomain.
-The first run may ask to trust Portless's local certificate authority.
+and gives linked Git worktrees their own branch-prefixed subdomain. Its first run
+may ask to trust the local certificate authority.
 
-Run `pnpm dev:app` when a direct Next.js server is needed without the Portless
-proxy. Browser tests use this direct command to remain independent of local
-certificate trust.
+Use `pnpm dev:app` for a direct Next.js server. Browser tests use this command
+without the Portless proxy.
 
-## Component Development
+## Maintain portfolio content
 
-Every registry component must follow the mandatory [component workflow](docs/COMPONENT_WORKFLOW.md), including typed development fixtures before it is considered complete.
+- `data/profile.ts` owns the shared name, role, description, and social links.
+- `data/projects.ts` owns project selection, display order, descriptions, tags,
+  repository URLs, and language statistics. The first three projects appear on
+  the homepage.
+- `data/bookmarks.ts` owns the bookmark collection.
+- `app/home-profile.client.tsx` contains the displayed contact details;
+  `app/page.tsx` contains the About and Stack sections.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Read [the content workflow](docs/CONTENT_WORKFLOW.md) before changing public
+content. Read [the component workflow](docs/COMPONENT_WORKFLOW.md) before adding
+or changing a registry component.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Refresh GitHub language statistics with:
 
-## Learn More
+```bash
+pnpm projects:refresh
+git diff -- data/projects.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
+The command uses the current project list and preserves curated copy, tags,
+ordering, and URLs. It validates every response before replacing the file;
+request or validation failures leave the original file untouched. Empty
+repositories retain their previous language values. Descriptions and project
+selection remain manual edits.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Public repositories work without a token. Set `GITHUB_TOKEN` in the environment
+or an ignored `.env` file if GitHub's unauthenticated rate limit is reached.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Verify changes
 
-## Deploy on Vercel
+```bash
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm test:run
+pnpm build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Run `pnpm test:browser` for browser behavior checks after installing Chromium
+with `pnpm exec playwright install chromium`. See `AGENTS.md` for focused checks.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+The live site is hosted on Vercel. `lib/seo/site.ts` resolves the canonical origin
+from `NEXT_PUBLIC_SITE_URL`, Vercel's production URL, or Vercel's deployment URL,
+with localhost as the development fallback. Set `NEXT_PUBLIC_SITE_URL` to the
+production origin when building outside Vercel.
+
+## License and attribution
+
+The source is [MIT licensed](LICENSE). See [attribution notes](docs/ATTRIBUTION.md)
+for component and design credits.
