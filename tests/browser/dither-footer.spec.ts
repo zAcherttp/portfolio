@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// Software WebGL on CI can spend several seconds capturing/comparing frames.
+const frameComparisonTimeout = 10_000;
+
 async function canvasFrame(page: import("@playwright/test").Page) {
   return page.getByTestId("fixture-stage").locator("canvas").screenshot();
 }
@@ -51,7 +54,7 @@ async function settledCanvasFrame(page: import("@playwright/test").Page) {
         previous = current;
         return difference;
       },
-      { intervals: [100], timeout: 3_000 },
+      { intervals: [100], timeout: frameComparisonTimeout },
     )
     .toBeLessThan(0.001);
 
@@ -83,7 +86,9 @@ test.describe("dither footer", () => {
     ).toBeVisible();
     const first = await canvasFrame(page);
     await expect
-      .poll(async () => frameDifference(page, first, await canvasFrame(page)))
+      .poll(async () => frameDifference(page, first, await canvasFrame(page)), {
+        timeout: frameComparisonTimeout,
+      })
       .toBeGreaterThan(0.001);
   });
 
@@ -100,7 +105,7 @@ test.describe("dither footer", () => {
           if (Date.now() - comparisonStart < 200) return 1;
           return frameDifference(page, first, await canvasFrame(page));
         },
-        { intervals: [100], timeout: 3_000 },
+        { intervals: [100], timeout: frameComparisonTimeout },
       )
       .toBeLessThan(0.002);
   });

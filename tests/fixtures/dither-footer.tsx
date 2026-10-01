@@ -29,9 +29,11 @@ function ShaderStage({
         colorNum={3}
         disableAnimation={disableAnimation}
         fireRange={[0.2, 1]}
-        fireSpeed={0.05}
+        // Keep enough moving area and speed for downsampled frame comparisons.
+        // A narrow, slow flame can animate below the browser test's threshold.
+        fireSpeed={0.8}
         flameColors={flameColors}
-        flameHeight={0.12}
+        flameHeight={0.8}
         mode="combined"
         noiseScale={[4, 2]}
         noiseStrength={0.4}
