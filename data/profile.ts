@@ -8,5 +8,6 @@ export const profile = {
   description:
     "Software developer building polished, accessible interfaces with React, Next.js, TypeScript, and thoughtful design engineering.",
   githubUrl: "https://github.com/zAcherttp",
+  githubContributionUsernames: ["zAcherttp", "Phat-Learneris"],
   linkedInUrl: "https://www.linkedin.com/in/ttuanphat91605/",
 } as const;
