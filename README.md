@@ -53,6 +53,24 @@ selection remain manual edits.
 Public repositories work without a token. Set `GITHUB_TOKEN` in the environment
 or an ignored `.env` file if GitHub's unauthenticated rate limit is reached.
 
+### GitHub activity
+
+The homepage combines the personal (`zAcherttp`) and work (`Phat-Learneris`)
+accounts listed in `data/profile.ts`. Contributions on the same date are added
+together, and color intensity is recalculated from those combined daily counts.
+This sums GitHub contribution counts, rather than deduplicating shared commits.
+
+No token is needed: both calendars come from the public GitHub contributions API.
+Its totals follow each account's public visibility settings. Account data is
+cached daily, with a one-hour browser cache. If either calendar fails to load,
+the endpoint returns an error instead of a partial combined total.
+
+Set `GITHUB_USERNAMES=zAcherttp,Phat-Learneris` to override the complete account
+list. The legacy `GITHUB_USERNAME` setting overrides the primary account while
+retaining the default work account, so existing deployments combine both without
+changing environment settings. Duplicate usernames are counted only once.
+`GITHUB_CONTRIBUTIONS_API_URL` can override the upstream API base URL.
+
 ## Verify changes
 
 ```bash

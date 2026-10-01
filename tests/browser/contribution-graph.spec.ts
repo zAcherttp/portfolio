@@ -1,6 +1,54 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("contribution graph", () => {
+  test("shows combined personal and work activity on the homepage", async ({
+    page,
+  }) => {
+    await page.route("**/api/github-contributions", (route) =>
+      route.fulfill({
+        json: [
+          { date: "2026-09-29", count: 0, level: 0 },
+          { date: "2026-09-30", count: 2, level: 1 },
+          { date: "2026-10-01", count: 8, level: 4 },
+        ],
+      }),
+    );
+    await page.goto("/");
+    await expect(
+      page.getByText("Personal + work activity", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("10 combined contributions in the last year", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.locator(
+        'svg rect[data-date="2026-10-01"][data-count="8"][data-level="4"]',
+      ),
+    ).toBeVisible();
+  });
+
+  test("shows an unavailable message instead of an empty activity total", async ({
+    page,
+  }) => {
+    await page.route("**/api/github-contributions", (route) =>
+      route.fulfill({
+        status: 502,
+        json: { error: { code: "upstream_unavailable" } },
+      }),
+    );
+    await page.goto("/");
+    await expect(
+      page.getByRole("status").filter({
+        hasText: "Personal + work activity is temporarily unavailable.",
+      }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(/\d+ combined contributions in the last year/),
+    ).toHaveCount(0);
+  });
+
   for (const route of [
     "/",
     "/components/activity-grid",
