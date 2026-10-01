@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { projectsData } from "../../data/projects";
 
 test.describe("server and client page boundaries", () => {
   test("renders the server homepage around its interactive islands", async ({
@@ -21,7 +22,7 @@ test.describe("server and client page boundaries", () => {
   test("filters projects inside the client list", async ({ page }) => {
     await page.goto("/projects");
 
-    await expect(page.locator("h3")).toHaveCount(10);
+    await expect(page.locator("h3")).toHaveCount(projectsData.length);
     await page.getByRole("button", { name: "PowerShell" }).click();
 
     await expect(page.locator("h3")).toHaveCount(1);

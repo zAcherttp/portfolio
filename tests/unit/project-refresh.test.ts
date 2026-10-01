@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { type Project, projectsData } from "@/data/projects";
+import type { Project } from "@/data/projects";
 import { refreshProjects } from "../../scripts/update-projects.mjs";
 
 const project: Project = {
-  ...projectsData[0],
+  id: "fixture",
   title: "Curated display title",
+  url: "https://github.com/zAcherttp/sample-repository",
+  urlLabel: "github.com",
   description: "Handwritten portfolio description",
   tags: ["Keep this tag"],
+  languages: ["JavaScript"],
+  primaryLanguage: "JavaScript",
 };
 
 describe("project language refresh", () => {
@@ -17,16 +21,29 @@ describe("project language refresh", () => {
         async () =>
           new Response(JSON.stringify({ CSS: 20, TypeScript: 100, HTML: 0 })),
       );
-    const input = [project, { ...project, id: "second" }];
+    const input = [
+      project,
+      {
+        ...project,
+        id: "second",
+        url: "https://github.com/zAcherttp/second-repository",
+      },
+    ];
     const result = await refreshProjects(input, fetcher, "test-token");
 
-    expect(fetcher).toHaveBeenCalledWith(
-      "https://api.github.com/repos/zAcherttp/electron-boilerplate/languages",
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      "https://api.github.com/repos/zAcherttp/sample-repository/languages",
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer test-token",
         }),
       }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      "https://api.github.com/repos/zAcherttp/second-repository/languages",
+      expect.anything(),
     );
     expect(result).toEqual(
       input.map((entry) => ({
@@ -35,7 +52,7 @@ describe("project language refresh", () => {
         primaryLanguage: "TypeScript",
       })),
     );
-    expect(input[0].languages).toEqual(projectsData[0].languages);
+    expect(input[0].languages).toEqual(["JavaScript"]);
   });
 
   it("retains last known languages when GitHub has no statistics", async () => {
