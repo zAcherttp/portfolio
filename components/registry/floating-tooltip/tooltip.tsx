@@ -73,10 +73,9 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
 
 function getVirtualAnchor(element: HTMLElement): VirtualAnchor {
   const rect = element.getBoundingClientRect();
-  const viewport = window.visualViewport;
   return {
-    left: (viewport?.pageLeft ?? window.scrollX) + rect.left,
-    top: (viewport?.pageTop ?? window.scrollY) + rect.top,
+    left: window.scrollX + rect.left,
+    top: window.scrollY + rect.top,
     width: rect.width,
     height: rect.height,
   };
@@ -227,10 +226,17 @@ export function Tooltip({
       commitOpen(false);
     };
     window.addEventListener("scroll", invalidateAnchor, true);
+    window.addEventListener("resize", invalidateAnchor);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("scroll", invalidateAnchor);
+    viewport?.addEventListener("resize", invalidateAnchor);
 
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("scroll", invalidateAnchor, true);
+      window.removeEventListener("resize", invalidateAnchor);
+      viewport?.removeEventListener("scroll", invalidateAnchor);
+      viewport?.removeEventListener("resize", invalidateAnchor);
     };
   }, [clearCloseTimer, clearOpenTimer, commitOpen, isOpen, measureAnchor]);
 

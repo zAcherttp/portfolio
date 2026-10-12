@@ -2,6 +2,7 @@ export const DEFAULT_COLLISION_PADDING = 8;
 export const DEFAULT_GAP = 6;
 
 export type VirtualAnchor = {
+  /** Position in document CSS pixels, including scroll but not pinch-pan offsets. */
   left: number;
   top: number;
   width: number;

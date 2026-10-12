@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { ActivityGrid } from "@/components/registry/activity-grid";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  type ActiveGridCell,
+  ActivityGrid,
+} from "@/components/registry/activity-grid";
 
 type Cell = { id: string; active?: boolean };
 
@@ -9,11 +12,11 @@ const columns: Cell[][] = [
   [{ id: "1-0" }, { id: "1-1" }],
 ];
 
-function renderGrid(
-  onActiveCellChange = vi.fn(),
-  cells: Array<Array<Cell | undefined>> = columns,
+function gridElement(
+  onActiveCellChange: (cell: ActiveGridCell<Cell> | null) => void,
+  cells: Array<Array<Cell | undefined>>,
 ) {
-  return render(
+  return (
     <ActivityGrid
       cellSize={10}
       columns={cells}
@@ -35,11 +38,20 @@ function renderGrid(
       )}
       renderLabels={() => <text data-testid="labels">Days</text>}
       title="Test activity"
-    />,
+    />
   );
 }
 
+function renderGrid(
+  onActiveCellChange = vi.fn(),
+  cells: Array<Array<Cell | undefined>> = columns,
+) {
+  return render(gridElement(onActiveCellChange, cells));
+}
+
 describe("ActivityGrid", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders nothing for empty columns or rows", () => {
     const { container, rerender } = render(
       <ActivityGrid
@@ -105,6 +117,89 @@ describe("ActivityGrid", () => {
     fireEvent.pointerLeave(region);
     expect(onChange).toHaveBeenLastCalledWith(null);
     expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps document anchors aligned when the visual viewport is panned", () => {
+    vi.stubGlobal(
+      "visualViewport",
+      Object.assign(new EventTarget(), {
+        pageLeft: 90,
+        pageTop: 240,
+        offsetLeft: 60,
+        offsetTop: 40,
+        scale: 2,
+      }),
+    );
+    vi.stubGlobal("scrollX", 30);
+    vi.stubGlobal("scrollY", 200);
+    const onChange = vi.fn();
+    const { container } = renderGrid(onChange);
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(100, 50, 220, 260),
+    );
+
+    fireEvent.pointerMove(container.firstElementChild as Element, {
+      clientX: 230,
+      clientY: 220,
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        item: columns[1][1],
+        anchor: { left: 250, top: 410, width: 100, height: 100 },
+      }),
+    );
+  });
+
+  it.each(["scroll", "resize"])(
+    "lets the same cell become active again after %s",
+    (type) => {
+      const onChange = vi.fn();
+      const { container } = renderGrid(onChange);
+      const region = container.firstElementChild as Element;
+      const svg = container.querySelector("svg") as SVGSVGElement;
+      vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(
+        new DOMRect(0, 0, 22, 26),
+      );
+      fireEvent.pointerMove(region, { clientX: 5, clientY: 9 });
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ item: columns[0][0] }),
+      );
+
+      fireEvent(window, new Event(type));
+      expect(onChange).toHaveBeenLastCalledWith(null);
+      fireEvent.pointerMove(region, { clientX: 5, clientY: 9 });
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ item: columns[0][0] }),
+      );
+    },
+  );
+
+  it("reports fresh data when a hovered position is updated", () => {
+    const onChange = vi.fn();
+    const { container, rerender } = renderGrid(onChange);
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 22, 26),
+    );
+    fireEvent.pointerMove(container.firstElementChild as Element, {
+      clientX: 5,
+      clientY: 9,
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ item: columns[0][0] }),
+    );
+
+    const refreshed = { id: "updated-day" };
+    rerender(gridElement(onChange, [[refreshed, columns[0][1]], columns[1]]));
+    fireEvent.pointerMove(container.firstElementChild as Element, {
+      clientX: 5,
+      clientY: 9,
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ item: refreshed }),
+    );
   });
 
   it("clears when moving from an active cell to a non-interactive cell", () => {

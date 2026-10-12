@@ -14,6 +14,8 @@ import { Tooltip } from "@/components/registry/floating-tooltip";
 
 Use the lower-level primitive for SVG, canvas, chart cells, and other targets represented by viewport-aware geometry.
 
+Supply anchor positions in document CSS pixels: add `window.scrollX` and `window.scrollY` to the target's client rectangle. Do not add the visual viewport's pinch-pan offsets. Refresh the anchor after scrolling or zooming; tooltip placement uses the visual viewport for collision bounds.
+
 ```tsx title="activity-grid.tsx" {2}
 <VirtualTooltip anchor={activeCell?.anchor ?? null} showAnchor>
   {activeCell?.label}
