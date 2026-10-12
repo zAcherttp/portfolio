@@ -10,6 +10,9 @@
 // (tone role | flags) into the mesh extras as base64, then quantizes and
 // meshopt-compresses into <outDir>/<name>.glb. Belt items also get colour
 // swatches from their game texture (see paintSwatches); their UVs then go.
+// Machines with baked vertex animation (see vat.mjs) get a `_BONE` per vertex
+// and their clips, in the actor frame, in the extras; the clip textures come
+// from the exporter's `rawtex` output in --vat <dir> (default <exportsRoot>/../vat).
 //
 // The site gets every model in one scrambled blob, public/factory/models.bin,
 // with no names from the game. <outDir> holds plain copies for inspection:
@@ -34,8 +37,10 @@ import {
 } from "@gltf-transform/functions";
 import { decode } from "fast-png";
 import { MeshoptEncoder } from "meshoptimizer";
+import { fromUnrealAxes } from "../../components/figures/factory/game.ts";
 import { packModels } from "../../components/figures/factory/pack.ts";
 import { MODELS } from "./models.mjs";
+import { convertClip, decodeTexture, turn } from "./vat.mjs";
 
 const args = process.argv.slice(2);
 const [root, out] = args;
@@ -50,6 +55,10 @@ const debugDir = debugAt > 0 ? resolve(args[debugAt + 1]) : null;
 const packAt = args.indexOf("--pack");
 const packFile = resolve(
   packAt > 0 ? args[packAt + 1] : "public/factory/models.bin",
+);
+const vatAt = args.indexOf("--vat");
+const vatDir = resolve(
+  vatAt > 0 ? args[vatAt + 1] : joinPath(root, "..", "vat"),
 );
 const outDir = resolve(out);
 mkdirSync(outDir, { recursive: true });
@@ -70,9 +79,45 @@ function componentMatrix({ yaw = 0, offset = [0, 0, 0], scale = 1 }) {
 /** Materials that glow in the game: windows, screens, emissive panels. */
 const EMISSIVE = /window|glow|emiss|screen/i;
 
+/** No bone: the vertex is not animated. */
+const STATIC_BONE = 255;
+
+/**
+ * Bone of each vertex of an animated component (TEXCOORD_2.y, a whole number),
+ * and each bone's pivot (TEXCOORD_1.xy, TEXCOORD_2.x) placed like the vertices.
+ */
+function readBones(prim, component, pivots) {
+  const count = prim.getAttribute("POSITION").getCount();
+  const bones = new Uint8Array(count).fill(STATIC_BONE);
+  const uv1 = prim.getAttribute("TEXCOORD_1");
+  const uv2 = prim.getAttribute("TEXCOORD_2");
+  if (!component.vat || !uv1 || !uv2) return bones;
+  const a = [];
+  const b = [];
+  for (let i = 0; i < count; i++) {
+    uv2.getElement(i, b);
+    const bone = Math.round(b[1]);
+    if (Math.abs(b[1] - bone) > 0.01 || bone < 0 || bone >= STATIC_BONE)
+      continue;
+    bones[i] = bone;
+    if (!pivots.has(bone)) {
+      uv1.getElement(i, a);
+      // Unreal (X, Y, Z) metres, then placed where the blueprint puts it.
+      const [x, y, z] = turn(
+        fromUnrealAxes([a[0], a[1], b[0]]),
+        component.yaw ?? 0,
+      );
+      const [ox, oy, oz] = component.offset ?? [0, 0, 0];
+      pivots.set(bone, [x + ox, y + oy, z + oz]);
+    }
+  }
+  return bones;
+}
+
 /** Reads every component of a model into one document, in the actor frame. */
 async function readModel(model) {
   let doc = null;
+  const pivots = new Map();
   for (const [index, component] of model.components.entries()) {
     const part = await io.read(joinPath(root, component.source));
     part.setLogger(new Logger(Logger.Verbosity.WARN));
@@ -80,6 +125,14 @@ async function readModel(model) {
     const buffer = part.getRoot().listBuffers()[0] ?? part.createBuffer();
     for (const mesh of part.getRoot().listMeshes()) {
       for (const prim of mesh.listPrimitives()) {
+        prim.setAttribute(
+          "_BONE",
+          part
+            .createAccessor()
+            .setType("SCALAR")
+            .setArray(readBones(prim, component, pivots))
+            .setBuffer(buffer),
+        );
         transformPrimitive(prim, matrix);
         // Remember which component every vertex came from, and whether its
         // material glows, for the roles: component * 2 + emissive.
@@ -106,7 +159,43 @@ async function readModel(model) {
       other.dispose();
     }
   }
-  return doc;
+  return { doc, pivots };
+}
+
+/** A model's clips in the actor frame, for the mesh extras. */
+function bakeClips(model, pivots) {
+  const component = model.components.find((c) => c.vat);
+  if (!component) return null;
+  const read = (name) =>
+    decodeTexture(
+      JSON.parse(readFileSync(joinPath(vatDir, `${name}.json`), "utf8")),
+      readFileSync(joinPath(vatDir, `${name}.bin`)),
+    );
+  const meta = (name) =>
+    JSON.parse(readFileSync(joinPath(vatDir, `${name}.json`), "utf8"));
+  const clips = {};
+  let bones = 0;
+  for (const [name, [pos, quat, length]] of Object.entries(
+    component.vat.clips,
+  )) {
+    const { width: frames, height, format } = meta(pos);
+    bones = Math.max(bones, height);
+    const data = convertClip(read(pos), read(quat), {
+      frames,
+      bones: height,
+      yaw: component.yaw ?? 0,
+      ranged: format === "PF_A32B32G32R32F",
+    });
+    clips[name] = {
+      frames,
+      length,
+      data: Buffer.from(data.buffer).toString("base64"),
+    };
+  }
+  const pivotList = [];
+  for (let bone = 0; bone < bones; bone++)
+    pivotList.push(...(pivots.get(bone) ?? [0, 0, 0]));
+  return { bones, pivots: pivotList, clips };
 }
 
 const hexToRgb = (hex) => {
@@ -253,7 +342,7 @@ function findParts(prim) {
 let total = 0;
 const packed = [];
 for (const model of MODELS) {
-  const doc = await readModel(model);
+  const { doc, pivots } = await readModel(model);
   const docRoot = doc.getRoot();
   const material = doc.createMaterial("paper");
 
@@ -268,6 +357,7 @@ for (const model of MODELS) {
           semantic === "POSITION" ||
           semantic === "NORMAL" ||
           semantic === "_SRC" ||
+          semantic === "_BONE" ||
           (model.albedo && semantic === "TEXCOORD_0");
         if (!keep) {
           prim.setAttribute(semantic, null);
@@ -330,9 +420,11 @@ for (const model of MODELS) {
   for (const scene of docRoot.listScenes()) scene.setName("");
   docRoot.getAsset().generator = "factory";
   mesh.setName(model.name);
+  const vat = bakeClips(model, pivots);
   mesh.setExtras({
     parts: Buffer.from(bytes).toString("base64"),
     ...(palette ? { palette } : {}),
+    ...(vat ? { vat } : {}),
   });
 
   await doc.transform(

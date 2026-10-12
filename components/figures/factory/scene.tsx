@@ -4,6 +4,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { type Player, poseOf, startPlayer, stepPlayer } from "./animation";
 import { itemYaw } from "./game";
 import {
   BELT_SEGMENT,
@@ -162,10 +163,16 @@ function buildScene(
   tiles.frustumCulled = false;
   root.add(tiles);
 
-  // Buildings: one material each so they can wake and spin on their own.
+  // Buildings: one material each so they can wake, spin and animate on their own.
+  const players: (Player | null)[] = [];
   const buildingMaterials = layout.buildings.map((b) => {
     const m = model(BUILDINGS[b.kind].model);
-    const mat = material(m);
+    const mat = createSceneMaterial(shared, {
+      parts: m.parts,
+      idBase: take(m.partCount),
+      animation: m.animation,
+    });
+    players.push(m.animation ? startPlayer(m.animation.clips) : null);
     const mesh = new THREE.Mesh(m.geometry, mat);
     mesh.position.set(...b.position);
     mesh.rotation.y = b.yaw;
@@ -210,7 +217,10 @@ function buildScene(
     root.add(mesh);
   }
 
-  return { root, buildingMaterials, items };
+  const animations = layout.buildings.map(
+    (b) => model(BUILDINGS[b.kind].model).animation ?? null,
+  );
+  return { root, buildingMaterials, items, players, animations };
 }
 
 export interface FactorySceneProps {
@@ -441,9 +451,25 @@ function Factory({
     if (running && miner?.status === "working")
       spin.current += dt * DRILL_SPEED;
     scene.buildingMaterials.forEach((material, i) => {
-      material.uniforms.uLit.value =
-        line.nodes[i]?.status === "working" ? 1 : 0;
+      const working = line.nodes[i]?.status === "working";
+      material.uniforms.uLit.value = working ? 1 : 0;
       material.uniforms.uSpin.value = spin.current;
+      // Baked machine animation follows the machine's state.
+      const animation = scene.animations[i];
+      const player = scene.players[i];
+      if (animation && player) {
+        const next = stepPlayer(
+          player,
+          working,
+          animation.clips,
+          running ? dt : 0,
+        );
+        scene.players[i] = next;
+        const pose = poseOf(next, animation.clips);
+        material.uniforms.uFrameA.value = pose.a;
+        material.uniforms.uFrameB.value = pose.b;
+        material.uniforms.uFrameMix.value = pose.mix;
+      }
     });
 
     for (const mesh of scene.items.values()) mesh.count = 0;

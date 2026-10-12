@@ -69,6 +69,27 @@ export const MODELS = [
         source: `${BUILD}/SmelterMk1/Mesh/SM_VAT_Smelter_01.glb`,
         yaw: Math.PI,
         offset: [0, 0.05, -0.3],
+        // MI_VAT_Smelter_*: position and rotation textures, clip seconds.
+        vat: {
+          clips: {
+            idle: ["TX_Smelter_Idle_Pos", "TX_Smelter_Idle_Quat", 1.266667],
+            startup: [
+              "TX_Smelter_Startup_POS",
+              "TX_Smelter_Startup_QUAT",
+              1.266667,
+            ],
+            producing: [
+              "TX_Smelter_Producing_2_POS",
+              "TX_Smelter_Producing_2_QUAT",
+              2.533334,
+            ],
+            shutdown: [
+              "TX_Smelter_Shutdown_POS",
+              "TX_Smelter_Shutdown_QUAT",
+              1.033333,
+            ],
+          },
+        },
       },
     ],
     role: (p) => generic(p, 0.5),
@@ -78,7 +99,15 @@ export const MODELS = [
     components: [
       { source: `${BUILD}/ConstructorMk1/Mesh/ConstructorMk1_static.glb` },
       // The press and its arms are the vertex-animated mesh.
-      { source: `${BUILD}/ConstructorMk1/Mesh/SM_VAT_Constructor_MK1.glb` },
+      {
+        source: `${BUILD}/ConstructorMk1/Mesh/SM_VAT_Constructor_MK1.glb`,
+        // MI_VAT_Constructorr: one producing loop, 119 frames at 30 fps.
+        vat: {
+          clips: {
+            producing: ["TX_Constructor_POS", "TX_Constructor_QUAT", 119 / 30],
+          },
+        },
+      },
     ],
     role: (p) => generic(p, 0.5),
   },

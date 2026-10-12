@@ -99,7 +99,10 @@ export function applyPalette(
 const sceneVertex = /* glsl */ `
 attribute float _part;
 attribute float _swatch;
+attribute float _bone;
 uniform sampler2D uParts;
+uniform sampler2D uVat;
+uniform float uVatOn, uBones, uFrameA, uFrameB, uFrameMix;
 uniform float uSpin;
 uniform float uIdBase;
 uniform float uInstanceStride;
@@ -108,6 +111,10 @@ out vec3 vNormal;
 flat out float vId;
 flat out float vByte;
 flat out float vSwatch;
+
+vec3 rotate(vec4 q, vec3 v) {
+  return v + 2. * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+}
 
 void main() {
   float byte = floor(texelFetch(uParts, ivec2(int(_part), 0), 0).r * 255. + .5);
@@ -118,6 +125,20 @@ void main() {
   }
   vec3 p = position;
   vec3 n = normal;
+  // Baked vertex animation: pivot + rotate(q, rest - pivot) + offset.
+  if (uVatOn > .5 && _bone < 254.5) {
+    int b = int(_bone + .5);
+    int bones = int(uBones);
+    vec3 pivot = texelFetch(uVat, ivec2(b, bones * 2), 0).xyz;
+    vec3 o0 = texelFetch(uVat, ivec2(int(uFrameA), b), 0).xyz;
+    vec3 o1 = texelFetch(uVat, ivec2(int(uFrameB), b), 0).xyz;
+    vec4 q0 = texelFetch(uVat, ivec2(int(uFrameA), bones + b), 0);
+    vec4 q1 = texelFetch(uVat, ivec2(int(uFrameB), bones + b), 0);
+    if (dot(q0, q1) < 0.) q1 = -q1;
+    vec4 q = normalize(mix(q0, q1, uFrameMix));
+    p = pivot + rotate(q, p - pivot) + mix(o0, o1, uFrameMix);
+    n = rotate(q, n);
+  }
   if (byte >= 8.) {
     float c = cos(uSpin), s = sin(uSpin);
     mat2 r = mat2(c, -s, s, c);
@@ -196,7 +217,22 @@ export interface SceneMaterialOptions {
   partIds?: boolean;
   /** Game colours for a belt item, by `_swatch`. */
   swatches?: readonly string[];
+  /** Baked vertex animation; the pose comes from uFrameA/B/Mix. */
+  animation?: { texture: THREE.Texture; bones: number };
 }
+
+/** Stands in for an animation texture on materials that have none. */
+const NO_ANIMATION = (() => {
+  const t = new THREE.DataTexture(
+    new Float32Array(4),
+    1,
+    1,
+    THREE.RGBAFormat,
+    THREE.FloatType,
+  );
+  t.needsUpdate = true;
+  return t;
+})();
 
 export function createSceneMaterial(
   shared: SharedUniforms,
@@ -206,6 +242,7 @@ export function createSceneMaterial(
     instanceStride = 0,
     partIds = true,
     swatches,
+    animation,
   }: SceneMaterialOptions,
 ) {
   const colours = Array.from({ length: 4 }, (_, i) => {
@@ -224,6 +261,12 @@ export function createSceneMaterial(
       uLit: { value: 0 },
       uSwatched: { value: swatches ? 1 : 0 },
       uSwatches: { value: colours },
+      uVat: { value: animation?.texture ?? NO_ANIMATION },
+      uVatOn: { value: animation ? 1 : 0 },
+      uBones: { value: animation?.bones ?? 0 },
+      uFrameA: { value: 0 },
+      uFrameB: { value: 0 },
+      uFrameMix: { value: 0 },
     },
     vertexShader: sceneVertex,
     fragmentShader: sceneFragment,
