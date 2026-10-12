@@ -4,6 +4,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { itemYaw } from "./game";
 import {
   BELT_SEGMENT,
   type BeltPath,
@@ -407,7 +408,7 @@ function Factory({
   const spin = useRef(0);
   const matrix = useMemo(() => new THREE.Matrix4(), []);
   const quaternion = useMemo(() => new THREE.Quaternion(), []);
-  const euler = useMemo(() => new THREE.Euler(0, 0, 0, "YXZ"), []);
+  const euler = useMemo(() => new THREE.Euler(0, 0, 0, "YZX"), []);
   const position = useMemo(() => new THREE.Vector3(), []);
   const unit = useMemo(() => new THREE.Vector3(1, 1, 1), []);
   const buffer = useMemo(() => new THREE.Vector2(), []);
@@ -454,7 +455,10 @@ function Factory({
         if (mesh.count >= mesh.instanceMatrix.count) break;
         const point = pointOnBelt(path, t);
         position.set(...point.position);
-        quaternion.setFromEuler(euler.set(-point.pitch, point.yaw, 0, "YXZ"));
+        // Game items face +x: turn that along the belt, then tip it up slopes.
+        quaternion.setFromEuler(
+          euler.set(0, itemYaw(point.yaw), point.pitch, "YZX"),
+        );
         matrix.compose(position, quaternion, unit);
         mesh.setMatrixAt(mesh.count, matrix);
         mesh.count += 1;

@@ -168,12 +168,46 @@ describe("screw factory layout", () => {
   it("walks a belt from its first port to its last", () => {
     const belt = layout.belts[1]; // ore round the corner to the first smelter
     const last = belt.points.at(-1) ?? belt.points[0];
-    expect(pointOnBelt(belt, 0).position[0]).toBeCloseTo(belt.points[0][0]);
-    const end = pointOnBelt(belt, belt.length).position;
+    const start = pointOnBelt(belt, belt.lead).position;
+    expect(start[0]).toBeCloseTo(belt.points[0][0]);
+    expect(start[2]).toBeCloseTo(belt.points[0][2]);
+    const end = pointOnBelt(belt, belt.length - belt.tail).position;
     expect(end[0]).toBeCloseTo(last[0]);
     expect(end[2]).toBeCloseTo(last[2]);
     // The bend makes it shorter than the two straight legs (7 + 4 m).
-    expect(belt.length).toBeLessThan(11);
-    expect(belt.length).toBeCloseTo(11 - 4 + Math.PI, 1);
+    const spline = belt.length - belt.lead - belt.tail;
+    expect(spline).toBeLessThan(11);
+    expect(spline).toBeCloseTo(11 - 4 + Math.PI, 1);
+  });
+
+  it("brings items out of a splitter's walls, not its opening", () => {
+    const belt = layout.belts[1];
+    const splitter = layout.buildings[belt.from];
+    expect(belt.lead).toBeGreaterThan(0);
+    // Item travel starts inside the splitter, nearer its centre than the port.
+    const [x, , z] = pointOnBelt(belt, 0).position;
+    const [px, , pz] = belt.points[0];
+    const [cx, , cz] = splitter.position;
+    expect(Math.hypot(x - cx, z - cz)).toBeLessThan(
+      Math.hypot(px - cx, pz - cz) - 0.5,
+    );
+  });
+
+  it("turns items smoothly through a bend", () => {
+    const belt = layout.belts[1];
+    let previous = pointOnBelt(belt, 0).yaw;
+    for (let t = 0.05; t <= belt.length; t += 0.05) {
+      const { yaw } = pointOnBelt(belt, t);
+      const step = Math.atan2(
+        Math.sin(yaw - previous),
+        Math.cos(yaw - previous),
+      );
+      // A 2 m bend turns 1 rad per metre: 0.05 m steps turn about 1.4°.
+      expect(Math.abs(step)).toBeLessThan(0.03);
+      previous = yaw;
+    }
+    expect(Math.abs(previous - pointOnBelt(belt, 0).yaw)).toBeCloseTo(
+      Math.PI / 2,
+    );
   });
 });

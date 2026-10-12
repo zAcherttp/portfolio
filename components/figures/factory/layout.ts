@@ -45,6 +45,11 @@ interface BuildingSpec {
   height: number;
   /** Splitters and mergers sit with their origin at belt height. */
   attachment?: boolean;
+  /**
+   * How far items carry on past a port, hidden in the building's walls, so
+   * they slide out of it rather than appear at the opening. Metres.
+   */
+  inset?: number;
   recipe?: Recipe;
 }
 
@@ -88,6 +93,7 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-2.1, -2.1, 2.1, 2.1],
     height: 2,
     attachment: true,
+    inset: 0.8,
   },
   merger: {
     model: "merger",
@@ -100,6 +106,7 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-2.1, -2.1, 2.1, 2.1],
     height: 2,
     attachment: true,
+    inset: 0.8,
   },
 };
 
@@ -109,10 +116,8 @@ export const FLOOR = 1;
 export const PORT_HEIGHT = 1;
 /** Radius of a belt bend in the game's straight build mode, metres. */
 export const BELT_BEND = 2;
-/** Belt meshes are 2 m long. */
+/** Belt meshes are 2 m long; both tiers run their surface on the spline. */
 export const BELT_SEGMENT = 2;
-/** Height of each belt tier's running surface above its spline. */
-export const BELT_SURFACE: Record<BeltTier, number> = { mk1: 0.1, mk3: 0.28 };
 
 export interface Placement {
   /** Stable key. */
@@ -147,7 +152,14 @@ export interface PlacedBuilding extends Placement {
 }
 
 export interface BeltPath {
+  /** The belt's spline, port to port. */
   points: Vec3[];
+  /** Heading about y at each point, true to the arcs. */
+  headings: number[];
+  /** Hidden item travel inside the source and target buildings. */
+  lead: number;
+  tail: number;
+  /** Item travel: lead, the spline, then tail. */
   length: number;
   tier: BeltTier;
   item: ItemKind;
@@ -363,8 +375,25 @@ export function roundCorners(
   points: readonly Vec3[],
   radius = BELT_BEND,
 ): Vec3[] {
+  return bend(points, radius).points;
+}
+
+function heading(a: Vec3, b: Vec3) {
+  return Math.atan2(b[0] - a[0], b[2] - a[2]);
+}
+
+/** Shortest turn from heading `a` to heading `b`, radians. */
+function turnBetween(a: number, b: number) {
+  return Math.atan2(Math.sin(b - a), Math.cos(b - a));
+}
+
+/** roundCorners, with the true heading at every point of the result. */
+function bend(points: readonly Vec3[], radius: number) {
   const out: Vec3[] = [points[0]];
+  const headings = [heading(points[0], points[1])];
   for (let i = 1; i < points.length - 1; i++) {
+    const into = heading(points[i - 1], points[i]);
+    const delta = turnBetween(into, heading(points[i], points[i + 1]));
     const [ax, , az] = points[i - 1];
     const [px, py, pz] = points[i];
     const [bx, , bz] = points[i + 1];
@@ -378,6 +407,7 @@ export function roundCorners(
     const cut = radius * Math.tan(Math.abs(turn) / 2);
     if (Math.abs(turn) < 1e-6 || cut > Math.min(l1, l2) + 1e-9) {
       out.push(points[i]);
+      headings.push(into + delta / 2);
       continue;
     }
     // Arc from the tangent point on the way in to the one on the way out.
@@ -391,10 +421,13 @@ export function roundCorners(
     for (let k = 0; k <= steps; k++) {
       const a = start + (turn * k) / steps;
       out.push([cx + Math.cos(a) * radius, py, cz + Math.sin(a) * radius]);
+      headings.push(into + (delta * k) / steps);
     }
   }
-  out.push(points[points.length - 1]);
-  return out;
+  const n = points.length;
+  out.push(points[n - 1]);
+  headings.push(heading(points[n - 2], points[n - 1]));
+  return { points: out, headings };
 }
 
 function polylineLength(points: readonly Vec3[]) {
@@ -428,10 +461,15 @@ export function layoutFactory(spec = SCREW_FACTORY): FactoryLayout {
     const start = portOf(buildings[from], route.from[1]);
     const end = portOf(buildings[to], route.to[1]);
     const corners = (route.via ?? []).map(([x, z]): Vec3 => [x, end[1], z]);
-    const points = roundCorners([start, ...corners, end]);
+    const { points, headings } = bend([start, ...corners, end], BELT_BEND);
+    const lead = BUILDINGS[buildings[from].kind].inset ?? 0;
+    const tail = BUILDINGS[buildings[to].kind].inset ?? 0;
     return {
       points,
-      length: polylineLength(points),
+      headings,
+      lead,
+      tail,
+      length: lead + polylineLength(points) + tail,
       tier: route.tier,
       item: route.item,
       from,
@@ -549,28 +587,33 @@ export interface BeltPoint {
   pitch: number;
 }
 
-/** Point `t` metres along a belt, on its running surface. */
+/**
+ * Point `t` metres along a belt's item travel, on its running surface. The
+ * lead and tail run straight on from the end ports, inside the buildings.
+ */
 export function pointOnBelt(belt: BeltPath, t: number): BeltPoint {
-  const { points } = belt;
-  const lift = BELT_SURFACE[belt.tier];
-  let remaining = Math.min(Math.max(t, 0), belt.length);
-  for (let i = 1; i < points.length; i++) {
+  const { points, headings } = belt;
+  const last = points.length - 1;
+  let remaining = Math.min(Math.max(t, 0), belt.length) - belt.lead;
+  for (let i = 1; i <= last; i++) {
     const a = points[i - 1];
     const b = points[i];
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
     const dz = b[2] - a[2];
     const run = Math.hypot(dx, dy, dz);
-    if (remaining <= run || i === points.length - 1) {
-      const k = run > 0 ? Math.min(1, remaining / run) : 0;
+    // Before the first point or past the last, carry on along the end run.
+    if (remaining <= run || i === last) {
+      const k = run > 0 ? remaining / run : 0;
+      const along = Math.min(Math.max(k, 0), 1);
       return {
-        position: [a[0] + dx * k, a[1] + dy * k + lift, a[2] + dz * k],
-        yaw: Math.atan2(dx, dz),
+        position: [a[0] + dx * k, a[1] + dy * k, a[2] + dz * k],
+        yaw:
+          headings[i - 1] + turnBetween(headings[i - 1], headings[i]) * along,
         pitch: Math.atan2(dy, Math.hypot(dx, dz)),
       };
     }
     remaining -= run;
   }
-  const p = points[0];
-  return { position: [p[0], p[1] + lift, p[2]], yaw: 0, pitch: 0 };
+  return { position: points[0], yaw: headings[0], pitch: 0 };
 }

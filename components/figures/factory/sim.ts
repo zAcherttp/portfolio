@@ -3,6 +3,8 @@
 // in turn, and belts carry spaced items between them. Anything that cannot move
 // waits. Pure and deterministic; the drawing only reads the state.
 
+import { CONVEYOR } from "./game";
+
 export type ItemKind = "ore" | "ingot" | "screw";
 
 export interface Stack {
@@ -53,10 +55,10 @@ export const RECIPES = {
 
 export type BeltTier = "mk1" | "mk3";
 
-/** Items per metre are fixed; speed sets the rate (Mk.1 60/min, Mk.3 270/min). */
+/** The game's belts: items 1.2 m apart; Mk.1 60/min, Mk.3 270/min. */
 export const BELTS: Record<BeltTier, { speed: number; spacing: number }> = {
-  mk1: { speed: 1, spacing: 1 },
-  mk3: { speed: 4.5, spacing: 1 },
+  mk1: { speed: CONVEYOR.speed.mk1, spacing: CONVEYOR.itemSpacing },
+  mk3: { speed: CONVEYOR.speed.mk3, spacing: CONVEYOR.itemSpacing },
 };
 
 /** Clock speed limits of an overclockable machine. */
