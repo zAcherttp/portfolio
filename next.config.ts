@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
       : ["js", "jsx", "md", "mdx", "ts", "tsx"],
   reactCompiler: true,
   cacheComponents: true,
+  partialPrefetching: false,
   cacheLife: {
     daily: {
       stale: 86400,
