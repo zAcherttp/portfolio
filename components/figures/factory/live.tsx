@@ -2,7 +2,15 @@
 
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Component,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { FOOTER_IGNITE_EVENT } from "@/lib/footer-ignite";
 import { cn } from "@/lib/utils";
@@ -25,7 +33,7 @@ const LAYOUT = layoutFactory();
 const FRAME = frameBox(LAYOUT.min, LAYOUT.max);
 const UPLOADER = LAYOUT.buildings.findIndex((b) => b.kind === "depot");
 /** Reduced motion shows the line after it has settled. */
-const SETTLED_SECONDS = 300;
+const SETTLED_SECONDS = 900;
 
 const STATUS_LABEL: Record<NodeStatus, string> = {
   off: "off",
@@ -65,6 +73,31 @@ function readPalette(el: HTMLElement): Palette {
     lo: token("lo"),
     lit: token("lit"),
   };
+}
+
+/** Keeps a failing drawing from taking the page down with it. */
+class DrawingBoundary extends Component<
+  { onError: (reason: string) => void; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    this.props.onError(error instanceof Error ? error.message : "render");
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+function supportsWebGL2() {
+  try {
+    return Boolean(document.createElement("canvas").getContext("webgl2"));
+  } catch {
+    return false;
+  }
 }
 
 function usePrefersReducedMotion() {
@@ -118,6 +151,18 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
   const [powered, setPowered] = useState(false);
   const [version, setVersion] = useState(0);
   const [palette, setPalette] = useState<Palette | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [paused, setPaused] = useState(false);
+  /** Bumped to remount the drawing after the GPU gives it back. */
+  const [attempt, setAttempt] = useState(0);
+  const fail = useCallback(() => setFailed(true), []);
+  const context = useCallback((state: "lost" | "restored") => {
+    setPaused(state === "lost");
+    if (state === "restored") setAttempt((a) => a + 1);
+  }, []);
+  useEffect(() => {
+    if (!supportsWebGL2()) setFailed(true);
+  }, []);
   const [snapshot, setSnapshot] = useState<Snapshot>(() => snapshotOf(line));
   const reduced = usePrefersReducedMotion();
   const { resolvedTheme } = useTheme();
@@ -164,9 +209,13 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
 
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setSnapshot(snapshotOf(line)), 250);
+    const id = window.setInterval(() => {
+      // Without a drawing, nothing else moves the line forward.
+      if (failed) stepLine(line, 0.25);
+      setSnapshot(snapshotOf(line));
+    }, 250);
     return () => window.clearInterval(id);
-  }, [line, running]);
+  }, [line, running, failed]);
 
   return (
     <div ref={rootRef} className="factory">
@@ -181,16 +230,26 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
           full ? undefined : { aspectRatio: `${FRAME.width} / ${FRAME.height}` }
         }
       >
-        {near && palette ? (
-          <FactoryScene
-            line={line}
-            layout={LAYOUT}
-            palette={palette}
-            running={running}
-            version={version}
-            explore={full}
-            look={look}
-          />
+        {near && palette && !failed ? (
+          <DrawingBoundary key={attempt} onError={fail}>
+            <FactoryScene
+              line={line}
+              layout={LAYOUT}
+              palette={palette}
+              running={running && !paused}
+              version={version}
+              explore={full}
+              look={look}
+              onError={fail}
+              onContext={context}
+            />
+          </DrawingBoundary>
+        ) : null}
+        {failed ? (
+          <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+            This browser can&apos;t draw the factory, but the line still runs:
+            power it on below.
+          </p>
         ) : null}
       </div>
       {tune ? <TunePanel look={look} onChange={setLook} /> : null}

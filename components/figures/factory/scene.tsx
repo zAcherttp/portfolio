@@ -32,6 +32,9 @@ import { frameBox, lightFromLeft, viewBasis } from "./view";
 const ITEM_KINDS: readonly ItemKind[] = ["ore", "ingot", "screw"];
 /** Most pixels a supersampled frame may have. */
 const PIXEL_BUDGET = 20e6;
+/** While running, step supersampling down above this frame time and back up below the other. */
+const SLOW_FRAME = 1 / 40;
+const FAST_FRAME = 1 / 55;
 /** Drill turns per second while the miner works. */
 const DRILL_SPEED = Math.PI * 0.8;
 
@@ -221,7 +224,10 @@ export interface FactorySceneProps {
   explore: boolean;
   /** How the drawing is inked. */
   look?: FactoryLook;
-  onReady?: () => void;
+  /** The models failed to load or the drawing could not start. */
+  onError?: (reason: string) => void;
+  /** The GPU dropped the drawing; `restored` once it can be drawn again. */
+  onContext?: (state: "lost" | "restored") => void;
 }
 
 function Factory({
@@ -387,6 +393,17 @@ function Factory({
     };
   }, [explore, gl, fit]);
 
+  // Adaptive quality while running: a smoothed frame time steps the
+  // supersampling cap down when frames run long and back up when they don't.
+  const quality = useRef({ cap: 3, ema: 1 / 60, slow: 0, fast: 0 });
+  useEffect(() => {
+    // Back to full quality the moment the line stops.
+    if (!running) {
+      quality.current = { cap: 3, ema: 1 / 60, slow: 0, fast: 0 };
+      invalidate();
+    }
+  }, [running, invalidate]);
+
   const spin = useRef(0);
   const matrix = useMemo(() => new THREE.Matrix4(), []);
   const quaternion = useMemo(() => new THREE.Quaternion(), []);
@@ -399,6 +416,25 @@ function Factory({
     const dt = Math.min(delta, 0.1);
     // The parent owns the line; this loop only moves it forward.
     if (running) stepLine(line, dt);
+    const q = quality.current;
+    if (running) {
+      q.ema = q.ema * 0.9 + delta * 0.1;
+      if (q.ema > SLOW_FRAME) {
+        q.slow += delta;
+        q.fast = 0;
+        if (q.slow > 1 && q.cap > 1) {
+          q.cap -= 1;
+          q.slow = 0;
+        }
+      } else if (q.ema < FAST_FRAME) {
+        q.fast += delta;
+        q.slow = 0;
+        if (q.fast > 3 && q.cap < look.supersample) {
+          q.cap += 1;
+          q.fast = 0;
+        }
+      }
+    }
 
     const miner = line.nodes[0];
     if (running && miner?.status === "working")
@@ -436,6 +472,7 @@ function Factory({
       1,
       Math.min(
         look.supersample,
+        running ? q.cap : look.supersample,
         Math.floor(limit / Math.max(buffer.x, buffer.y)),
         Math.floor(Math.sqrt(PIXEL_BUDGET / (buffer.x * buffer.y))),
       ),
@@ -476,17 +513,17 @@ function Factory({
 /** Loads the packed models, then draws; nothing shows until they are in. */
 function Loaded(props: FactorySceneProps) {
   const [models, setModels] = useState<Map<ModelName, Model> | null>(null);
-  const { onReady } = props;
+  const { onError } = props;
   useEffect(() => {
     const controller = new AbortController();
     loadModels(controller.signal)
-      .then((m) => {
-        setModels(m);
-        onReady?.();
-      })
-      .catch(() => undefined);
+      .then(setModels)
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        onError?.(error instanceof Error ? error.message : "models");
+      });
     return () => controller.abort();
-  }, [onReady]);
+  }, [onError]);
   return models ? <Factory {...props} models={models} /> : null;
 }
 
@@ -499,6 +536,17 @@ export default function FactoryScene(props: FactorySceneProps) {
       gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
       aria-hidden
       className="absolute! inset-0"
+      onCreated={({ gl }) => {
+        const canvas = gl.domElement;
+        canvas.addEventListener("webglcontextlost", (event) => {
+          // Let the browser restore the context instead of giving up on it.
+          event.preventDefault();
+          props.onContext?.("lost");
+        });
+        canvas.addEventListener("webglcontextrestored", () =>
+          props.onContext?.("restored"),
+        );
+      }}
     >
       <Loaded {...props} />
     </Canvas>
