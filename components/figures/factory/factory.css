@@ -1,0 +1,33 @@
+/* Anatomy palette for the factory figure. The WebGL passes read these tokens
+   from the figure element, so both themes stay in CSS. */
+.factory {
+  --anatomy-top: #1c1c1c;
+  --anatomy-shade-0: #0f0f0f;
+  --anatomy-shade-1: #121212;
+  --anatomy-shade-2: #151515;
+  --anatomy-shade-3: #181818;
+  --anatomy-lit-top: #262626;
+  --anatomy-lit-shade: #1d1d1d;
+  --anatomy-hi: #d4d4d4;
+  --anatomy-mid: #6a6a6a;
+  --anatomy-lo: #3e3e3e;
+  --anatomy-lit: #ffffff;
+  --anatomy-green: #6be0a0;
+  --anatomy-red: #ff6b6b;
+}
+
+:root:not(.dark) .factory {
+  --anatomy-top: #ffffff;
+  --anatomy-shade-0: #dcdcd9;
+  --anatomy-shade-1: #e5e5e2;
+  --anatomy-shade-2: #ededea;
+  --anatomy-shade-3: #f4f4f1;
+  --anatomy-lit-top: #ffffff;
+  --anatomy-lit-shade: #eeeeeb;
+  --anatomy-hi: #26262a;
+  --anatomy-mid: #8a8a8f;
+  --anatomy-lo: #b4b4b8;
+  --anatomy-lit: #000000;
+  --anatomy-green: #30a46c;
+  --anatomy-red: #e5484d;
+}
