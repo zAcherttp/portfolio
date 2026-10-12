@@ -2,6 +2,7 @@ import BottomShader from "../components/BottomShader";
 import ComponentRegistryList from "../components/ComponentRegistryList";
 import { ExternalLink } from "../components/ExternalLink";
 import Footer from "../components/Footer";
+import { FactoryFigure } from "../components/figures/factory/figure";
 import ProjectCard from "../components/ProjectCard";
 import GitHubContributions from "../components/profile/GitHubContributions";
 import SectionDivider from "../components/SectionDivider";
@@ -254,6 +255,8 @@ export default function Home() {
         </section>
 
         <HomeBookmarks />
+
+        <FactoryFigure />
 
         {/* Footer/Framing Placeholder */}
         <Footer />
