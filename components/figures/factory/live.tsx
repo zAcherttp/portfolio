@@ -141,6 +141,7 @@ export interface FactoryLiveProps {
 
 export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
   const [look, setLook] = useState<FactoryLook>(DEFAULT_LOOK);
+  const [speed, setSpeed] = useState(1);
   const rootRef = useRef<HTMLDivElement>(null);
   const line = useMemo(() => {
     const { nodes, belts } = lineSpec(LAYOUT);
@@ -211,11 +212,11 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
     if (!running) return;
     const id = window.setInterval(() => {
       // Without a drawing, nothing else moves the line forward.
-      if (failed) stepLine(line, 0.25);
+      if (failed) stepLine(line, 0.25 * speed);
       setSnapshot(snapshotOf(line));
     }, 250);
     return () => window.clearInterval(id);
-  }, [line, running, failed]);
+  }, [line, running, failed, speed]);
 
   return (
     <div ref={rootRef} className="factory">
@@ -240,6 +241,7 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
               version={version}
               explore={full}
               look={look}
+              speed={speed}
               onError={fail}
               onContext={context}
             />
@@ -252,7 +254,14 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
           </p>
         ) : null}
       </div>
-      {tune ? <TunePanel look={look} onChange={setLook} /> : null}
+      {tune ? (
+        <TunePanel
+          look={look}
+          onChange={setLook}
+          speed={speed}
+          onSpeed={setSpeed}
+        />
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-muted-foreground">
         <ol className="flex flex-wrap gap-x-4 gap-y-1">

@@ -235,6 +235,8 @@ export interface FactorySceneProps {
   explore: boolean;
   /** How the drawing is inked. */
   look?: FactoryLook;
+  /** Line time per real second, for checking the line quickly. */
+  speed?: number;
   /** The models failed to load or the drawing could not start. */
   onError?: (reason: string) => void;
   /** The GPU dropped the drawing; `restored` once it can be drawn again. */
@@ -250,6 +252,7 @@ function Factory({
   version,
   explore,
   look = DEFAULT_LOOK,
+  speed = 1,
 }: FactorySceneProps & { models: Map<ModelName, Model> }) {
   const shared = useMemo(createSharedUniforms, []);
   const compositeUniforms = useMemo(createCompositeUniforms, []);
@@ -424,7 +427,7 @@ function Factory({
   const buffer = useMemo(() => new THREE.Vector2(), []);
 
   useFrame((state, delta) => {
-    const dt = Math.min(delta, 0.1);
+    const dt = Math.min(delta, 0.1) * speed;
     // The parent owns the line; this loop only moves it forward.
     if (running) stepLine(line, dt);
     const q = quality.current;
