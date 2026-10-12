@@ -4,6 +4,7 @@
 // on one local z side and put them out on the other, 1 m above their floor;
 // splitters and mergers connect at their origin, which sits at belt height.
 
+import { MINER_STARTUP_SECONDS } from "./game";
 import {
   type BeltSpec,
   type BeltTier,
@@ -36,6 +37,24 @@ export type BuildingKind =
   | "splitter"
   | "merger";
 
+/**
+ * The opening round a port, measured from the game's mesh by the model build
+ * (scripts/factory/openings.mjs). Distances run out from the port along its
+ * axis: the flat back wall, then the rim; `center` is how far the opening
+ * sits to the port's right; `floor` and `top` are heights above the port;
+ * its corners are rounded by `radiusTop` and `radiusBottom`.
+ */
+export interface Opening {
+  wall: number;
+  rim: number;
+  center: number;
+  halfWidth: number;
+  floor: number;
+  top: number;
+  radiusTop: number;
+  radiusBottom: number;
+}
+
 interface BuildingSpec {
   model: ModelName;
   /** Ports in the building's local frame. */
@@ -51,6 +70,8 @@ interface BuildingSpec {
    */
   inset?: number;
   recipe?: Recipe;
+  /** Seconds of power before its first craft. */
+  startup?: number;
 }
 
 export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
@@ -60,6 +81,7 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-3.3, -4.8, 3.3, 9.5],
     height: 18.4,
     recipe: RECIPES.ironOre,
+    startup: MINER_STARTUP_SECONDS,
   },
   smelter: {
     model: "smelter",
@@ -130,8 +152,8 @@ export interface Placement {
   /** Rotation about y; a turn of θ points local +z at (sin θ, cos θ). */
   yaw: number;
   /**
-   * Stands on its resource node, like a miner: level with the slab, so belts
-   * leave it flat, but with no foundation under it.
+   * Stands on its resource node, like a miner. The slab runs on under it,
+   * drawn faint so the node shows through.
    */
   onNode?: boolean;
 }
@@ -152,6 +174,8 @@ export interface PlacedBuilding extends Placement {
 }
 
 export interface BeltPath {
+  /** The ports it joins, by name, at its source and its target. */
+  ports: readonly [string, string];
   /** The belt's spline, port to port. */
   points: Vec3[];
   /** Heading about y at each point, true to the arcs. */
@@ -172,19 +196,48 @@ export interface FactoryLayout {
   belts: BeltPath[];
   /** Foundation tile centres [x, z]. */
   tiles: (readonly [number, number])[];
+  /** By tile: under a building on its resource node, so drawn faint. */
+  faint: boolean[];
   min: Vec3;
   max: Vec3;
 }
 
 const QUARTER = Math.PI / 2;
-/** The constructor array runs along z, one machine every 12 m. */
-const ARRAY_Z = [28, 40, 52, 64, 76] as const;
+/** The constructor array runs along z, one machine every 10 m. */
+const ARRAY_Z = [28, 38, 48, 58, 68] as const;
+const LAST_Z = ARRAY_Z[ARRAY_Z.length - 1];
 const SPLIT_X = 34;
 const MAKE_X = 43;
 const MERGE_X = 52;
 /** The screws loop round the front of the array and back to the uploader. */
-const LOOP_Z = 84;
-const DEPOT_X = 22;
+const LOOP_Z = LAST_Z + 10;
+/** The uploader stands between smelter B and the array, fed up the middle. */
+const DEPOT_X = 28;
+const DEPOT_Z = 46;
+/**
+ * Smelters stand beside the array, each centred across its foundation row;
+ * the first shares the first splitter's row.
+ */
+const SMELT_X = 26;
+const SMELT_Z = [ARRAY_Z[0], 36] as const;
+/** Their ingots merge just short of the first splitter. */
+const INGOT_X = 31;
+const ORE_X = 20;
+/**
+ * The miner stands on the slab in line with the ore splitter, facing it, so
+ * its belt runs straight in.
+ */
+const MINER_Z = LOOP_Z - 4;
+
+/** The splitter port that carries ingots on down the column. */
+function passOn(i: number) {
+  return i === 0 ? "+z" : "+x";
+}
+
+/** The splitter port that feeds its constructor. */
+function feedOut(i: number) {
+  return i === 0 ? "+x" : "-z";
+}
 
 /**
  * The screw factory: one miner feeds two smelters through a splitter, their
@@ -199,48 +252,50 @@ export const SCREW_FACTORY: { placements: Placement[]; routes: BeltRoute[] } = {
       id: "miner",
       group: "Miner",
       kind: "miner",
-      at: [1, 41],
-      yaw: QUARTER,
+      at: [ORE_X, MINER_Z],
+      yaw: Math.PI,
       onNode: true,
     },
     {
-      // Turned to face the miner's belt, it feeds smelter B and passes the rest back.
+      // Turned to face the miner's belt, it feeds smelter B and passes the rest on.
       id: "ore-split",
       group: "",
       kind: "splitter",
-      at: [20, 21],
+      at: [ORE_X, SMELT_Z[1]],
       yaw: QUARTER,
     },
     {
       id: "smelter-a",
       group: "Smelters",
       kind: "smelter",
-      at: [27, 13],
+      at: [SMELT_X, SMELT_Z[0]],
       yaw: QUARTER,
     },
     {
       id: "smelter-b",
       group: "Smelters",
       kind: "smelter",
-      at: [27, 21],
+      at: [SMELT_X, SMELT_Z[1]],
       yaw: QUARTER,
     },
-    // Turned a quarter back, the merger passes +z into the splitter column.
+    // Facing +x, the merger takes smelter A head on and smelter B from +z, and
+    // passes the ingots straight on into the first splitter.
     {
       id: "ingot-merge",
       group: "",
       kind: "merger",
-      at: [SPLIT_X, 21],
-      yaw: -QUARTER,
+      at: [INGOT_X, SMELT_Z[0]],
+      yaw: 0,
     },
     ...ARRAY_Z.flatMap((z, i): Placement[] => [
-      // Turned a quarter back, a splitter passes +z and feeds +x from -z.
+      // Turned a quarter back, a splitter passes +z and feeds +x from -z. The
+      // first faces +x instead, to take the ingots head on.
       {
         id: `split-${i}`,
         group: "",
         kind: "splitter",
         at: [SPLIT_X, z],
-        yaw: -QUARTER,
+        yaw: i === 0 ? 0 : -QUARTER,
       },
       {
         id: `maker-${i}`,
@@ -262,7 +317,7 @@ export const SCREW_FACTORY: { placements: Placement[]; routes: BeltRoute[] } = {
       id: "depot",
       group: "Uploader",
       kind: "depot",
-      at: [DEPOT_X, 55],
+      at: [DEPOT_X, DEPOT_Z],
       yaw: 0,
     },
   ],
@@ -270,15 +325,13 @@ export const SCREW_FACTORY: { placements: Placement[]; routes: BeltRoute[] } = {
     {
       from: ["miner", "out"],
       to: ["ore-split", "in"],
-      via: [[20, 41]],
       tier: "mk1",
       item: "ore",
-      floating: true,
     },
     {
       from: ["ore-split", "+x"],
       to: ["smelter-a", "in"],
-      via: [[20, 13]],
+      via: [[ORE_X, SMELT_Z[0]]],
       tier: "mk1",
       item: "ore",
     },
@@ -291,13 +344,13 @@ export const SCREW_FACTORY: { placements: Placement[]; routes: BeltRoute[] } = {
     {
       from: ["smelter-a", "out"],
       to: ["ingot-merge", "-x"],
-      via: [[SPLIT_X, 13]],
       tier: "mk1",
       item: "ingot",
     },
     {
       from: ["smelter-b", "out"],
       to: ["ingot-merge", "+z"],
+      via: [[INGOT_X, SMELT_Z[1]]],
       tier: "mk1",
       item: "ingot",
     },
@@ -311,7 +364,7 @@ export const SCREW_FACTORY: { placements: Placement[]; routes: BeltRoute[] } = {
       ...(i > 0
         ? ([
             {
-              from: [`split-${i - 1}`, "+x"],
+              from: [`split-${i - 1}`, passOn(i - 1)],
               to: [`split-${i}`, "in"],
               tier: "mk1",
               item: "ingot",
@@ -325,7 +378,7 @@ export const SCREW_FACTORY: { placements: Placement[]; routes: BeltRoute[] } = {
           ] as const)
         : []),
       {
-        from: [`split-${i}`, "-z"],
+        from: [`split-${i}`, feedOut(i)],
         to: [`maker-${i}`, "in"],
         tier: "mk1",
         item: "ingot",
@@ -470,6 +523,7 @@ export function layoutFactory(spec = SCREW_FACTORY): FactoryLayout {
       lead,
       tail,
       length: lead + polylineLength(points) + tail,
+      ports: [route.from[1], route.to[1]],
       tier: route.tier,
       item: route.item,
       from,
@@ -500,12 +554,10 @@ export function layoutFactory(spec = SCREW_FACTORY): FactoryLayout {
       max[0] = Math.max(max[0], x);
       min[2] = Math.min(min[2], z);
       max[2] = Math.max(max[2], z);
-      if (!b.onNode) {
-        x0 = Math.min(x0, x);
-        x1 = Math.max(x1, x);
-        z0 = Math.min(z0, z);
-        z1 = Math.max(z1, z);
-      }
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      z0 = Math.min(z0, z);
+      z1 = Math.max(z1, z);
     }
     max[1] = Math.max(max[1], b.position[1] + building.height);
   }
@@ -519,8 +571,8 @@ export function layoutFactory(spec = SCREW_FACTORY): FactoryLayout {
       z1 = Math.max(z1, z + 1);
     }
   });
-  // Buildings on a resource node stand in a hole in the slab.
-  const holes = buildings
+  // Buildings on a resource node leave the slab under them faint.
+  const nodes = buildings
     .filter((b) => b.onNode)
     .map((b) => {
       const [fx0, fz0, fx1, fz1] = BUILDINGS[b.kind].footprint;
@@ -536,18 +588,20 @@ export function layoutFactory(spec = SCREW_FACTORY): FactoryLayout {
       };
     });
   const tiles: (readonly [number, number])[] = [];
+  const faint: boolean[] = [];
   const first = (v: number) => Math.floor(v / FOUNDATION) * FOUNDATION;
   for (let x = first(x0); x < x1; x += FOUNDATION) {
     for (let z = first(z0); z < z1; z += FOUNDATION) {
-      const covered = holes.some(
-        (h) =>
-          h.x0 < x + FOUNDATION &&
-          h.x1 > x &&
-          h.z0 < z + FOUNDATION &&
-          h.z1 > z,
-      );
-      if (covered) continue;
       tiles.push([x + FOUNDATION / 2, z + FOUNDATION / 2]);
+      faint.push(
+        nodes.some(
+          (h) =>
+            h.x0 < x + FOUNDATION &&
+            h.x1 > x &&
+            h.z0 < z + FOUNDATION &&
+            h.z1 > z,
+        ),
+      );
       min[0] = Math.min(min[0], x);
       max[0] = Math.max(max[0], x + FOUNDATION);
       min[2] = Math.min(min[2], z);
@@ -555,7 +609,7 @@ export function layoutFactory(spec = SCREW_FACTORY): FactoryLayout {
     }
   }
 
-  return { buildings, belts, tiles, min, max };
+  return { buildings, belts, tiles, faint, min, max };
 }
 
 /** The simulation graph for a layout: one node per building, one belt per path. */
@@ -565,8 +619,8 @@ export function lineSpec(layout: FactoryLayout): {
 } {
   return {
     nodes: layout.buildings.map((b): NodeSpec => {
-      const recipe = BUILDINGS[b.kind].recipe;
-      if (recipe) return { kind: "machine", recipe };
+      const { recipe, startup } = BUILDINGS[b.kind];
+      if (recipe) return { kind: "machine", recipe, startup };
       return { kind: b.kind === "splitter" ? "splitter" : "merger" };
     }),
     belts: layout.belts.map((b) => ({
@@ -616,4 +670,53 @@ export function pointOnBelt(belt: BeltPath, t: number): BeltPoint {
     remaining -= run;
   }
   return { position: points[0], yaw: headings[0], pitch: 0 };
+}
+
+export interface PortVolume extends Opening {
+  /** The port, at belt height. */
+  origin: Vec3;
+  /** Level unit direction out of the building through the port. */
+  outward: Vec3;
+}
+
+export interface Ports {
+  ports: PortVolume[];
+  /** Port indices of each building, every port whether a belt joins or not. */
+  byBuilding: number[][];
+  /** The port at each end of each belt: [start, end]. */
+  byBelt: (readonly [number, number])[];
+}
+
+/**
+ * Every opening of every building, placed in the world. `openingsOf` gives a
+ * building's measured openings by port name.
+ */
+export function portVolumes(
+  layout: FactoryLayout,
+  openingsOf: (building: PlacedBuilding) => Record<string, Opening> | undefined,
+): Ports {
+  const ports: PortVolume[] = [];
+  const index = new Map<string, number>();
+  const byBuilding = layout.buildings.map((b, i) =>
+    Object.entries(BUILDINGS[b.kind].ports).flatMap(([name, local]) => {
+      const opening = openingsOf(b)?.[name];
+      if (!opening) return [];
+      const [x, , z] = rotate(local, b.yaw);
+      const length = Math.hypot(x, z) || 1;
+      ports.push({
+        ...opening,
+        origin: portOf(b, name),
+        outward: [x / length, 0, z / length],
+      });
+      index.set(`${i}:${name}`, ports.length - 1);
+      return [ports.length - 1];
+    }),
+  );
+  const at = (building: number, port: string) =>
+    index.get(`${building}:${port}`) ?? -1;
+  const byBelt = layout.belts.map(
+    (belt) =>
+      [at(belt.from, belt.ports[0]), at(belt.to, belt.ports[1])] as const,
+  );
+  return { ports, byBuilding, byBelt };
 }

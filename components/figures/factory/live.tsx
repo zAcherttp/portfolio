@@ -72,6 +72,7 @@ function readPalette(el: HTMLElement): Palette {
     mid: token("mid"),
     lo: token("lo"),
     lit: token("lit"),
+    deep: token("deep"),
   };
 }
 
@@ -142,6 +143,7 @@ export interface FactoryLiveProps {
 export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
   const [look, setLook] = useState<FactoryLook>(DEFAULT_LOOK);
   const [speed, setSpeed] = useState(1);
+  const [wireframe, setWireframe] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const line = useMemo(() => {
     const { nodes, belts } = lineSpec(LAYOUT);
@@ -242,6 +244,7 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
               explore={full}
               look={look}
               speed={speed}
+              wireframe={wireframe}
               onError={fail}
               onContext={context}
             />
@@ -260,6 +263,8 @@ export function FactoryLive({ full = false, tune = false }: FactoryLiveProps) {
           onChange={setLook}
           speed={speed}
           onSpeed={setSpeed}
+          wireframe={wireframe}
+          onWireframe={setWireframe}
         />
       ) : null}
 

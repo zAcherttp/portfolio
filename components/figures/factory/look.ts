@@ -13,6 +13,20 @@ export interface FactoryLook {
   detail: number;
   /** Screen scale (CSS pixels per metre) where creases and details are at full strength. */
   fadeScale: number;
+  /** Share of a port opening's depth, from its back wall, that stays fully dark. */
+  portDark: number;
+  /** Share of a port opening's depth over which its dark then clears. */
+  portEdge: number;
+  /** Feather at a port opening's sides, floor and roof, metres. */
+  portSoft: number;
+  /** Least corner radius of a port opening, metres; 0 keeps the measured one. */
+  portRadius: number;
+  /** What a port's dark fades to: 0 the deep colour, 1 the shade of right-facing walls. */
+  portTone: number;
+  /** Spacing of the halftone dots on see-through floor, CSS pixels. */
+  halftoneCell: number;
+  /** Share of each halftone cell a dot covers, 0–0.78. */
+  halftoneCover: number;
 }
 
 export const DEFAULT_LOOK: FactoryLook = {
@@ -21,6 +35,13 @@ export const DEFAULT_LOOK: FactoryLook = {
   crease: 0.8,
   detail: 0.8,
   fadeScale: 5,
+  portDark: 0,
+  portEdge: 0.7,
+  portSoft: 0,
+  portRadius: 0.2,
+  portTone: 1,
+  halftoneCell: 2,
+  halftoneCover: 0.2,
 };
 
 /** Creases and details fade in between 40% and 100% of `fadeScale`. */

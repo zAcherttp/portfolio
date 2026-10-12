@@ -4,7 +4,16 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { type Player, poseOf, startPlayer, stepPlayer } from "./animation";
+import {
+  type Layer,
+  layerPose,
+  type Player,
+  poseOf,
+  startLayer,
+  startPlayer,
+  stepLayer,
+  stepPlayer,
+} from "./animation";
 import { itemYaw } from "./game";
 import {
   BELT_SEGMENT,
@@ -13,6 +22,7 @@ import {
   type FactoryLayout,
   type ModelName,
   pointOnBelt,
+  portVolumes,
 } from "./layout";
 import { DEFAULT_LOOK, type FactoryLook, lookStrengths } from "./look";
 import { loadModels, type Model } from "./models";
@@ -22,6 +32,7 @@ import {
   createCompositeUniforms,
   createDownsampleMaterial,
   createInkTarget,
+  createPortTexture,
   createSceneMaterial,
   createSceneTarget,
   createSharedUniforms,
@@ -142,37 +153,57 @@ function buildScene(
     idBase += n;
     return base;
   };
-  const material = (m: Model) =>
-    createSceneMaterial(shared, { parts: m.parts, idBase: take(m.partCount) });
-
-  // Foundations: every tile keeps its own part ids so seams ink.
-  const tile = model("foundation");
-  const tiles = new THREE.InstancedMesh(
-    tile.geometry,
+  const material = (m: Model, ports: readonly number[] = []) =>
     createSceneMaterial(shared, {
-      parts: tile.parts,
-      idBase: take(tile.partCount * layout.tiles.length),
-      instanceStride: tile.partCount,
-    }),
-    layout.tiles.length,
+      parts: m.parts,
+      idBase: take(m.partCount),
+      ports,
+    });
+
+  // Every opening of every building darkens inward; the scene holds them all.
+  const doors = portVolumes(
+    layout,
+    (b) => model(BUILDINGS[b.kind].model).openings,
   );
+  shared.uPorts.value = createPortTexture(doors.ports);
+
+  // Foundations: every tile keeps its own part ids so seams ink. Tiles under
+  // a building on its node are drawn faint, so the node shows through.
+  const tile = model("foundation");
   const m4 = new THREE.Matrix4();
-  layout.tiles.forEach(([x, z], i) => {
-    tiles.setMatrixAt(i, m4.makeTranslation(x, 0, z));
-  });
-  tiles.frustumCulled = false;
-  root.add(tiles);
+  for (const faint of [false, true]) {
+    const at = layout.tiles.filter((_, i) => layout.faint[i] === faint);
+    if (at.length === 0) continue;
+    const tiles = new THREE.InstancedMesh(
+      tile.geometry,
+      createSceneMaterial(shared, {
+        parts: tile.parts,
+        idBase: take(tile.partCount * at.length),
+        instanceStride: tile.partCount,
+        faint,
+      }),
+      at.length,
+    );
+    at.forEach(([x, z], i) => {
+      tiles.setMatrixAt(i, m4.makeTranslation(x, 0, z));
+    });
+    tiles.frustumCulled = false;
+    root.add(tiles);
+  }
 
   // Buildings: one material each so they can wake, spin and animate on their own.
   const players: (Player | null)[] = [];
-  const buildingMaterials = layout.buildings.map((b) => {
+  const layers: (Layer | null)[] = [];
+  const buildingMaterials = layout.buildings.map((b, i) => {
     const m = model(BUILDINGS[b.kind].model);
     const mat = createSceneMaterial(shared, {
       parts: m.parts,
       idBase: take(m.partCount),
       animation: m.animation,
+      ports: doors.byBuilding[i],
     });
     players.push(m.animation ? startPlayer(m.animation.clips) : null);
+    layers.push(m.animation?.layer ? startLayer() : null);
     const mesh = new THREE.Mesh(m.geometry, mat);
     mesh.position.set(...b.position);
     mesh.rotation.y = b.yaw;
@@ -187,10 +218,10 @@ function buildScene(
     return mat;
   });
 
-  for (const path of layout.belts) {
+  layout.belts.forEach((path, i) => {
     const m = model(path.tier === "mk3" ? "belt-mk3" : "belt");
-    root.add(new THREE.Mesh(sweepBelt(path, m), material(m)));
-  }
+    root.add(new THREE.Mesh(sweepBelt(path, m), material(m, doors.byBelt[i])));
+  });
 
   // Items: one instanced mesh per kind, sized for every belt that carries it.
   const items = new Map<ItemKind, THREE.InstancedMesh>();
@@ -200,14 +231,21 @@ function buildScene(
       .reduce((n, b) => n + Math.floor(b.length / b.spacing) + 2, 0);
     if (capacity === 0) continue;
     const m = model(kind);
+    // Each item fades into the ports at either end of the belt it rides.
+    const geometry = m.geometry.clone();
+    geometry.setAttribute(
+      "_ports",
+      new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2),
+    );
     const mesh = new THREE.InstancedMesh(
-      m.geometry,
+      geometry,
       createSceneMaterial(shared, {
         parts: m.parts,
         idBase: take(capacity),
         instanceStride: 1,
         partIds: false,
         swatches: m.swatches,
+        portsPerInstance: true,
       }),
       capacity,
     );
@@ -220,7 +258,15 @@ function buildScene(
   const animations = layout.buildings.map(
     (b) => model(BUILDINGS[b.kind].model).animation ?? null,
   );
-  return { root, buildingMaterials, items, players, animations };
+  return {
+    root,
+    buildingMaterials,
+    items,
+    players,
+    layers,
+    animations,
+    beltPorts: doors.byBelt,
+  };
 }
 
 export interface FactorySceneProps {
@@ -237,6 +283,8 @@ export interface FactorySceneProps {
   look?: FactoryLook;
   /** Line time per real second, for checking the line quickly. */
   speed?: number;
+  /** Draw every triangle's edges, to see where the geometry goes. */
+  wireframe?: boolean;
   /** The models failed to load or the drawing could not start. */
   onError?: (reason: string) => void;
   /** The GPU dropped the drawing; `restored` once it can be drawn again. */
@@ -253,6 +301,7 @@ function Factory({
   explore,
   look = DEFAULT_LOOK,
   speed = 1,
+  wireframe = false,
 }: FactorySceneProps & { models: Map<ModelName, Model> }) {
   const shared = useMemo(createSharedUniforms, []);
   const compositeUniforms = useMemo(createCompositeUniforms, []);
@@ -303,9 +352,21 @@ function Factory({
     invalidate();
   }, [look, invalidate]);
 
+  useEffect(() => {
+    scene.root.traverse((object) => {
+      const { material } = object as THREE.Mesh;
+      if (material && !Array.isArray(material)) {
+        (material as THREE.ShaderMaterial).wireframe = wireframe;
+      }
+    });
+    invalidate();
+  }, [scene, wireframe, invalidate]);
+
   // Theme tokens and the light from screen-left.
   useEffect(() => {
     applyPalette(palette, shared, compositeUniforms);
+    // Ports fade to the shade of walls facing the picture's right.
+    shared.uPortFace.value.set(basis.right[0], 0, basis.right[2]).normalize();
     shared.uLight.value.set(...lightFromLeft(basis));
     invalidate();
   }, [palette, shared, compositeUniforms, basis, invalidate]);
@@ -423,6 +484,7 @@ function Factory({
   const quaternion = useMemo(() => new THREE.Quaternion(), []);
   const euler = useMemo(() => new THREE.Euler(0, 0, 0, "YZX"), []);
   const position = useMemo(() => new THREE.Vector3(), []);
+  const origin = useMemo(() => new THREE.Vector3(), []);
   const unit = useMemo(() => new THREE.Vector3(1, 1, 1), []);
   const buffer = useMemo(() => new THREE.Vector2(), []);
 
@@ -472,6 +534,21 @@ function Factory({
         material.uniforms.uFrameA.value = pose.a;
         material.uniforms.uFrameB.value = pose.b;
         material.uniforms.uFrameMix.value = pose.mix;
+        const layer = scene.layers[i];
+        const name = animation.layer;
+        if (layer && name) {
+          const stepped = stepLayer(
+            layer,
+            working,
+            animation.clips[name],
+            running ? dt : 0,
+          );
+          scene.layers[i] = stepped;
+          const over = layerPose(stepped, name, animation.clips);
+          material.uniforms.uLayerA.value = over.a;
+          material.uniforms.uLayerB.value = over.b;
+          material.uniforms.uLayerMix.value = over.mix;
+        }
       }
     });
 
@@ -490,11 +567,19 @@ function Factory({
         );
         matrix.compose(position, quaternion, unit);
         mesh.setMatrixAt(mesh.count, matrix);
+        const [from, to] = scene.beltPorts[i];
+        (mesh.geometry.getAttribute("_ports") as THREE.BufferAttribute).setXY(
+          mesh.count,
+          from,
+          to,
+        );
         mesh.count += 1;
       }
     });
-    for (const mesh of scene.items.values())
+    for (const mesh of scene.items.values()) {
       mesh.instanceMatrix.needsUpdate = true;
+      mesh.geometry.getAttribute("_ports").needsUpdate = true;
+    }
 
     const { gl: renderer } = state;
     renderer.getDrawingBufferSize(buffer);
@@ -516,6 +601,16 @@ function Factory({
       target.setSize(w, h);
       ink.setSize(w, h);
     }
+    // Halftone dots: sized in CSS pixels, anchored where the world's origin
+    // falls on the supersampled target, so they pan with the scene.
+    const scale = factor * renderer.getPixelRatio();
+    origin.set(0, 0, 0).project(camera);
+    shared.uHalftoneOrigin.value.set(
+      ((origin.x + 1) / 2) * w,
+      ((origin.y + 1) / 2) * h,
+    );
+    shared.uHalftoneCell.value = look.halftoneCell * scale;
+    shared.uHalftoneCover.value = look.halftoneCover;
     renderer.setRenderTarget(target);
     renderer.setClearColor(0x000000, 0);
     renderer.clear(true, true, true);
@@ -527,6 +622,11 @@ function Factory({
     compositeUniforms.tData.value = target.textures[1];
     compositeUniforms.tDepth.value = target.depthTexture;
     compositeUniforms.uRadius.value = look.lineWidth;
+    shared.uPortDark.value = look.portDark;
+    shared.uPortEdge.value = look.portEdge;
+    shared.uPortSoft.value = look.portSoft;
+    shared.uPortRadius.value = look.portRadius;
+    shared.uPortTone.value = look.portTone;
     compositeUniforms.uCrease.value = strengths.crease;
     compositeUniforms.uDetail.value = strengths.detail;
     renderer.setRenderTarget(ink);

@@ -24,7 +24,6 @@ export const SPIN = 8;
 /** Flat cards the game textures with alpha; drawn as geometry they are slabs. */
 export const HIDDEN = 16;
 
-const center = (p) => p.min.map((v, i) => (v + p.max[i]) / 2);
 const size = (p) => p.max.map((v, i) => v - p.min[i]);
 const diagonal = (p) => Math.hypot(...size(p));
 
@@ -35,13 +34,9 @@ function generic(p, footing) {
   return STRUCTURE;
 }
 
+/** The drill head wakes with the miner; its moving parts are the skinned mesh. */
 function miner(p) {
-  const c = center(p);
-  const s = size(p);
-  const r = Math.hypot(c[0], c[2]);
-  if (r < 0.3 && Math.max(s[0], s[2]) < 3.4 && Math.min(...s) > 0.2) {
-    return LIT | SPIN;
-  }
+  if (p.bone === "drill") return LIT;
   return generic(p, 1.4);
 }
 
@@ -51,7 +46,26 @@ const item = () => SUBJECT;
 export const MODELS = [
   {
     name: "miner-mk1",
-    components: [{ source: `${BUILD}/MinerMK1/Mesh/MinerMk1_static.glb` }],
+    components: [
+      { source: `${BUILD}/MinerMK1/Mesh/MinerMk1_static.glb` },
+      // Build_MinerMk1's MainMesh_skl: the drill, engine, cables and the reload
+      // gripper, animated by BPA_MinerMk1 with the Mk.2 miner's clips. Idle
+      // holds Startup's first frame; Startup runs into a Drilling loop; every
+      // 30 s of producing, Reload plays over the gripper from reloadbase down.
+      {
+        source: `${BUILD}/MinerMK1/Mesh/SK_MinerMk1.glb`,
+        skeletal: {
+          folder: `${BUILD}/MinerMk2/Animation`,
+          clips: {
+            idle: ["Startup", { first: 0, last: 0 }],
+            startup: ["Startup"],
+            producing: ["Drilling"],
+            reload: ["Reload"],
+          },
+          layer: { root: "reloadbase", clip: "reload" },
+        },
+      },
+    ],
     role: miner,
   },
   {
@@ -129,15 +143,11 @@ export const MODELS = [
         scale: 0.54,
       },
     ],
-    // Glows in the game: the windows, the encapsulated Mercer sphere
-    // (component 1) and the panel round the input at the +z end.
+    // Glows in the game: the windows and the encapsulated Mercer sphere
+    // (component 1). The input frame inks like the rest of the body.
     role: (p) => {
       if (p.component === 1 && size(p)[1] < 0.05) return HIDDEN;
       if (p.emissive || p.component === 1) return LIT;
-      const c = center(p);
-      if (c[2] > 4.3 && c[1] > 0.6 && c[1] < 3.2 && Math.abs(c[0]) < 1.4) {
-        return LIT;
-      }
       return generic(p, 0.5);
     },
   },

@@ -3,28 +3,24 @@
 import * as THREE from "three";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import type { ModelName } from "./layout";
+import type { Clips } from "./animation";
+import type { ModelName, Opening } from "./layout";
 import { unpackModels } from "./pack";
 import { createPartsTexture } from "./shaders";
 
 export const MODELS_URL = "/factory/models.bin";
 
-export interface Clip {
-  /** First column of the clip in the animation texture. */
-  start: number;
-  frames: number;
-  /** Seconds. */
-  length: number;
-}
-
 /**
  * Baked vertex animation: a float texture with frames across; rows are each
- * bone's offset, then each bone's rotation, then one row of pivots by bone.
+ * bone's offset, then each bone's rotation, then one row of pivots by bone,
+ * with w set for the bones a layer clip drives.
  */
 export interface Animation {
   texture: THREE.DataTexture;
   bones: number;
-  clips: Record<string, Clip>;
+  clips: Clips;
+  /** A clip that plays over some bones on its own clock, like a reload. */
+  layer?: string;
 }
 
 export interface Model {
@@ -34,30 +30,50 @@ export interface Model {
   /** Game colours of a belt item, by its `_swatch` attribute. */
   swatches?: string[];
   animation?: Animation;
+  /** A building's openings by port name, measured from the game's mesh. */
+  openings?: Record<string, Opening>;
 }
 
 interface BakedAnimation {
   bones: number;
   pivots: number[];
-  clips: Record<string, { frames: number; length: number; data: string }>;
+  /** Source frames, the kept ones by index, and their columns. */
+  clips: Record<
+    string,
+    { frames: number; length: number; keys?: number[]; data: string }
+  >;
+  layer?: { clip: string; mask: number[] };
+  /** Each bone's offset scale: clip data is 16-bit, offsets over this range. */
+  ranges: number[];
 }
 
 function bakeAnimation(baked: BakedAnimation): Animation {
   const { bones } = baked;
-  const clips: Record<string, Clip> = {};
+  const clips: Clips = {};
   let columns = 0;
   for (const [name, c] of Object.entries(baked.clips)) {
-    clips[name] = { start: columns, frames: c.frames, length: c.length };
-    columns += c.frames;
+    const keys = c.keys ?? Array.from({ length: c.frames }, (_, f) => f);
+    clips[name] = {
+      start: columns,
+      frames: keys.length,
+      length: c.length,
+      times: keys.map((f) => (f * c.length) / c.frames),
+    };
+    columns += keys.length;
   }
   const width = Math.max(columns, bones);
   const height = bones * 2 + 1;
   const data = new Float32Array(width * height * 4);
   for (const [name, c] of Object.entries(baked.clips)) {
     const raw = Uint8Array.from(atob(c.data), (ch) => ch.charCodeAt(0));
-    const values = new Float32Array(raw.buffer);
+    const packed = new Int16Array(raw.buffer);
+    const values = Float32Array.from(packed, (v, i) => {
+      const k = i % 7;
+      const scale = k < 3 ? baked.ranges[Math.floor(i / 7) % bones] : 1;
+      return (v / 32767) * scale;
+    });
     const start = clips[name].start;
-    for (let f = 0; f < c.frames; f++) {
+    for (let f = 0; f < clips[name].frames; f++) {
       for (let b = 0; b < bones; b++) {
         const v = (f * bones + b) * 7;
         const offset = (b * width + start + f) * 4;
@@ -69,7 +85,7 @@ function bakeAnimation(baked: BakedAnimation): Animation {
   }
   for (let b = 0; b < bones; b++) {
     data.set(
-      [...baked.pivots.slice(b * 3, b * 3 + 3), 0],
+      [...baked.pivots.slice(b * 3, b * 3 + 3), baked.layer?.mask[b] ?? 0],
       (bones * 2 * width + b) * 4,
     );
   }
@@ -81,7 +97,7 @@ function bakeAnimation(baked: BakedAnimation): Animation {
     THREE.FloatType,
   );
   texture.needsUpdate = true;
-  return { texture, bones, clips };
+  return { texture, bones, clips, layer: baked.layer?.clip };
 }
 
 function toFloat(
@@ -126,6 +142,7 @@ function prepare(scene: THREE.Object3D): Model {
     animation: mesh.userData.vat
       ? bakeAnimation(mesh.userData.vat as BakedAnimation)
       : undefined,
+    openings: mesh.userData.openings as Record<string, Opening> | undefined,
   };
 }
 
@@ -134,7 +151,9 @@ export async function loadModels(
 ): Promise<Map<ModelName, Model>> {
   const response = await fetch(MODELS_URL, { signal });
   if (!response.ok) throw new Error(`Factory models: ${response.status}`);
-  const entries = unpackModels(new Uint8Array(await response.arrayBuffer()));
+  const entries = await unpackModels(
+    new Uint8Array(await response.arrayBuffer()),
+  );
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const models = new Map<ModelName, Model>();
   for (const [name, data] of entries) {

@@ -1,10 +1,31 @@
 import { describe, expect, it } from "vitest";
 import {
   type Clips,
+  layerPose,
   poseOf,
+  RELOAD_PERIOD,
+  startLayer,
   startPlayer,
+  stepLayer,
   stepPlayer,
 } from "@/components/figures/factory/animation";
+
+describe("factory layer clip", () => {
+  const clips: Clips = { reload: { start: 20, frames: 10, length: 10 } };
+
+  it("reloads once per timer period, only while working", () => {
+    let layer = stepLayer(startLayer(), false, clips.reload, RELOAD_PERIOD);
+    expect(layer.time).toBeNull();
+    layer = stepLayer(layer, true, clips.reload, RELOAD_PERIOD);
+    expect(layer.time).toBe(0);
+    expect(layer.ready).toBe(false);
+    layer = stepLayer(layer, true, clips.reload, 4.5);
+    expect(layerPose(layer, "reload", clips).a).toBe(24);
+    layer = stepLayer(layer, true, clips.reload, 6);
+    expect(layer.time).toBeNull();
+    expect(layerPose(layer, "reload", clips)).toEqual({ a: 20, b: 20, mix: 0 });
+  });
+});
 
 const smelter: Clips = {
   idle: { start: 0, frames: 1, length: 1.27 },
@@ -51,6 +72,20 @@ describe("factory clip player", () => {
     p = stepPlayer(p, false, press, 3);
     expect(p.clip).toBe("rest");
     expect(poseOf(p, press)).toEqual({ a: 0, b: 0, mix: 0 });
+  });
+
+  it("resumes the loop without starting up again, like a suspended miner", () => {
+    const miner: Clips = {
+      idle: { start: 0, frames: 1, length: 0.03 },
+      startup: { start: 1, frames: 10, length: 2 },
+      producing: { start: 11, frames: 5, length: 1 },
+    };
+    let p = stepPlayer(startPlayer(miner), true, miner, 2.5);
+    expect(p.clip).toBe("producing");
+    p = stepPlayer(p, false, miner, 2);
+    expect(p.clip).toBe("rest");
+    p = stepPlayer(p, true, miner, 0.1);
+    expect(p.clip).toBe("producing");
   });
 
   it("blends between neighbouring frames and wraps the loop", () => {

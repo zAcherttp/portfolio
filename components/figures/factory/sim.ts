@@ -66,7 +66,12 @@ export const CLOCK_MIN = 0.01;
 export const CLOCK_MAX = 2.5;
 
 export type NodeSpec =
-  | { kind: "machine"; recipe: Recipe }
+  | {
+      kind: "machine";
+      recipe: Recipe;
+      /** Seconds of power before the first craft, like an extractor's spin-up. */
+      startup?: number;
+    }
   | { kind: "splitter" }
   | { kind: "merger" };
 
@@ -93,6 +98,8 @@ export interface Node {
   crafting: boolean;
   /** Progress of the current craft, 0 to 1. */
   progress: number;
+  /** Powered seconds left before the machine can craft at all. */
+  warmup: number;
   status: NodeStatus;
   /** Belts in and out, by index. */
   incoming: number[];
@@ -141,6 +148,7 @@ function createNode(spec: NodeSpec): Node {
     outputCap: recipe ? 2 * outCount : 1,
     crafting: false,
     progress: 0,
+    warmup: spec.kind === "machine" ? (spec.startup ?? 0) : 0,
     status: "off",
     incoming: [],
     outgoing: [],
@@ -197,6 +205,10 @@ function start(n: Node) {
 function craft(line: Line, n: Node, dt: number) {
   const recipe = n.recipe;
   if (!recipe) return;
+  if (n.warmup > 0) {
+    n.warmup = Math.max(0, n.warmup - dt);
+    return;
+  }
   if (!n.crafting && canStart(n)) {
     start(n);
     n.progress = 0;
@@ -223,7 +235,7 @@ function accepts(n: Node) {
 function statusOf(n: Node): NodeStatus {
   if (n.kind !== "machine") return n.output > 0 ? "blocked" : "working";
   const recipe = n.recipe;
-  if (!recipe || n.crafting) return "working";
+  if (!recipe || n.crafting || n.warmup > 0) return "working";
   if (recipe.input && n.input < recipe.input.count) return "starved";
   return "blocked";
 }

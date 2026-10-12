@@ -75,3 +75,9 @@ export function beltRate(tier: keyof typeof CONVEYOR.speed) {
  * metres out of the machine.
  */
 export const VAT_OFFSET_METRES_PER_UNIT = 1;
+
+/**
+ * Build_MinerMk1's mExtractStartupTime: seconds a miner spins up after it
+ * first gets power before it extracts anything.
+ */
+export const MINER_STARTUP_SECONDS = 15;

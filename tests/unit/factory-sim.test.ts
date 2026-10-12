@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   BELT_BEND,
+  BUILDINGS,
   layoutFactory,
   lineSpec,
   pointOnBelt,
   portOf,
+  portVolumes,
   roundCorners,
   SCREW_FACTORY,
 } from "@/components/figures/factory/layout";
@@ -28,6 +30,23 @@ function run(line: Line, seconds: number) {
   stepLine(line, seconds);
   return line;
 }
+
+describe("factory miner", () => {
+  it("spins up for the game's startup time before its first ore", () => {
+    const line = createLine(
+      [
+        { kind: "machine", recipe: RECIPES.ironOre, startup: 15 },
+        { kind: "machine", recipe: RECIPES.ironIngot },
+      ],
+      [{ from: 0, to: 1, length: 4, item: "ore", tier: "mk1" }],
+    );
+    run(line, 14.9);
+    expect(line.nodes[0].status).toBe("working");
+    expect(line.nodes[0].output + line.belts[0].items.length).toBe(0);
+    run(line, 1.2);
+    expect(line.nodes[0].output + line.belts[0].items.length).toBe(1);
+  });
+});
 
 describe("factory recipes", () => {
   it("match the game's per-minute rates", () => {
@@ -174,10 +193,60 @@ describe("screw factory layout", () => {
     const end = pointOnBelt(belt, belt.length - belt.tail).position;
     expect(end[0]).toBeCloseTo(last[0]);
     expect(end[2]).toBeCloseTo(last[2]);
-    // The bend makes it shorter than the two straight legs (7 + 4 m).
+    // The bend makes it shorter than the two straight legs (7 + 3 m).
     const spline = belt.length - belt.lead - belt.tail;
-    expect(spline).toBeLessThan(11);
-    expect(spline).toBeCloseTo(11 - 4 + Math.PI, 1);
+    expect(spline).toBeLessThan(10);
+    expect(spline).toBeCloseTo(10 - 4 + Math.PI, 1);
+  });
+
+  it("opens every port of every building, belts or not", () => {
+    const opening = {
+      wall: 0,
+      rim: 1,
+      center: 0,
+      halfWidth: 0.9,
+      floor: -0.2,
+      top: 1.7,
+      radiusTop: 0.05,
+      radiusBottom: 0.05,
+    };
+    const { ports, byBelt, byBuilding } = portVolumes(layout, (b) =>
+      Object.fromEntries(
+        Object.keys(BUILDINGS[b.kind].ports).map((name) => [name, opening]),
+      ),
+    );
+    const all = layout.buildings.reduce(
+      (n, b) => n + Object.keys(BUILDINGS[b.kind].ports).length,
+      0,
+    );
+    expect(ports).toHaveLength(all);
+    // Splitters open on all four sides, though not every side has a belt.
+    const splitter = layout.buildings.findIndex((b) => b.id === "split-0");
+    expect(byBuilding[splitter]).toHaveLength(4);
+    layout.belts.forEach((belt, i) => {
+      const [start, end] = byBelt[i];
+      expect(byBuilding[belt.from]).toContain(start);
+      expect(byBuilding[belt.to]).toContain(end);
+      for (const [port, building] of [
+        [ports[start], layout.buildings[belt.from]],
+        [ports[end], layout.buildings[belt.to]],
+      ] as const) {
+        // Each port's outward axis points away from its building's centre.
+        const [x, , z] = port.origin;
+        const [ox, , oz] = port.outward;
+        const out =
+          (x - building.position[0]) * ox + (z - building.position[2]) * oz;
+        expect(out).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  it("merges the ingots straight into the first splitter", () => {
+    const merge = layout.buildings.findIndex((b) => b.id === "ingot-merge");
+    const split = layout.buildings.findIndex((b) => b.id === "split-0");
+    const belt = layout.belts.find((b) => b.from === merge && b.to === split);
+    expect(belt?.points).toHaveLength(2);
+    expect(belt?.points[0][2]).toBeCloseTo(belt?.points[1][2] ?? Number.NaN);
   });
 
   it("brings items out of a splitter's walls, not its opening", () => {

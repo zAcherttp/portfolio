@@ -1,6 +1,7 @@
 // Builds the factory line models from glTF exports of the game's meshes.
 //
 //   pnpm exec tsx scripts/factory/build.mjs <exportsRoot> <outDir> [--debug <dir>]
+//     [--pack <file>]
 //
 // <exportsRoot> holds FactoryGame/Content/... as written by FModel or a
 // CUE4Parse exporter. For every model in models.mjs this places each
@@ -13,13 +14,16 @@
 // Machines with baked vertex animation (see vat.mjs) get a `_BONE` per vertex
 // and their clips, in the actor frame, in the extras; the clip textures come
 // from the exporter's `rawtex` output in --vat <dir> (default <exportsRoot>/../vat).
+// The miner's skinned parts bake the same way from the exporter's .psa clips
+// (see skeletal.mjs).
 //
-// The site gets every model in one scrambled blob, public/factory/models.bin,
-// with no names from the game. <outDir> holds plain copies for inspection:
+// The site gets every model in one gzipped, scrambled blob,
+// public/factory/models.bin, with no names from the game. <outDir> holds plain copies for inspection:
 // keep it outside the repository.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join as joinPath, resolve } from "node:path";
+import { gzipSync } from "node:zlib";
 import { Logger, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import {
@@ -38,8 +42,12 @@ import {
 import { decode } from "fast-png";
 import { MeshoptEncoder } from "meshoptimizer";
 import { fromUnrealAxes } from "../../components/figures/factory/game.ts";
+import { BUILDINGS } from "../../components/figures/factory/layout.ts";
 import { packModels } from "../../components/figures/factory/pack.ts";
-import { MODELS } from "./models.mjs";
+import { gather, keyFrames, offsetRanges, packKeys } from "./keys.mjs";
+import { HIDDEN, MODELS } from "./models.mjs";
+import { measureOpening } from "./openings.mjs";
+import { bakeSkeletal, readPsa, subtree } from "./skeletal.mjs";
 import { convertClip, decodeTexture, turn } from "./vat.mjs";
 
 const args = process.argv.slice(2);
@@ -114,15 +122,59 @@ function readBones(prim, component, pivots) {
   return bones;
 }
 
+/**
+ * The joints of a skinned component that carry vertices, in skin order: the
+ * component's bones. Each vertex follows its one joint (the game's are rigid).
+ */
+function skinnedBones(part) {
+  const [skin] = part.getRoot().listSkins();
+  if (!skin) throw new Error("A skeletal component needs a skinned mesh.");
+  const names = skin.listJoints().map((joint) => joint.getName());
+  const used = new Set();
+  const joints = [];
+  const weights = [];
+  for (const mesh of part.getRoot().listMeshes()) {
+    for (const prim of mesh.listPrimitives()) {
+      const j = prim.getAttribute("JOINTS_0");
+      const w = prim.getAttribute("WEIGHTS_0");
+      for (let i = 0; i < j.getCount(); i++) {
+        j.getElement(i, joints);
+        w.getElement(i, weights);
+        used.add(joints[weights.indexOf(Math.max(...weights))]);
+      }
+    }
+  }
+  return names.filter((_, i) => used.has(i));
+}
+
+/** Bone of each vertex of a skinned component: its heaviest joint, by name. */
+function readSkinnedBones(prim, part, boneNames) {
+  const names = part.getRoot().listSkins()[0].listJoints();
+  const j = prim.getAttribute("JOINTS_0");
+  const w = prim.getAttribute("WEIGHTS_0");
+  const bones = new Uint8Array(j.getCount()).fill(STATIC_BONE);
+  const joints = [];
+  const weights = [];
+  for (let i = 0; i < j.getCount(); i++) {
+    j.getElement(i, joints);
+    w.getElement(i, weights);
+    const joint = joints[weights.indexOf(Math.max(...weights))];
+    bones[i] = boneNames.indexOf(names[joint].getName());
+  }
+  return bones;
+}
+
 /** Reads every component of a model into one document, in the actor frame. */
 async function readModel(model) {
   let doc = null;
   const pivots = new Map();
+  let boneNames = null;
   for (const [index, component] of model.components.entries()) {
     const part = await io.read(joinPath(root, component.source));
     part.setLogger(new Logger(Logger.Verbosity.WARN));
     const matrix = componentMatrix(component);
     const buffer = part.getRoot().listBuffers()[0] ?? part.createBuffer();
+    if (component.skeletal) boneNames = skinnedBones(part);
     for (const mesh of part.getRoot().listMeshes()) {
       for (const prim of mesh.listPrimitives()) {
         prim.setAttribute(
@@ -130,7 +182,11 @@ async function readModel(model) {
           part
             .createAccessor()
             .setType("SCALAR")
-            .setArray(readBones(prim, component, pivots))
+            .setArray(
+              component.skeletal
+                ? readSkinnedBones(prim, part, boneNames)
+                : readBones(prim, component, pivots),
+            )
             .setBuffer(buffer),
         );
         transformPrimitive(prim, matrix);
@@ -148,6 +204,9 @@ async function readModel(model) {
         );
       }
     }
+    // The skin is baked into the clips: the mesh stays in its rest pose.
+    for (const node of part.getRoot().listNodes()) node.setSkin(null);
+    for (const skin of part.getRoot().listSkins()) skin.dispose();
     if (!doc) {
       doc = part;
       continue;
@@ -159,11 +218,133 @@ async function readModel(model) {
       other.dispose();
     }
   }
-  return { doc, pivots };
+  return { doc, pivots, boneNames };
 }
 
-/** A model's clips in the actor frame, for the mesh extras. */
-function bakeClips(model, pivots) {
+/**
+ * A skinned component's clips, baked per bone like the vertex animation, and
+ * the bones its layer clip drives instead of the main one.
+ */
+function bakeSkinnedClips(component, boneNames) {
+  const { clips: specs, folder, layer } = component.skeletal;
+  const psas = new Map();
+  const psa = (name) => {
+    if (!psas.has(name)) {
+      psas.set(
+        name,
+        readPsa(readFileSync(joinPath(root, folder, `${name}.psa`))),
+      );
+    }
+    return psas.get(name);
+  };
+  const clips = {};
+  let pivots = [];
+  for (const [name, [source, options = {}]] of Object.entries(specs)) {
+    const clip = psa(source);
+    const baked = bakeSkeletal(clip, {
+      use: boneNames,
+      yaw: component.yaw ?? 0,
+      ...options,
+    });
+    const first = options.first ?? 0;
+    const last = options.last ?? clip.frames - 1;
+    clips[name] = {
+      frames: baked.frames,
+      length: (last - first + 1) / clip.rate,
+      data: baked.data,
+    };
+    const [ox, oy, oz] = component.offset ?? [0, 0, 0];
+    pivots = baked.pivots.map(([x, y, z]) => [x + ox, y + oy, z + oz]);
+  }
+  const result = { bones: boneNames.length, pivots: pivots.flat(), clips };
+  if (!layer) return result;
+  const bones = psa(specs[layer.clip][0]).bones;
+  const inside = subtree(bones, layer.root);
+  result.layer = {
+    clip: layer.clip,
+    mask: boneNames.map((name) =>
+      inside.has(bones.findIndex((b) => b.name === name)) ? 1 : 0,
+    ),
+  };
+  return result;
+}
+
+/**
+ * The opening round each port of a building model, by port name. Parts the
+ * drawing hides do not count as walls.
+ */
+function openingsOf(name, prim, ids, bytes) {
+  const spec = Object.values(BUILDINGS).find((b) => b.model === name);
+  if (!spec) return null;
+  const positions = prim.getAttribute("POSITION").getArray();
+  const all = prim.getIndices().getArray();
+  const indices = all.filter(
+    (_, k) => (bytes[ids[all[k - (k % 3)]]] & HIDDEN) === 0,
+  );
+  const round = (v) => Math.round(v * 1000) / 1000;
+  return Object.fromEntries(
+    Object.entries(spec.ports).map(([port, at]) => [
+      port,
+      Object.fromEntries(
+        Object.entries(
+          measureOpening(positions, indices, at, spec.inset ?? 0),
+        ).map(([k, v]) => [k, round(v)]),
+      ),
+    ]),
+  );
+}
+
+/** How far a blended pose may stray at a vertex before a frame is kept. */
+const KEY_TOLERANCE = 0.01;
+
+/**
+ * Keeps the frames of each clip that matter (see keys.mjs) and packs them for
+ * the mesh extras: `keys` are the kept source frames, one column each, stored
+ * as 16-bit integers with offsets scaled by each bone's `ranges`.
+ */
+function reduceClips(vat, prim) {
+  if (!vat) return null;
+  const reach = new Array(vat.bones).fill(0);
+  const position = prim.getAttribute("POSITION");
+  const bone = prim.getAttribute("_BONE");
+  const p = [];
+  for (let i = 0; i < position.getCount(); i++) {
+    const b = bone.getScalar(i);
+    if (b >= vat.bones) continue;
+    position.getElement(i, p);
+    const pivot = vat.pivots.slice(b * 3, b * 3 + 3);
+    reach[b] = Math.max(reach[b], Math.hypot(...p.map((v, k) => v - pivot[k])));
+  }
+  const kept = Object.entries(vat.clips).map(([name, clip]) => {
+    const keys = keyFrames(clip.data, {
+      frames: clip.frames,
+      bones: vat.bones,
+      reach,
+      tolerance: KEY_TOLERANCE,
+    });
+    return { name, clip, keys, data: gather(clip.data, vat.bones, keys) };
+  });
+  const ranges = offsetRanges(
+    kept.map((k) => k.data),
+    vat.bones,
+  );
+  const clips = {};
+  for (const { name, clip, keys, data } of kept) {
+    const packed = packKeys(data, vat.bones, ranges);
+    clips[name] = {
+      frames: clip.frames,
+      length: clip.length,
+      keys,
+      data: Buffer.from(packed.buffer).toString("base64"),
+    };
+  }
+  return { ...vat, ranges, clips };
+}
+
+/** A model's clips in the actor frame, before reduction. */
+function bakeClips(model, pivots, boneNames) {
+  const skinned = model.components.find((c) => c.skeletal);
+  if (skinned) return bakeSkinnedClips(skinned, boneNames);
   const component = model.components.find((c) => c.vat);
   if (!component) return null;
   const read = (name) =>
@@ -189,7 +370,7 @@ function bakeClips(model, pivots) {
     clips[name] = {
       frames,
       length,
-      data: Buffer.from(data.buffer).toString("base64"),
+      data,
     };
   }
   const pivotList = [];
@@ -342,7 +523,7 @@ function findParts(prim) {
 let total = 0;
 const packed = [];
 for (const model of MODELS) {
-  const { doc, pivots } = await readModel(model);
+  const { doc, pivots, boneNames } = await readModel(model);
   const docRoot = doc.getRoot();
   const material = doc.createMaterial("paper");
 
@@ -390,6 +571,7 @@ for (const model of MODELS) {
   const bytes = new Uint8Array(parts.length);
   const debug = [];
   const sources = prim.getAttribute("_SRC");
+  const boneOf = prim.getAttribute("_BONE");
   parts.forEach((part, id) => {
     for (const v of part.verts) ids[v] = id;
     const box = {
@@ -398,6 +580,8 @@ for (const model of MODELS) {
       component: sources.getScalar(part.verts[0]) >> 1,
       /** Its material glows in the game. */
       emissive: (sources.getScalar(part.verts[0]) & 1) === 1,
+      /** The skinned bone it follows, by the game's name. */
+      bone: boneNames?.[boneOf.getScalar(part.verts[0])] ?? null,
       min: part.min.map((v) => +v.toFixed(3)),
       max: part.max.map((v) => +v.toFixed(3)),
     };
@@ -420,11 +604,13 @@ for (const model of MODELS) {
   for (const scene of docRoot.listScenes()) scene.setName("");
   docRoot.getAsset().generator = "factory";
   mesh.setName(model.name);
-  const vat = bakeClips(model, pivots);
+  const vat = reduceClips(bakeClips(model, pivots, boneNames), prim);
+  const openings = openingsOf(model.name, prim, ids, bytes);
   mesh.setExtras({
     parts: Buffer.from(bytes).toString("base64"),
     ...(palette ? { palette } : {}),
     ...(vat ? { vat } : {}),
+    ...(openings ? { openings } : {}),
   });
 
   await doc.transform(
@@ -454,5 +640,10 @@ for (const model of MODELS) {
   );
 }
 mkdirSync(resolve(packFile, ".."), { recursive: true });
-writeFileSync(packFile, packModels(packed));
-console.log(`total ${(total / 1024).toFixed(0)} KB → ${packFile}`);
+const pack = await packModels(packed, async (bytes) =>
+  gzipSync(bytes, { level: 9 }),
+);
+writeFileSync(packFile, pack);
+console.log(
+  `models ${(total / 1024).toFixed(0)} KB, packed ${(pack.length / 1024).toFixed(0)} KB → ${packFile}`,
+);
