@@ -59,16 +59,13 @@ export default function GitHubContributions({
   if (isError && !data) {
     return (
       <p role="status" className="text-xs text-muted-foreground">
-        Personal + work activity is temporarily unavailable.
+        Contributions are temporarily unavailable.
       </p>
     );
   }
 
   return (
     <div className="w-full min-w-0 max-w-full overflow-hidden">
-      <p className="mb-2 text-xs text-muted-foreground">
-        Personal + work activity
-      </p>
       <ContributionGraph
         data={data ?? fallbackData}
         blockSize={8}
@@ -76,7 +73,7 @@ export default function GitHubContributions({
         fontSize={10}
         weekStart={1}
         labels={{
-          totalCount: "{{count}} combined contributions in the last year",
+          totalCount: "{{count}} contributions in the last year",
         }}
       >
         <ContributionGraphCalendar>

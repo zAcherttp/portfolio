@@ -112,12 +112,11 @@ export function TooltipVirtualTargetsFixture() {
 
   const activate = (element: HTMLElement, label: string) => {
     const rect = element.getBoundingClientRect();
-    const viewport = window.visualViewport;
     setActive({
       label,
       anchor: {
-        left: (viewport?.pageLeft ?? window.scrollX) + rect.left,
-        top: (viewport?.pageTop ?? window.scrollY) + rect.top,
+        left: window.scrollX + rect.left,
+        top: window.scrollY + rect.top,
         width: rect.width,
         height: rect.height,
       },

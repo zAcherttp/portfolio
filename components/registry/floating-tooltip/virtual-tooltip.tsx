@@ -360,6 +360,7 @@ export function VirtualTooltip({
           initial={false}
           transition={transition}
           aria-hidden="true"
+          data-slot="floating-tooltip-highlight"
           className={joinClassNames(
             "pointer-events-none absolute z-9998 border-solid opacity-0",
             highlightClassName,
