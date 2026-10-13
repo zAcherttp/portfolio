@@ -19,6 +19,8 @@ export interface Palette {
   lit: string;
   /** Inside a port: what belts and items fade into as they go in. */
   deep: string;
+  /** What glowing machines give off: the light, and its halftone pools. */
+  glow: string;
 }
 
 type Rgb = [number, number, number];
@@ -57,9 +59,11 @@ const NO_PORTS = (() => {
 /**
  * The scene's port openings as a float texture, one row each:
  * (origin, wall), (outward, rim), (center, half width, floor, top),
- * (top corner radius, bottom corner radius).
+ * (top corner radius, bottom corner radius, the light it glows with or -1).
  */
-export function createPortTexture(ports: readonly PortVolume[]) {
+export function createPortTexture(
+  ports: readonly (PortVolume & { light?: number })[],
+) {
   const rows = Math.max(1, ports.length);
   const data = new Float32Array(rows * 4 * 4);
   ports.forEach((p, i) => {
@@ -75,7 +79,7 @@ export function createPortTexture(ports: readonly PortVolume[]) {
         p.top,
         p.radiusTop,
         p.radiusBottom,
-        0,
+        p.light ?? -1,
         0,
       ],
       i * 16,
@@ -92,6 +96,11 @@ export function createPortTexture(ports: readonly PortVolume[]) {
   return texture;
 }
 
+/** Lights a scene can hold. */
+export const MAX_LIGHTS = 4;
+/** Points shadows are seen from, over all lights: each keeps a cube. */
+export const MAX_VIEWS = 8;
+
 export function createSharedUniforms() {
   return {
     uDeep: vec3(),
@@ -103,6 +112,49 @@ export function createSharedUniforms() {
     uPortSoft: { value: 0 },
     uPortRadius: { value: 0 },
     uPortTone: { value: 1 },
+    /**
+     * Lights, up to MAX_LIGHTS: (position, reach), (an opening's normal
+     * and 1, or a sphere's band as sines and 0), (half width, half height,
+     * level, sphere radius).
+     */
+    uLightA: {
+      value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4()),
+    },
+    uLightB: {
+      value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4()),
+    },
+    uLightC: {
+      value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4()),
+    },
+    uLightCount: { value: 0 },
+    /**
+     * Shadow views, up to MAX_VIEWS: (origin, size of the glow it stands
+     * for), the light it belongs to, and the distance over its light's reach
+     * to the nearest surface in every direction from it.
+     */
+    uViewA: {
+      value: Array.from({ length: MAX_VIEWS }, () => new THREE.Vector4()),
+    },
+    uViewLight: { value: Array.from({ length: MAX_VIEWS }, () => -1) },
+    uViewCount: { value: 0 },
+    uShadow0: { value: null as THREE.Texture | null },
+    uShadow1: { value: null as THREE.Texture | null },
+    uShadow2: { value: null as THREE.Texture | null },
+    uShadow3: { value: null as THREE.Texture | null },
+    uShadow4: { value: null as THREE.Texture | null },
+    uShadow5: { value: null as THREE.Texture | null },
+    uShadow6: { value: null as THREE.Texture | null },
+    uShadow7: { value: null as THREE.Texture | null },
+    /** Set while drawing a light's shadows: its origin and reach. */
+    uShadowPass: { value: 0 },
+    uShadowFrom: { value: new THREE.Vector4() },
+    uGlow: vec3(),
+    /** The line's power, eased 0–1: glowing openings stay filled while on. */
+    uPower: { value: 0 },
+    /** Halftone light: dot spacing in target pixels, most coverage, exposure. */
+    uLightCell: { value: 12 },
+    uLightCover: { value: 0.6 },
+    uLightGain: { value: 20 },
     /** Halftone dots on see-through surfaces; the scene keeps them on screen. */
     uHalftoneOrigin: { value: new THREE.Vector2() },
     uHalftoneCell: { value: 12 },
@@ -157,6 +209,7 @@ export function applyPalette(
   set(shared.uLitTop, palette.litTop);
   set(shared.uLitShade, palette.litShade);
   set(shared.uDeep, palette.deep);
+  set(shared.uGlow, palette.glow);
   // Edge ink by role: base lo, structure mid, detail lo, subject hi, lit.
   set(composite.uE0, palette.lo);
   set(composite.uE1, palette.mid);
@@ -184,6 +237,7 @@ uniform float uSpin;
 uniform float uIdBase;
 uniform float uInstanceStride;
 uniform float uPartIds;
+uniform float uShadowPass;
 out vec3 vNormal;
 out vec3 vWorld;
 flat out vec4 vPorts;
@@ -197,8 +251,11 @@ vec3 rotate(vec4 q, vec3 v) {
 
 void main() {
   float byte = floor(texelFetch(uParts, ivec2(int(_part), 0), 0).r * 255. + .5);
-  // Hidden parts (flat cards the game textures with alpha) collapse away.
-  if (byte >= 16.) {
+  // Hidden parts (flat cards the game textures with alpha) collapse away, and
+  // the bodies light comes from cast no shadow of it.
+  bool hidden = mod(floor(byte / 16.), 2.) > .5;
+  bool emitter = byte >= 32.;
+  if (hidden || (uShadowPass > .5 && emitter)) {
     gl_Position = vec4(2., 2., 2., 1.);
     return;
   }
@@ -222,7 +279,7 @@ void main() {
     p = pivot.xyz + rotate(q, p - pivot.xyz) + mix(o0, o1, t);
     n = rotate(q, n);
   }
-  if (byte >= 8.) {
+  if (mod(floor(byte / 8.), 2.) > .5) {
     float c = cos(uSpin), s = sin(uSpin);
     mat2 r = mat2(c, -s, s, c);
     p.xz = r * p.xz;
@@ -250,9 +307,28 @@ precision highp float;
 uniform vec3 uTop, uS0, uS1, uS2, uS3, uLitTop, uLitShade;
 uniform vec2 uLight;
 uniform float uLit;
+// A building that gives off light wakes its accents in the glow's colour.
+uniform float uGlowAccents;
 uniform float uSwatched;
 uniform vec3 uSwatches[4];
 uniform float uSeeThrough;
+// Lights: (position, reach), (an opening's normal and 1, or the sines of the
+// elevations a sphere's light leaves between and 0), (half size, level,
+// sphere radius).
+uniform vec4 uLightA[${MAX_LIGHTS}], uLightB[${MAX_LIGHTS}], uLightC[${MAX_LIGHTS}];
+uniform float uLightCount, uLightCell, uLightCover, uLightGain;
+// Shadow views: (origin, size of the glow it stands for), its light, and the
+// distance to the nearest surface in every direction from it, over the reach.
+uniform vec4 uViewA[${MAX_VIEWS}];
+uniform float uViewLight[${MAX_VIEWS}];
+uniform float uViewCount;
+uniform samplerCube uShadow0, uShadow1, uShadow2, uShadow3, uShadow4, uShadow5, uShadow6, uShadow7;
+// While drawing a light's shadows: where from, and its reach.
+uniform float uShadowPass;
+uniform vec4 uShadowFrom;
+uniform vec3 uGlow;
+// How far the line's power is on, 0–1: a glowing opening's fill follows it.
+uniform float uPower;
 // Halftone for see-through surfaces: the screen position of the world's
 // origin, the dot spacing and the share of each cell a dot covers.
 uniform vec2 uHalftoneOrigin;
@@ -282,6 +358,130 @@ vec3 toneOf(vec3 n) {
 }
 in vec3 vWorld;
 flat in vec4 vPorts;
+
+const float PI = 3.14159265;
+
+// The share of a surface's cosine-weighted view of the sky that a glowing
+// rectangle fills: its form factor, by Lambert's sum over the edges. With
+// the glow's own brightness this is exactly the light that falls there.
+float rectFactor(vec3 p, vec3 n, vec3 centre, vec3 right, vec3 up, vec2 size) {
+  vec3 v[4];
+  v[0] = normalize(centre - right * size.x - up * size.y - p);
+  v[1] = normalize(centre + right * size.x - up * size.y - p);
+  v[2] = normalize(centre + right * size.x + up * size.y - p);
+  v[3] = normalize(centre - right * size.x + up * size.y - p);
+  vec3 f = vec3(0.);
+  for (int i = 0; i < 4; i++) {
+    vec3 a = v[i];
+    vec3 b = v[(i + 1) % 4];
+    vec3 x = cross(a, b);
+    float l = length(x);
+    if (l > 1e-6) f += acos(clamp(dot(a, b), -1., 1.)) * x / l;
+  }
+  f /= 2. * PI;
+  // The winding decides the sign; the light comes from the face.
+  if (dot(f, centre - p) < 0.) f = -f;
+  return max(dot(f, n), 0.);
+}
+
+// A glowing sphere's form factor, while it stands clear of the horizon.
+float sphereFactor(vec3 p, vec3 n, vec3 centre, float radius) {
+  vec3 v = centre - p;
+  float d = max(length(v), radius);
+  return radius * radius / (d * d) * max(dot(n, v / d), 0.);
+}
+
+float shadowDistance(int i, vec3 dir) {
+  if (i == 0) return textureLod(uShadow0, dir, 0.).r;
+  if (i == 1) return textureLod(uShadow1, dir, 0.).r;
+  if (i == 2) return textureLod(uShadow2, dir, 0.).r;
+  if (i == 3) return textureLod(uShadow3, dir, 0.).r;
+  if (i == 4) return textureLod(uShadow4, dir, 0.).r;
+  if (i == 5) return textureLod(uShadow5, dir, 0.).r;
+  if (i == 6) return textureLod(uShadow6, dir, 0.).r;
+  return textureLod(uShadow7, dir, 0.).r;
+}
+
+// A look k of n around dir, out to radius: a golden-angle spiral.
+vec3 around(vec3 dir, vec3 t1, vec3 t2, int k, float n, float radius) {
+  float a = float(k) * 2.39996;
+  float r = sqrt((float(k) + .5) / n) * radius;
+  return dir + (t1 * cos(a) + t2 * sin(a)) * r;
+}
+
+// How much of a glow of the given size view i sees past what stands between: a
+// shadow as soft as the glow is wide and the blocker is far from p. First
+// find how far off the blockers stand, then average looks over the penumbra
+// they cast (percentage-closer soft shadows).
+float visibility(int i, vec3 p, vec3 n, vec3 from, float reach, float size) {
+  vec3 d = p + n * .04 - from;
+  float dist = length(d);
+  vec3 dir = d / dist;
+  vec3 t1 = normalize(cross(dir, abs(dir.y) < .9 ? vec3(0., 1., 0.) : vec3(1., 0., 0.)));
+  vec3 t2 = cross(dir, t1);
+  float own = dist - .03;
+  float search = min(size / dist, .6);
+  float blocker = 0.;
+  float blockers = 0.;
+  for (int k = 0; k < 8; k++) {
+    float b = shadowDistance(i, around(dir, t1, t2, k, 8., search)) * reach;
+    if (b < own) {
+      blocker += b;
+      blockers += 1.;
+    }
+  }
+  if (blockers < .5) return 1.;
+  blocker /= blockers;
+  // The penumbra's width at p, as an angle seen from the light.
+  float spread = min(size * (dist - blocker) / (max(blocker, .05) * dist), .6);
+  float seen = 0.;
+  for (int k = 0; k < 12; k++) {
+    seen += step(own, shadowDistance(i, around(dir, t1, t2, k, 12., spread)) * reach);
+  }
+  return seen / 12.;
+}
+
+// How much light falls on a surface at p facing n, 0–1: each glowing sphere
+// and opening face by its form factor, and by how much of it p sees, from
+// each point its shadows are seen from; exposed by uLightGain so the faint
+// far light still prints a few dots.
+float lightAt(vec3 p, vec3 n) {
+  float total = 0.;
+  for (int i = 0; i < ${MAX_LIGHTS}; i++) {
+    if (float(i) >= uLightCount) break;
+    vec4 a = uLightA[i];
+    vec4 b = uLightB[i];
+    vec4 c = uLightC[i];
+    if (c.z <= 0.) continue;
+    float factor;
+    if (b.w > .5) {
+      if (dot(p - a.xyz, b.xyz) < .01) continue;
+      vec3 right = vec3(-b.z, 0., b.x);
+      factor = rectFactor(p, n, a.xyz, right, vec3(0., 1., 0.), c.xy);
+    } else {
+      // Only out through the housing's band, softened at its edges.
+      float up = (p.y - a.y) / max(distance(p, a.xyz), 1e-4);
+      float band = smoothstep(b.x - .1, b.x, up) * (1. - smoothstep(b.y, b.y + .1, up));
+      factor = sphereFactor(p, n, a.xyz, c.w) * band;
+    }
+    if (factor <= 1e-4) continue;
+    float d = distance(p, a.xyz);
+    if (d >= a.w) continue;
+    // Past the shadows' reach the light is long faint; let it go gently.
+    float fade = 1. - smoothstep(a.w * .75, a.w, d);
+    float seen = 0.;
+    float views = 0.;
+    for (int v = 0; v < ${MAX_VIEWS}; v++) {
+      if (float(v) >= uViewCount) break;
+      if (abs(uViewLight[v] - float(i)) > .5) continue;
+      vec4 view = uViewA[v];
+      seen += visibility(v, p, n, view.xyz, a.w, view.w);
+      views += 1.;
+    }
+    total += c.z * factor * fade * seen / max(views, 1.);
+  }
+  return 1. - exp(-total * uLightGain);
+}
 
 // Signed distance to a rounded rectangle of the given half size, with corner
 // radius top above its middle and bottom below.
@@ -339,6 +539,14 @@ vec2 octEncode(vec3 n) {
 }
 
 void main() {
+  // A light's shadows: how far the nearest surface lies, over its reach.
+  // See-through surfaces cast none.
+  if (uShadowPass > .5) {
+    if (uSeeThrough > .5) discard;
+    oColor = vec4(distance(vWorld, uShadowFrom.xyz) / uShadowFrom.w, 0., 0., 1.);
+    oData = vec4(0.);
+    return;
+  }
   // Faint surfaces print as a halftone: round dots on a grid turned 45°,
   // sized for uHalftoneCover of each cell, anchored to the scene so they pan
   // with it. Only the dots are drawn; the rest shows what lies beneath.
@@ -368,14 +576,43 @@ void main() {
     c = b == 4 ? uTop : b == 0 ? uS0 : b == 1 ? uS1 : b == 2 ? uS2 : uS3;
   }
   float role = mod(vByte, 8.);
-  if (role > 3.5) {
-    if (uLit > .5) c = n.y > .55 ? uLitTop : uLitShade;
-    else role = 1.; // a sleeping accent inks like structure
+  bool accent = role > 3.5;
+  // An accent wakes with its machine: uLit eases between 0 and 1.
+  // The body a building's light comes from glows while the line has power.
+  float wake = vByte >= 32. ? uPower : uLit;
+  if (accent) {
+    vec3 awake = uGlowAccents > .5 ? uGlow : n.y > .55 ? uLitTop : uLitShade;
+    c = mix(c, awake, wake);
   }
   if (uSeeThrough > .5) role = SEE_THROUGH;
-  float fade = max(max(portFade(vPorts.x), portFade(vPorts.y)),
-    max(portFade(vPorts.z), portFade(vPorts.w)));
-  c = mix(c, mix(uDeep, toneOf(uPortFace), uPortTone), fade);
+  // Accents glow, so a port's dark never covers them; their upper bits carry
+  // how awake they are instead, for the ink pass.
+  // A port's opening darkens inward, unless its building glows through it:
+  // then it fills with the glow as far as that light is awake.
+  float dark = 0.;
+  float lit = 0.;
+  for (int k = 0; k < 4; k++) {
+    float f = portFade(vPorts[k]);
+    if (f <= 0.) continue;
+    float light = texelFetch(uPorts, ivec2(3, int(vPorts[k] + .5)), 0).z;
+    if (light > -.5) lit = max(lit, f * uPower);
+    else dark = max(dark, f);
+  }
+  // Ink sinks into a glowing opening as it does into a dark one.
+  float fade = accent ? wake : max(dark, lit);
+  if (!accent) c = mix(c, mix(uDeep, toneOf(uPortFace), uPortTone), dark);
+  c = mix(c, uGlow, lit);
+  // Light falling on surfaces prints as halftone dots in the glow's colour,
+  // denser where more falls.
+  if (uSeeThrough < .5) {
+    float light = lightAt(vWorld, n) * (1. - lit);
+    if (light > .01) {
+      vec2 q = (gl_FragCoord.xy - uHalftoneOrigin) / uLightCell;
+      q = mat2(.70710678, -.70710678, .70710678, .70710678) * q;
+      float radius = sqrt(light * clamp(uLightCover, 0., .78) / PI);
+      if (length(fract(q) - .5) < radius) c = uGlow;
+    }
+  }
   float id = vId + 1.;
   // Role in the low three bits, the port fade above, for the ink pass.
   oColor = vec4(c, (role + 8. * floor(fade * 31. + .5)) / 255.);
@@ -396,6 +633,8 @@ export interface SceneMaterialOptions {
   animation?: { texture: THREE.Texture; bones: number };
   /** See-through: prints as a halftone of dots and inks nothing. */
   faint?: boolean;
+  /** Accents wake in the glow's colour: the building gives off light. */
+  glowAccents?: boolean;
   /** Ports this mesh opens onto (up to four), by index. */
   ports?: readonly number[];
   /** Items: their ports come per instance, from `_ports`. */
@@ -425,6 +664,7 @@ export function createSceneMaterial(
     swatches,
     animation,
     faint = false,
+    glowAccents = false,
     ports = [],
     portsPerInstance = false,
   }: SceneMaterialOptions,
@@ -443,6 +683,7 @@ export function createSceneMaterial(
       uPartIds: { value: partIds ? 1 : 0 },
       uSpin: { value: 0 },
       uLit: { value: 0 },
+      uGlowAccents: { value: glowAccents ? 1 : 0 },
       uSwatched: { value: swatches ? 1 : 0 },
       uSwatches: { value: colours },
       uVat: { value: animation?.texture ?? NO_ANIMATION },
@@ -520,8 +761,11 @@ void main() {
   vec4 c = texelFetch(tColor, p, 0);
   float packed = floor(c.a * 255. + .5);
   float role = mod(packed, 8.);
-  // Inside a port, ink sinks into the dark with the surface.
-  float deep = floor(packed / 8.) / 31.;
+  float level = floor(packed / 8.) / 31.;
+  bool accent = role > 3.5 && role < 4.5;
+  // Inside a port, ink sinks into the dark with the surface; an accent's
+  // level is instead how awake it is.
+  float deep = accent ? 0. : level;
   // See-through pixels show their tone and take no ink.
   if (role > 4.5) {
     oColor = vec4(c.rgb, 1.);
@@ -552,7 +796,7 @@ void main() {
       }
     }
   }
-  vec3 e = role < .5 ? uE0 : role < 1.5 ? uE1 : role < 2.5 ? uE2 : role < 3.5 ? uE3 : uE4;
+  vec3 e = role < .5 ? uE0 : role < 1.5 ? uE1 : role < 2.5 ? uE2 : role < 3.5 ? uE3 : mix(uE1, uE4, level);
   e = mix(e, c.rgb, deep);
   // Footing and small details ink lighter as the picture gets smaller.
   float weight = (role < .5 || (role > 1.5 && role < 2.5)) ? uDetail : 1.;

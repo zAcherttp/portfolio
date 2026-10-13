@@ -482,7 +482,7 @@ async function paintSwatches(doc, model, swatches = 4) {
  * centre through TEXCOORD_0), giving them vertices of their own so they make
  * parts of their own. Returns 1 per vertex of a lit face.
  */
-function splitGlow(prim, { mask, channel }, eligible = () => true) {
+function splitGlow(prim, { mask, channel, dark }, eligible = () => true) {
   const png = decode(readFileSync(joinPath(root, mask)));
   const max = 2 ** png.depth - 1;
   const lit = (u, v) => {
@@ -492,6 +492,7 @@ function splitGlow(prim, { mask, channel }, eligible = () => true) {
     return png.data[(y * png.width + x) * png.channels + channel] / max > 0.5;
   };
   const uv = prim.getAttribute("TEXCOORD_0");
+  const position = prim.getAttribute("POSITION");
   const indices = prim.getIndices();
   const index = Array.from(indices.getArray());
   const count = prim.getAttribute("POSITION").getCount();
@@ -507,6 +508,15 @@ function splitGlow(prim, { mask, channel }, eligible = () => true) {
       v += e[1] / 3;
     }
     if (!lit(u, v)) continue;
+    // Faces the model keeps dark, by their middle, stay with their part.
+    if (dark) {
+      const middle = [0, 0, 0];
+      for (let k = 0; k < 3; k++) {
+        position.getElement(index[t + k], e);
+        for (let c = 0; c < 3; c++) middle[c] += e[c] / 3;
+      }
+      if (dark(middle)) continue;
+    }
     for (let k = 0; k < 3; k++) {
       const from = index[t + k];
       if (!copies.has(from)) copies.set(from, count + copies.size);
@@ -673,7 +683,9 @@ for (const model of MODELS) {
       max: part.max.map((v) => +v.toFixed(3)),
     };
     // Glowing faces are the lit accent, whatever else the part would be.
-    bytes[id] = box.glow ? (model.role(box) & ~7) | LIT : model.role(box);
+    bytes[id] = box.glow
+      ? (model.role(box) & ~7) | (model.glowTone ?? LIT)
+      : model.role(box);
     debug.push({ ...box, verts: part.verts.length, byte: bytes[id] });
   });
   prim.setAttribute(

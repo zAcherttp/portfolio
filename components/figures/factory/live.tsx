@@ -73,6 +73,7 @@ function readPalette(el: HTMLElement): Palette {
     lo: token("lo"),
     lit: token("lit"),
     deep: token("deep"),
+    glow: token("glow"),
   };
 }
 

@@ -69,6 +69,20 @@ const GROUPS: readonly { name: string; controls: readonly Control[] }[] = [
       },
     ],
   },
+  {
+    name: "Light",
+    controls: [
+      { key: "lightCell", label: "Dot spacing px", min: 2, max: 16, step: 1 },
+      {
+        key: "lightCover",
+        label: "Strength",
+        min: 0.05,
+        max: 0.78,
+        step: 0.01,
+      },
+      { key: "lightGain", label: "Exposure", min: 2, max: 80, step: 1 },
+    ],
+  },
 ];
 
 const SPEEDS = [0.5, 1, 2, 4, 8] as const;

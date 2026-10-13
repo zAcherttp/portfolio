@@ -3,6 +3,7 @@ import {
   BELT_BEND,
   BUILDINGS,
   layoutFactory,
+  lightsOf,
   lineSpec,
   pointOnBelt,
   portOf,
@@ -13,6 +14,7 @@ import {
 import {
   createLine,
   deliveredRate,
+  flashLevel,
   type Line,
   RECIPES,
   recipeRate,
@@ -278,5 +280,50 @@ describe("screw factory layout", () => {
     expect(Math.abs(previous - pointOnBelt(belt, 0).yaw)).toBeCloseTo(
       Math.PI / 2,
     );
+  });
+});
+
+describe("depot light", () => {
+  it("flashes with each upload and goes dark without them", () => {
+    const line = screwFactory();
+    expect(flashLevel(line)).toBe(0);
+    line.time = 10;
+    line.arrivals.push(10);
+    expect(flashLevel(line)).toBe(0);
+    line.time = 10.1;
+    const peak = flashLevel(line);
+    expect(peak).toBeGreaterThan(0.5);
+    line.time = 11;
+    expect(flashLevel(line)).toBeLessThan(peak * 0.1);
+    line.time = 20;
+    expect(flashLevel(line)).toBe(0);
+  });
+
+  it("glows out of the uploader's entrance, facing out of it", () => {
+    const layout = layoutFactory();
+    const depot = layout.buildings.findIndex((b) => b.kind === "depot");
+    const opening = {
+      wall: 0.2,
+      rim: 0.6,
+      center: 0,
+      halfWidth: 0.7,
+      floor: 0,
+      top: 1.2,
+      radiusTop: 0,
+      radiusBottom: 0,
+    };
+    const lights = lightsOf(layout, (b) =>
+      b.kind === "depot" ? { in: opening } : undefined,
+    );
+    const entrance = lights.find((l) => l.kind === "opening");
+    expect(entrance?.building).toBe(depot);
+    expect(entrance?.on).toBe("upload");
+    const port = portOf(layout.buildings[depot], "in");
+    const [nx, , nz] = entrance?.normal ?? [0, 0, 0];
+    const [px, , pz] = entrance?.position ?? [0, 0, 0];
+    // Out from the port to the back wall, along the normal.
+    expect((px - port[0]) * nx + (pz - port[2]) * nz).toBeCloseTo(0.2);
+    expect(entrance?.position[1]).toBeCloseTo(port[1] + 0.6);
+    expect(lights.find((l) => l.kind === "sphere")?.on).toBe("power");
   });
 });

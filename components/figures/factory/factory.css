@@ -14,6 +14,8 @@
   --anatomy-lit: #ffffff;
   /* Inside a port: what belts and items fade into as they go in. */
   --anatomy-deep: #0b0b0b;
+  /* The uploader's glow, and the halftone light it throws. */
+  --anatomy-glow: #e48cff;
   --anatomy-green: #6be0a0;
   --anatomy-red: #ff6b6b;
 }
@@ -31,6 +33,7 @@
   --anatomy-lo: #b4b4b8;
   --anatomy-lit: #000000;
   --anatomy-deep: #cfcfcb;
+  --anatomy-glow: #b24fdb;
   --anatomy-green: #30a46c;
   --anatomy-red: #e5484d;
 }

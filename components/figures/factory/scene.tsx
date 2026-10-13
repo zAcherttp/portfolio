@@ -20,9 +20,11 @@ import {
   type BeltPath,
   BUILDINGS,
   type FactoryLayout,
+  lightsOf,
   type ModelName,
   pointOnBelt,
   portVolumes,
+  shadowViews,
 } from "./layout";
 import { DEFAULT_LOOK, type FactoryLook, lookStrengths } from "./look";
 import { loadModels, type Model } from "./models";
@@ -36,10 +38,12 @@ import {
   createSceneMaterial,
   createSceneTarget,
   createSharedUniforms,
+  MAX_LIGHTS,
+  MAX_VIEWS,
   type Palette,
   type SharedUniforms,
 } from "./shaders";
-import { type ItemKind, type Line, stepLine } from "./sim";
+import { flashLevel, type ItemKind, type Line, stepLine } from "./sim";
 import { frameBox, lightFromLeft, viewBasis } from "./view";
 
 const ITEM_KINDS: readonly ItemKind[] = ["ore", "ingot", "screw"];
@@ -50,6 +54,21 @@ const SLOW_FRAME = 1 / 40;
 const FAST_FRAME = 1 / 55;
 /** Drill turns per second while the miner works. */
 const DRILL_SPEED = Math.PI * 0.8;
+/** Seconds a machine's accents take to wake, and to fall asleep. */
+const WAKE_UP = 0.25;
+const WAKE_DOWN = 0.6;
+/** Texels along each face of a light's shadow cube. */
+const SHADOW_SIZE = 256;
+const SHADOW_MAPS = [
+  "uShadow0",
+  "uShadow1",
+  "uShadow2",
+  "uShadow3",
+  "uShadow4",
+  "uShadow5",
+  "uShadow6",
+  "uShadow7",
+] as const;
 
 /** Position and heading `s` metres along a polyline. */
 function sample(
@@ -165,7 +184,42 @@ function buildScene(
     layout,
     (b) => model(BUILDINGS[b.kind].model).openings,
   );
-  shared.uPorts.value = createPortTexture(doors.ports);
+  // Lights the buildings give off; an opening that glows takes its light.
+  const lights = lightsOf(
+    layout,
+    (b) => model(BUILDINGS[b.kind].model).openings,
+  ).slice(0, MAX_LIGHTS);
+  lights.forEach((light, i) => {
+    shared.uLightA.value[i].set(...light.position, light.reach);
+    // A face's facing; a sphere's band, as sines of its elevations.
+    const [low, high] = light.band.map((deg) =>
+      Math.sin((deg * Math.PI) / 180),
+    );
+    if (light.kind !== "sphere")
+      shared.uLightB.value[i].set(...light.normal, 1);
+    else shared.uLightB.value[i].set(low, high, 0, 0);
+    shared.uLightC.value[i].set(
+      light.halfWidth,
+      light.halfHeight,
+      0,
+      light.radius,
+    );
+  });
+  shared.uLightCount.value = lights.length;
+  const views = shadowViews(lights).slice(0, MAX_VIEWS);
+  views.forEach((view, v) => {
+    shared.uViewA.value[v].set(...view.origin, view.size);
+    shared.uViewLight.value[v] = view.light;
+  });
+  shared.uViewCount.value = views.length;
+  shared.uPorts.value = createPortTexture(
+    doors.ports.map((port) => ({
+      ...port,
+      light: lights.findIndex(
+        (l) => l.building === port.building && l.port === port.name,
+      ),
+    })),
+  );
 
   // Foundations: every tile keeps its own part ids so seams ink. Tiles under
   // a building on its node are drawn faint, so the node shows through.
@@ -201,6 +255,7 @@ function buildScene(
       idBase: take(m.partCount),
       animation: m.animation,
       ports: doors.byBuilding[i],
+      glowAccents: Boolean(BUILDINGS[b.kind].lights),
     });
     players.push(m.animation ? startPlayer(m.animation.clips) : null);
     layers.push(m.animation?.layer ? startLayer() : null);
@@ -218,12 +273,9 @@ function buildScene(
     return mat;
   });
 
-  // Belts: their rail lights glow while the line has power.
-  const beltMaterials = layout.belts.map((path, i) => {
+  layout.belts.forEach((path, i) => {
     const m = model(path.tier === "mk3" ? "belt-mk3" : "belt");
-    const mat = material(m, doors.byBelt[i]);
-    root.add(new THREE.Mesh(sweepBelt(path, m), mat));
-    return mat;
+    root.add(new THREE.Mesh(sweepBelt(path, m), material(m, doors.byBelt[i])));
   });
 
   // Items: one instanced mesh per kind, sized for every belt that carries it.
@@ -264,7 +316,10 @@ function buildScene(
   return {
     root,
     buildingMaterials,
-    beltMaterials,
+    wake: layout.buildings.map(() => 0),
+    power: 0,
+    lights,
+    views,
     items,
     players,
     layers,
@@ -319,6 +374,33 @@ function Factory({
     () => buildScene(models, layout, line, shared),
     [models, layout, line, shared],
   );
+
+  // Each shadow view keeps a cube of distances to what it sees.
+  const shadows = useMemo(() => {
+    const floats = gl.extensions.has("EXT_color_buffer_float");
+    return scene.views.map((view) => {
+      const { reach } = scene.lights[view.light];
+      const target = new THREE.WebGLCubeRenderTarget(SHADOW_SIZE, {
+        type: floats ? THREE.HalfFloatType : THREE.UnsignedByteType,
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        generateMipmaps: false,
+      });
+      const camera = new THREE.CubeCamera(0.02, reach, target);
+      camera.position.set(...view.origin);
+      camera.updateMatrixWorld();
+      return { target, camera, reach, light: view.light };
+    });
+  }, [gl, scene]);
+  useEffect(() => {
+    shadows.forEach((shadow, i) => {
+      shared[SHADOW_MAPS[i]].value = shadow.target.texture;
+    });
+    invalidate();
+    return () => {
+      for (const shadow of shadows) shadow.target.dispose();
+    };
+  }, [shadows, shared, invalidate]);
 
   const composite = useMemo(() => {
     const quad = new THREE.Mesh(
@@ -519,12 +601,17 @@ function Factory({
     const miner = line.nodes[0];
     if (running && miner?.status === "working")
       spin.current += dt * DRILL_SPEED;
-    for (const material of scene.beltMaterials) {
-      material.uniforms.uLit.value = line.powered ? 1 : 0;
-    }
     scene.buildingMaterials.forEach((material, i) => {
       const working = line.nodes[i]?.status === "working";
-      material.uniforms.uLit.value = working ? 1 : 0;
+      // Wake and sleep ease: up in about a quarter second, down slower.
+      const target = working ? 1 : 0;
+      const level = scene.wake[i];
+      const rate = target > level ? 1 / WAKE_UP : 1 / WAKE_DOWN;
+      scene.wake[i] =
+        target > level
+          ? Math.min(target, level + dt * rate)
+          : Math.max(target, level - dt * rate);
+      material.uniforms.uLit.value = scene.wake[i];
       material.uniforms.uSpin.value = spin.current;
       // Baked machine animation follows the machine's state.
       const animation = scene.animations[i];
@@ -557,6 +644,28 @@ function Factory({
           material.uniforms.uLayerMix.value = over.mix;
         }
       }
+    });
+
+    // A glowing opening stays filled while the line has power; the light it
+    // casts flashes with each upload all the same.
+    const powered = line.powered ? 1 : 0;
+    // Still frames draw only on demand, so there it settles at once.
+    if (!running) scene.power = powered;
+    else if (powered > scene.power)
+      scene.power = Math.min(1, scene.power + dt / WAKE_UP);
+    else scene.power = Math.max(0, scene.power - dt / WAKE_DOWN);
+    shared.uPower.value = scene.power;
+
+    // Lights glow while their building works, flash with each upload, or
+    // stay on with the power.
+    scene.lights.forEach((light, l) => {
+      shared.uLightC.value[l].z =
+        light.strength *
+        (light.on === "upload"
+          ? flashLevel(line)
+          : light.on === "power"
+            ? scene.power
+            : scene.wake[light.building]);
     });
 
     for (const mesh of scene.items.values()) mesh.count = 0;
@@ -617,7 +726,29 @@ function Factory({
       ((origin.y + 1) / 2) * h,
     );
     shared.uHalftoneCell.value = look.halftoneCell * scale;
+    shared.uLightCell.value = look.lightCell * scale;
+    shared.uLightCover.value = look.lightCover;
+    shared.uLightGain.value = look.lightGain;
     shared.uHalftoneCover.value = look.halftoneCover;
+    // Shadows first, from every light that is on: the items move, so again
+    // each frame. Clear to the far end of each light's reach.
+    const on = (shadow: (typeof shadows)[number]) =>
+      shared.uLightC.value[shadow.light].z > 0;
+    if (shadows.some(on)) {
+      const autoClear = renderer.autoClear;
+      renderer.autoClear = true;
+      renderer.setClearColor(0xffffff, 1);
+      shared.uShadowPass.value = 1;
+      shadows.forEach((shadow) => {
+        if (!on(shadow)) return;
+        const { x, y, z } = shadow.camera.position;
+        shared.uShadowFrom.value.set(x, y, z, shadow.reach);
+        shadow.camera.update(renderer, scene.root);
+      });
+      shared.uShadowPass.value = 0;
+      renderer.autoClear = autoClear;
+    }
+
     renderer.setRenderTarget(target);
     renderer.setClearColor(0x000000, 0);
     renderer.clear(true, true, true);

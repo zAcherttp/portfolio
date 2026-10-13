@@ -55,6 +55,44 @@ export interface Opening {
   radiusBottom: number;
 }
 
+/**
+ * When a light is on: while its building works, flashing with each upload,
+ * or whenever the line has power.
+ */
+export type LightOn = "work" | "upload" | "power";
+
+/**
+ * A light a building gives off, in its own frame: a glowing sphere, the face
+ * of one of its openings, or a glowing panel. `reach` is as far as its
+ * shadows are kept, metres; the light itself falls off with distance as light
+ * does. `on` says when it is lit, while the building works unless given;
+ * `strength` dims a glow beside the others.
+ */
+export type LightSpec = (
+  | {
+      kind: "sphere";
+      at: Vec3;
+      radius: number;
+      reach: number;
+      /**
+       * Like a lighthouse's lamp, the housing lets it out only between these
+       * elevations, degrees above level.
+       */
+      band?: readonly [number, number];
+    }
+  | { kind: "opening"; port: string; reach: number }
+  | {
+      kind: "panel";
+      /** The panel's middle, its outward facing (level) and half size. */
+      at: Vec3;
+      normal: Vec3;
+      halfWidth: number;
+      halfHeight: number;
+      reach: number;
+      strength?: number;
+    }
+) & { on?: LightOn };
+
 interface BuildingSpec {
   model: ModelName;
   /** Ports in the building's local frame. */
@@ -72,6 +110,8 @@ interface BuildingSpec {
   recipe?: Recipe;
   /** Seconds of power before its first craft. */
   startup?: number;
+  /** Lights it gives off while it works. */
+  lights?: readonly LightSpec[];
 }
 
 export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
@@ -103,6 +143,34 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-2.5, -4.7, 2.5, 5.2],
     height: 6,
     recipe: RECIPES.upload,
+    lights: [
+      // The Mercer sphere inside the top cap: the rings' centre, where
+      // Build_CentralStorage's MainMesh places them; SM_Mercer_Rings'
+      // 0.91 m sphere at the blueprint's 0.54 scale.
+      // Its light leaves sideways, between the collar and the cap.
+      {
+        kind: "sphere",
+        at: [0, 3.55, -1.09],
+        radius: 0.49,
+        reach: 8,
+        band: [-12, 25],
+        on: "power",
+      },
+      // The upload slot flashes out through the entrance as screws go up.
+      { kind: "opening", port: "in", reach: 8, on: "upload" },
+      // The windows down either side glow softly.
+      ...([1, -1] as const).map(
+        (side): LightSpec => ({
+          kind: "panel",
+          at: [side * 1.34, 2.21, 1.73],
+          normal: [side, 0, 0],
+          halfWidth: 0.78,
+          halfHeight: 0.29,
+          reach: 5,
+          strength: 0.35,
+        }),
+      ),
+    ],
   },
   splitter: {
     model: "splitter",
@@ -673,6 +741,9 @@ export function pointOnBelt(belt: BeltPath, t: number): BeltPoint {
 }
 
 export interface PortVolume extends Opening {
+  /** The building it opens through, by index, and the port's name. */
+  building: number;
+  name: string;
   /** The port, at belt height. */
   origin: Vec3;
   /** Level unit direction out of the building through the port. */
@@ -705,6 +776,8 @@ export function portVolumes(
       const length = Math.hypot(x, z) || 1;
       ports.push({
         ...opening,
+        building: i,
+        name,
         origin: portOf(b, name),
         outward: [x / length, 0, z / length],
       });
@@ -719,4 +792,160 @@ export function portVolumes(
       [at(belt.from, belt.ports[0]), at(belt.to, belt.ports[1])] as const,
   );
   return { ports, byBuilding, byBelt };
+}
+
+export interface Light {
+  kind: "sphere" | "opening" | "panel";
+  /** The building that gives it off, by index. */
+  building: number;
+  /**
+   * A sphere's centre, a panel's middle, or the middle of an opening at its
+   * back wall: the glow fills the opening from there, so its light does too.
+   */
+  position: Vec3;
+  reach: number;
+  /** An opening's or panel's outward facing; level. */
+  normal: Vec3;
+  /** An opening's or panel's half width and half height. */
+  halfWidth: number;
+  halfHeight: number;
+  /** A sphere's radius. */
+  radius: number;
+  /** Elevations, degrees above level, a sphere's light leaves between. */
+  band: readonly [number, number];
+  /** When it is lit. */
+  on: LightOn;
+  /** How bright beside the building's other lights, 0–1. */
+  strength: number;
+  /** The port an opening light glows through. */
+  port?: string;
+}
+
+/** Every light the layout's buildings give off, placed in the world. */
+export function lightsOf(
+  layout: FactoryLayout,
+  openingsOf: (building: PlacedBuilding) => Record<string, Opening> | undefined,
+): Light[] {
+  return layout.buildings.flatMap((b, i) =>
+    (BUILDINGS[b.kind].lights ?? []).flatMap((spec): Light[] => {
+      if (spec.kind === "sphere") {
+        const [x, y, z] = rotate(spec.at, b.yaw);
+        return [
+          {
+            kind: "sphere",
+            building: i,
+            position: [b.position[0] + x, b.position[1] + y, b.position[2] + z],
+            reach: spec.reach,
+            normal: [0, 0, 0],
+            halfWidth: 0,
+            halfHeight: 0,
+            radius: spec.radius,
+            band: spec.band ?? [-90, 90],
+            on: spec.on ?? "work",
+            strength: 1,
+          },
+        ];
+      }
+      if (spec.kind === "panel") {
+        const [x, y, z] = rotate(spec.at, b.yaw);
+        return [
+          {
+            kind: "panel",
+            building: i,
+            position: [b.position[0] + x, b.position[1] + y, b.position[2] + z],
+            reach: spec.reach,
+            normal: rotate(spec.normal, b.yaw),
+            halfWidth: spec.halfWidth,
+            halfHeight: spec.halfHeight,
+            radius: 0,
+            band: [-90, 90],
+            on: spec.on ?? "work",
+            strength: spec.strength ?? 1,
+          },
+        ];
+      }
+      const opening = openingsOf(b)?.[spec.port];
+      if (!opening) return [];
+      const local = BUILDINGS[b.kind].ports[spec.port];
+      const [lx, , lz] = rotate(local, b.yaw);
+      const length = Math.hypot(lx, lz) || 1;
+      const out: Vec3 = [lx / length, 0, lz / length];
+      const right: Vec3 = [-out[2], 0, out[0]];
+      const [ox, oy, oz] = portOf(b, spec.port);
+      const lift = (opening.floor + opening.top) / 2;
+      return [
+        {
+          kind: "opening",
+          building: i,
+          position: [
+            ox + out[0] * opening.wall + right[0] * opening.center,
+            oy + lift,
+            oz + out[2] * opening.wall + right[2] * opening.center,
+          ],
+          reach: spec.reach,
+          normal: out,
+          halfWidth: opening.halfWidth,
+          halfHeight: (opening.top - opening.floor) / 2,
+          radius: 0,
+          band: [-90, 90],
+          on: spec.on ?? "work",
+          strength: 1,
+          port: spec.port,
+        },
+      ];
+    }),
+  );
+}
+
+/** A point a light's shadows are seen from, standing for part of its glow. */
+export interface ShadowView {
+  /** The light, by index. */
+  light: number;
+  origin: Vec3;
+  /** Half the width of the part of the glow it stands for, metres. */
+  size: number;
+}
+
+/** How far out from an opening's face its shadows are seen, clear of it. */
+const SHADOW_LIFT = 0.05;
+
+/**
+ * Where each light's shadows are seen from. A sphere is small beside what it
+ * lights: its centre will do, and so will a dim panel's middle, just out from
+ * it. An opening is not: an item on the belt hides its lower half and not its
+ * upper, so it is seen from the middle of each quarter of its face.
+ */
+export function shadowViews(lights: readonly Light[]): ShadowView[] {
+  return lights.flatMap((light, i): ShadowView[] => {
+    if (light.kind === "sphere") {
+      return [{ light: i, origin: light.position, size: light.radius }];
+    }
+    const [nx, , nz] = light.normal;
+    const [x, y, z] = light.position;
+    if (light.kind === "panel") {
+      return [
+        {
+          light: i,
+          origin: [x + nx * SHADOW_LIFT, y, z + nz * SHADOW_LIFT],
+          size: Math.max(light.halfWidth, light.halfHeight),
+        },
+      ];
+    }
+    const w = light.halfWidth / 2;
+    const h = light.halfHeight / 2;
+    return [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ].map(([u, v]) => ({
+      light: i,
+      origin: [
+        x + nx * SHADOW_LIFT - nz * u * w,
+        y + v * h,
+        z + nz * SHADOW_LIFT + nx * u * w,
+      ],
+      size: Math.max(w, h),
+    }));
+  });
 }

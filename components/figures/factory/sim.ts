@@ -322,6 +322,26 @@ export function deliveredRate(line: Line) {
   return (line.arrivals.length / window) * 60;
 }
 
+/** Seconds a flash takes to rise, and to fall to a third. */
+const FLASH_RISE = 0.06;
+const FLASH_FALL = 0.25;
+
+/**
+ * How bright a light that flashes with each upload is now, 0–1: every
+ * arrival rises quickly, then dies away; overlapping flashes add up.
+ */
+export function flashLevel(line: Line) {
+  let level = 0;
+  for (let i = line.arrivals.length - 1; i >= 0; i--) {
+    const age = line.time - line.arrivals[i];
+    if (age < 0) continue;
+    if (age > FLASH_FALL * 6) break;
+    const rise = Math.min(1, age / FLASH_RISE);
+    level += rise * rise * (3 - 2 * rise) * Math.exp(-age / FLASH_FALL);
+  }
+  return Math.min(1, level);
+}
+
 /** Items per minute a recipe makes (or a sink takes) at a clock speed. */
 export function recipeRate(recipe: Recipe, clock = 1) {
   const stack = recipe.output ?? recipe.input;

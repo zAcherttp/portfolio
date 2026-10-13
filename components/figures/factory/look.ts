@@ -27,6 +27,12 @@ export interface FactoryLook {
   halftoneCell: number;
   /** Share of each halftone cell a dot covers, 0–0.78. */
   halftoneCover: number;
+  /** Spacing of the halftone dots that light prints, CSS pixels. */
+  lightCell: number;
+  /** Share of a cell a dot covers in full light, 0–0.78. */
+  lightCover: number;
+  /** Exposure on the light that falls: higher prints dots further out. */
+  lightGain: number;
 }
 
 export const DEFAULT_LOOK: FactoryLook = {
@@ -42,6 +48,9 @@ export const DEFAULT_LOOK: FactoryLook = {
   portTone: 1,
   halftoneCell: 2,
   halftoneCover: 0.2,
+  lightCell: 2,
+  lightCover: 0.5,
+  lightGain: 10,
 };
 
 /** Creases and details fade in between 40% and 100% of `fadeScale`. */

@@ -10,7 +10,7 @@
 //
 // Roles: 0 base, 1 structure, 2 detail, 3 subject (the belt items), 4 lit (the
 // accent that wakes when the machine runs). SPIN marks parts that turn around
-// the model's y axis.
+// the model's y axis; EMITTER the glowing body a building's light comes from.
 
 const BUILD = "FactoryGame/Content/FactoryGame/Buildable/Factory";
 const RES = "FactoryGame/Content/FactoryGame/Resource";
@@ -33,6 +33,8 @@ export const LIT = 4;
 export const SPIN = 8;
 /** Flat cards the game textures with alpha; drawn as geometry they are slabs. */
 export const HIDDEN = 16;
+/** Where a building's light comes from: it casts no shadow of that light. */
+export const EMITTER = 32;
 
 const size = (p) => p.max.map((v, i) => v - p.min[i]);
 const diagonal = (p) => Math.hypot(...size(p));
@@ -140,7 +142,15 @@ export const MODELS = [
   },
   {
     name: "depot",
-    glow: FACTORY_GLOW,
+    glow: {
+      ...FACTORY_GLOW,
+      // The shared mask also lights the cradle round the sphere, a patch on
+      // its cap and slivers of the frame's corners; on the uploader only the
+      // sphere glows up there, and the corners are plain frame.
+      dark: ([x, y, z]) =>
+        (y > 2.8 && y < 4.2 && Math.abs(x) < 1.2 && z > -1.7 && z < 0) ||
+        (Math.abs(x) > 1.5 && Math.abs(z) > 3.6),
+    },
     components: [
       // Build_CentralStorage: the uploader body faces back, input on +z.
       {
@@ -158,10 +168,12 @@ export const MODELS = [
       },
     ],
     // Glows in the game: the windows and the encapsulated Mercer sphere
-    // (component 1). The input frame inks like the rest of the body.
+    // (component 1), which is where the depot's light comes from. The input
+    // frame inks like the rest of the body.
     role: (p) => {
       if (p.component === 1 && size(p)[1] < 0.05) return HIDDEN;
-      if (p.emissive || p.component === 1) return LIT;
+      if (p.component === 1) return LIT | EMITTER;
+      if (p.emissive) return LIT;
       return generic(p, 0.5);
     },
   },
@@ -201,7 +213,9 @@ export const MODELS = [
       mask: `${BUILD}/ConveyorBeltMk1/Texture/TX_ConveyorBeltMk1_MREO.png`,
       channel: 2,
     },
-    role: (p) => (p.glow ? LIT : STRUCTURE),
+    // Lamps along every belt: `hi`, so they read without taking the accent.
+    glowTone: SUBJECT,
+    role: () => STRUCTURE,
   },
   {
     name: "belt-mk3",
@@ -212,7 +226,9 @@ export const MODELS = [
       mask: `${BUILD}/ConveyorBeltMk3/Texture/TX_ConveyorBeltMk3_MREO.png`,
       channel: 2,
     },
-    role: (p) => (p.glow ? LIT : STRUCTURE),
+    // Lamps along every belt: `hi`, so they read without taking the accent.
+    glowTone: SUBJECT,
+    role: () => STRUCTURE,
   },
   {
     name: "foundation",
