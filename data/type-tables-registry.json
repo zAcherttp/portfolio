@@ -366,7 +366,7 @@
         {
           "name": "title",
           "required": false,
-          "description": "Accessible title announced for the generated SVG.",
+          "description": "Accessible name for the SVG, without a browser-native hover tooltip.",
           "highlightedType": {
             "type": "root",
             "children": [

@@ -79,7 +79,9 @@ describe("ActivityGrid", () => {
   it("renders its calculated geometry, title, labels, and cells", () => {
     renderGrid();
 
-    const svg = screen.getByTitle("Test activity").closest("svg");
+    const svg = screen.getByRole("img", { name: "Test activity" });
+    // A root SVG title creates a second, browser-owned hover tooltip.
+    expect(svg.querySelector(":scope > title")).toBeNull();
     expect(svg).toHaveAttribute("viewBox", "0 0 22 26");
     expect(svg?.parentElement).toHaveStyle({ minWidth: "22px" });
     expect(screen.getByTestId("labels")).toHaveTextContent("Days");
