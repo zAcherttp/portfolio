@@ -75,9 +75,10 @@ test.describe("contribution graph", () => {
     test(`fills the available width in ${route}`, async ({ page }) => {
       await page.goto(route);
       const graph = page
-        .locator('svg:has(> title:text-is("Contribution Graph"))')
+        .getByRole("img", { name: "Contribution Graph", exact: true })
         .first();
       await expect(graph).toBeVisible();
+      await expect(graph.locator("title")).toHaveCount(0);
       const viewport = graph.locator(
         "xpath=ancestor::div[contains(@class, 'overflow-x-auto')][1]",
       );
@@ -193,114 +194,127 @@ test.describe("contribution graph", () => {
     await expect(tooltip).toContainText("8 contributions on");
   });
 
-  test("aligns the highlight after pinch zoom and visual viewport panning", async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "chromium",
-      "Chromium exposes pinch emulation through CDP.",
-    );
-    await page.setViewportSize({ width: 1280, height: 960 });
-    await page.goto("/dev/components/contribution-graph");
-    const cell = page
-      .getByTestId("fixture-stage")
-      .locator('rect[data-date="2025-08-12"]');
-    await expect(cell).toBeVisible();
-    const session = await page.context().newCDPSession(page);
-    await session.send("Emulation.setDeviceMetricsOverride", {
-      width: 1280,
-      height: 960,
-      deviceScaleFactor: 1,
-      mobile: true,
-    });
-    await session.send("Emulation.setTouchEmulationEnabled", {
-      enabled: true,
-      maxTouchPoints: 2,
-    });
-    await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ x: 500, y: 400 }],
-    });
-    for (let step = 1; step <= 6; step++) {
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x: 500 - step * 25, y: 400 - step * 15 }],
-      });
-      await page.evaluate(
-        () =>
-          new Promise<void>((resolve) =>
-            requestAnimationFrame(() => resolve()),
-          ),
+  for (const scale of [2, 5]) {
+    test(`aligns the highlight after ${scale * 100}% pinch zoom and visual viewport panning`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(
+        testInfo.project.name !== "chromium",
+        "Chromium exposes pinch emulation through CDP.",
       );
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-    await expect
-      .poll(() => page.evaluate(() => window.visualViewport?.offsetLeft ?? 0))
-      .toBeGreaterThan(0);
-    let previousViewport: { left: number; top: number } | undefined;
-    await expect
-      .poll(async () => {
-        const next = await page.evaluate(() => ({
-          left: window.visualViewport?.offsetLeft ?? 0,
-          top: window.visualViewport?.offsetTop ?? 0,
-        }));
-        const settled =
-          previousViewport?.left === next.left &&
-          previousViewport.top === next.top;
-        previousViewport = next;
-        return settled;
-      })
-      .toBe(true);
-    const point = await cell.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      const viewport = window.visualViewport;
-      return {
-        x: rect.left + rect.width / 2 - (viewport?.offsetLeft ?? 0),
-        y: rect.top + rect.height / 2 - (viewport?.offsetTop ?? 0),
-      };
-    });
-    await page.mouse.move(point.x, point.y);
-    const tooltip = page.getByRole("tooltip");
-    await expect(tooltip).toHaveText("6 contributions on Aug 12, 2025");
-    await expect(tooltip).toHaveCSS("opacity", "1");
-    const highlight = page.locator('[data-slot="floating-tooltip-highlight"]');
-    await expect(highlight).toHaveCSS("opacity", "1");
-    await expect
-      .poll(async () => {
-        const [cellBox, highlightBox] = await Promise.all([
-          cell.boundingBox(),
-          highlight.boundingBox(),
-        ]);
-        if (!cellBox || !highlightBox) return Number.POSITIVE_INFINITY;
-        return Math.max(
-          Math.abs(cellBox.x - highlightBox.x),
-          Math.abs(cellBox.y - highlightBox.y),
-          Math.abs(cellBox.width - highlightBox.width),
-          Math.abs(cellBox.height - highlightBox.height),
-        );
-      })
-      .toBeLessThan(1);
-    await expect
-      .poll(() =>
-        tooltip.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          const viewport = window.visualViewport;
-          if (!viewport) return false;
-          return (
-            rect.left >= viewport.offsetLeft &&
-            rect.top >= viewport.offsetTop &&
-            rect.right <= viewport.offsetLeft + viewport.width &&
-            rect.bottom <= viewport.offsetTop + viewport.height
+      await page.setViewportSize({ width: 1280, height: 960 });
+      await page.goto("/dev/components/contribution-graph");
+      const cell = page
+        .getByTestId("fixture-stage")
+        .locator('rect[data-date="2025-08-12"]');
+      await expect(cell).toBeVisible();
+      const graph = page.getByRole("img", {
+        name: "Contribution Graph",
+        exact: true,
+      });
+      await expect(graph.locator("title")).toHaveCount(0);
+      const session = await page.context().newCDPSession(page);
+      await session.send("Emulation.setDeviceMetricsOverride", {
+        width: 1280,
+        height: 960,
+        deviceScaleFactor: 1,
+        mobile: true,
+      });
+      await session.send("Emulation.setTouchEmulationEnabled", {
+        enabled: true,
+        maxTouchPoints: 2,
+      });
+      await session.send("Emulation.setPageScaleFactor", {
+        pageScaleFactor: scale,
+      });
+      for (let gesture = 0; gesture < 2; gesture++) {
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchStart",
+          touchPoints: [{ x: 200, y: 180 }],
+        });
+        for (let step = 1; step <= 6; step++) {
+          await session.send("Input.dispatchTouchEvent", {
+            type: "touchMove",
+            touchPoints: [{ x: 200 - step * 15, y: 180 - step * 20 }],
+          });
+          await page.evaluate(
+            () =>
+              new Promise<void>((resolve) =>
+                requestAnimationFrame(() => resolve()),
+              ),
           );
-        }),
-      )
-      .toBe(true);
-    await session.detach();
-  });
+        }
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchEnd",
+          touchPoints: [],
+        });
+      }
+      await expect
+        .poll(() => page.evaluate(() => window.visualViewport?.offsetLeft ?? 0))
+        .toBeGreaterThan(0);
+      let previousViewport: { left: number; top: number } | undefined;
+      await expect
+        .poll(async () => {
+          const next = await page.evaluate(() => ({
+            left: window.visualViewport?.offsetLeft ?? 0,
+            top: window.visualViewport?.offsetTop ?? 0,
+          }));
+          const settled =
+            previousViewport?.left === next.left &&
+            previousViewport.top === next.top;
+          previousViewport = next;
+          return settled;
+        })
+        .toBe(true);
+      const point = await cell.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        return {
+          x: rect.left + rect.width / 2 - (viewport?.offsetLeft ?? 0),
+          y: rect.top + rect.height / 2 - (viewport?.offsetTop ?? 0),
+        };
+      });
+      await page.mouse.move(point.x, point.y);
+      const tooltip = page.getByRole("tooltip");
+      await expect(tooltip).toHaveText("6 contributions on Aug 12, 2025");
+      await expect(tooltip).toHaveCSS("opacity", "1");
+      const highlight = page.locator(
+        '[data-slot="floating-tooltip-highlight"]',
+      );
+      await expect(highlight).toHaveCSS("opacity", "1");
+      await expect
+        .poll(async () => {
+          const [cellBox, highlightBox] = await Promise.all([
+            cell.boundingBox(),
+            highlight.boundingBox(),
+          ]);
+          if (!cellBox || !highlightBox) return Number.POSITIVE_INFINITY;
+          return Math.max(
+            Math.abs(cellBox.x - highlightBox.x),
+            Math.abs(cellBox.y - highlightBox.y),
+            Math.abs(cellBox.width - highlightBox.width),
+            Math.abs(cellBox.height - highlightBox.height),
+          );
+        })
+        .toBeLessThan(1);
+      await expect
+        .poll(() =>
+          tooltip.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const viewport = window.visualViewport;
+            if (!viewport) return false;
+            return (
+              rect.left >= viewport.offsetLeft &&
+              rect.top >= viewport.offsetTop &&
+              rect.right <= viewport.offsetLeft + viewport.width &&
+              rect.bottom <= viewport.offsetTop + viewport.height
+            );
+          }),
+        )
+        .toBe(true);
+      await session.detach();
+    });
+  }
 
   test("renders sparse data and footer totals", async ({ page }) => {
     await page.goto("/dev/components/contribution-graph?case=sparse");

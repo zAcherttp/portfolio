@@ -29,7 +29,7 @@ export type ActivityGridOwnProps<T> = {
   labelHeight?: number;
   /** Minimum scrollable content width in CSS pixels. */
   minContentWidth?: number;
-  /** Accessible title announced for the generated SVG. */
+  /** Accessible name for the SVG, without a browser-native hover tooltip. */
   title?: string;
   /** Returns a stable React key for a grid position. */
   getKey: (
@@ -168,10 +168,11 @@ export function ActivityGrid<T>({
       >
         <svg
           ref={svgRef}
+          role="img"
+          aria-label={title}
           className="block h-auto w-full overflow-visible"
           viewBox={`0 0 ${width} ${height}`}
         >
-          <title>{title}</title>
           {renderLabels?.()}
           {columns.map((column, columnIndex) =>
             column.map((item, rowIndex) => (
