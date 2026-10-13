@@ -17,6 +17,44 @@ async function moveOverDay(page: Page, cell: Locator) {
   );
 }
 
+async function expectMatchingCorners(cell: Locator, highlight: Locator) {
+  await expect
+    .poll(
+      async () => {
+        const [cellRadius, ringRadius] = await Promise.all([
+          cell.evaluate((element: SVGRectElement) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              x:
+                (element.rx.baseVal.value / element.width.baseVal.value) *
+                rect.width,
+              y:
+                (element.ry.baseVal.value / element.height.baseVal.value) *
+                rect.height,
+            };
+          }),
+          highlight.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const radii =
+              getComputedStyle(element).borderTopLeftRadius.split(" ");
+            const resolve = (value: string, size: number) =>
+              Number.parseFloat(value) * (value.endsWith("%") ? size / 100 : 1);
+            return {
+              x: resolve(radii[0], rect.width),
+              y: resolve(radii[1] ?? radii[0], rect.height),
+            };
+          }),
+        ]);
+        return Math.max(
+          Math.abs(cellRadius.x - ringRadius.x),
+          Math.abs(cellRadius.y - ringRadius.y),
+        );
+      },
+      { message: "The highlight's corners should follow the rendered square" },
+    )
+    .toBeLessThan(0.01);
+}
+
 test.describe("contribution graph", () => {
   test("shows contributions without exposing account aggregation", async ({
     page,
@@ -282,6 +320,7 @@ test.describe("contribution graph", () => {
         '[data-slot="floating-tooltip-highlight"]',
       );
       await expect(highlight).toHaveCSS("opacity", "1");
+      await expectMatchingCorners(cell, highlight);
       await expect
         .poll(async () => {
           const [cellBox, highlightBox] = await Promise.all([
@@ -313,6 +352,25 @@ test.describe("contribution graph", () => {
         )
         .toBe(true);
       await session.detach();
+    });
+  }
+
+  for (const shape of ["square-corners", "rounded-corners"]) {
+    test(`matches the highlight to ${shape}`, async ({ page }, testInfo) => {
+      test.skip(
+        testInfo.project.name !== "chromium",
+        "Requires a hover pointer.",
+      );
+      await page.goto(`/dev/components/contribution-graph?case=${shape}`);
+      const cell = page
+        .getByTestId("fixture-stage")
+        .locator('rect[data-date="2025-08-12"]');
+      await moveOverDay(page, cell);
+      const highlight = page.locator(
+        '[data-slot="floating-tooltip-highlight"]',
+      );
+      await expect(highlight).toHaveCSS("opacity", "1");
+      await expectMatchingCorners(cell, highlight);
     });
   }
 

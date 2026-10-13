@@ -6,7 +6,9 @@ import {
 import {
   ContributionGraphDefaultFixture,
   ContributionGraphNoLabelsFixture,
+  ContributionGraphRoundedFixture,
   ContributionGraphSparseFixture,
+  ContributionGraphSquareFixture,
 } from "./contribution-graph";
 import { DitherAnimatedFixture, DitherStaticFixture } from "./dither-footer";
 import type { FixtureRegistry } from "./fixture-types";
@@ -117,6 +119,16 @@ export const fixtureRegistry: FixtureRegistry = {
         id: "no-labels",
         name: "No labels",
         component: ContributionGraphNoLabelsFixture,
+      },
+      {
+        id: "square-corners",
+        name: "Square corners",
+        component: ContributionGraphSquareFixture,
+      },
+      {
+        id: "rounded-corners",
+        name: "Rounded corners",
+        component: ContributionGraphRoundedFixture,
       },
     ],
   },

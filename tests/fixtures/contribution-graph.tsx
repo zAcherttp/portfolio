@@ -28,12 +28,19 @@ function createActivityData(sparse = false): Activity[] {
   });
 }
 
-function GraphExample({ sparse = false }: { sparse?: boolean }) {
+function GraphExample({
+  sparse = false,
+  blockRadius = 2,
+}: {
+  sparse?: boolean;
+  blockRadius?: number;
+}) {
   const data = createActivityData(sparse);
   return (
     <div className="w-full overflow-hidden">
       <ContributionGraph
         blockMargin={2}
+        blockRadius={blockRadius}
         blockSize={8}
         data={data}
         fontSize={10}
@@ -64,6 +71,14 @@ export function ContributionGraphDefaultFixture() {
 
 export function ContributionGraphSparseFixture() {
   return <GraphExample sparse />;
+}
+
+export function ContributionGraphSquareFixture() {
+  return <GraphExample blockRadius={0} />;
+}
+
+export function ContributionGraphRoundedFixture() {
+  return <GraphExample blockRadius={4} />;
 }
 
 export function ContributionGraphNoLabelsFixture() {
