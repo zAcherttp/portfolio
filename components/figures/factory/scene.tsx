@@ -218,9 +218,12 @@ function buildScene(
     return mat;
   });
 
-  layout.belts.forEach((path, i) => {
+  // Belts: their rail lights glow while the line has power.
+  const beltMaterials = layout.belts.map((path, i) => {
     const m = model(path.tier === "mk3" ? "belt-mk3" : "belt");
-    root.add(new THREE.Mesh(sweepBelt(path, m), material(m, doors.byBelt[i])));
+    const mat = material(m, doors.byBelt[i]);
+    root.add(new THREE.Mesh(sweepBelt(path, m), mat));
+    return mat;
   });
 
   // Items: one instanced mesh per kind, sized for every belt that carries it.
@@ -261,6 +264,7 @@ function buildScene(
   return {
     root,
     buildingMaterials,
+    beltMaterials,
     items,
     players,
     layers,
@@ -515,6 +519,9 @@ function Factory({
     const miner = line.nodes[0];
     if (running && miner?.status === "working")
       spin.current += dt * DRILL_SPEED;
+    for (const material of scene.beltMaterials) {
+      material.uniforms.uLit.value = line.powered ? 1 : 0;
+    }
     scene.buildingMaterials.forEach((material, i) => {
       const working = line.nodes[i]?.status === "working";
       material.uniforms.uLit.value = working ? 1 : 0;

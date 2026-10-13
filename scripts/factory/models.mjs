@@ -15,6 +15,16 @@
 const BUILD = "FactoryGame/Content/FactoryGame/Buildable/Factory";
 const RES = "FactoryGame/Content/FactoryGame/Resource";
 
+/**
+ * Machines share MM_Factory_Array: TX2D_FactoryBase_* hold a layer per
+ * surface kind, and only the last layer's MREO has emissive, round each port
+ * and indicator. Faces whose TEXCOORD_0 lands there glow.
+ */
+const FACTORY_GLOW = {
+  mask: "FactoryGame/Content/FactoryGame/Buildable/-Shared/Material/Resources/TX2D_FactoryBase_MREO_LAYER8.png",
+  channel: 2,
+};
+
 export const BASE = 0;
 export const STRUCTURE = 1;
 export const DETAIL = 2;
@@ -46,6 +56,7 @@ const item = () => SUBJECT;
 export const MODELS = [
   {
     name: "miner-mk1",
+    glow: FACTORY_GLOW,
     components: [
       { source: `${BUILD}/MinerMK1/Mesh/MinerMk1_static.glb` },
       // Build_MinerMk1's MainMesh_skl: the drill, engine, cables and the reload
@@ -70,6 +81,7 @@ export const MODELS = [
   },
   {
     name: "smelter",
+    glow: FACTORY_GLOW,
     components: [
       // Build_SmelterMk1 turns the body half a turn and nudges it back 30 cm.
       {
@@ -110,6 +122,7 @@ export const MODELS = [
   },
   {
     name: "constructor",
+    glow: FACTORY_GLOW,
     components: [
       { source: `${BUILD}/ConstructorMk1/Mesh/ConstructorMk1_static.glb` },
       // The press and its arms are the vertex-animated mesh.
@@ -127,6 +140,7 @@ export const MODELS = [
   },
   {
     name: "depot",
+    glow: FACTORY_GLOW,
     components: [
       // Build_CentralStorage: the uploader body faces back, input on +z.
       {
@@ -153,6 +167,7 @@ export const MODELS = [
   },
   {
     name: "splitter",
+    glow: FACTORY_GLOW,
     components: [
       // Build_ConveyorAttachmentSplitter: SM_Splitter_01, turned half round, 55 cm down.
       {
@@ -165,6 +180,7 @@ export const MODELS = [
   },
   {
     name: "merger",
+    glow: FACTORY_GLOW,
     components: [
       // Build_ConveyorAttachmentMerger: SM_Merger_01, 55 cm down.
       {
@@ -179,14 +195,24 @@ export const MODELS = [
     components: [
       { source: `${BUILD}/ConveyorBeltMk1/Mesh/SM_ConveyorBelt_Mk1.glb` },
     ],
-    role: () => STRUCTURE,
+    // MI_ConveyorBelt_Mk1_01 (MM_ConveyorBelt): the lights along the rails
+    // glow where the MREO texture's emissive channel is set.
+    glow: {
+      mask: `${BUILD}/ConveyorBeltMk1/Texture/TX_ConveyorBeltMk1_MREO.png`,
+      channel: 2,
+    },
+    role: (p) => (p.glow ? LIT : STRUCTURE),
   },
   {
     name: "belt-mk3",
     components: [
       { source: `${BUILD}/ConveyorBeltMk3/Mesh/SM_ConveyorBelt_Mk3.glb` },
     ],
-    role: () => STRUCTURE,
+    glow: {
+      mask: `${BUILD}/ConveyorBeltMk3/Texture/TX_ConveyorBeltMk3_MREO.png`,
+      channel: 2,
+    },
+    role: (p) => (p.glow ? LIT : STRUCTURE),
   },
   {
     name: "foundation",

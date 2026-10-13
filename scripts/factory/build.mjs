@@ -45,7 +45,7 @@ import { fromUnrealAxes } from "../../components/figures/factory/game.ts";
 import { BUILDINGS } from "../../components/figures/factory/layout.ts";
 import { packModels } from "../../components/figures/factory/pack.ts";
 import { gather, keyFrames, offsetRanges, packKeys } from "./keys.mjs";
-import { HIDDEN, MODELS } from "./models.mjs";
+import { HIDDEN, LIT, MODELS } from "./models.mjs";
 import { measureOpening } from "./openings.mjs";
 import { bakeSkeletal, readPsa, subtree } from "./skeletal.mjs";
 import { convertClip, decodeTexture, turn } from "./vat.mjs";
@@ -477,8 +477,68 @@ async function paintSwatches(doc, model, swatches = 4) {
   return centres.map(rgbToHex);
 }
 
-/** Union-find over welded positions; returns parts sorted largest first. */
-function findParts(prim) {
+/**
+ * Splits off the faces a model's emissive mask lights (sampled at each face's
+ * centre through TEXCOORD_0), giving them vertices of their own so they make
+ * parts of their own. Returns 1 per vertex of a lit face.
+ */
+function splitGlow(prim, { mask, channel }, eligible = () => true) {
+  const png = decode(readFileSync(joinPath(root, mask)));
+  const max = 2 ** png.depth - 1;
+  const lit = (u, v) => {
+    const wrap = (t) => ((t % 1) + 1) % 1;
+    const x = Math.floor(wrap(u) * (png.width - 1));
+    const y = Math.floor(wrap(v) * (png.height - 1));
+    return png.data[(y * png.width + x) * png.channels + channel] / max > 0.5;
+  };
+  const uv = prim.getAttribute("TEXCOORD_0");
+  const indices = prim.getIndices();
+  const index = Array.from(indices.getArray());
+  const count = prim.getAttribute("POSITION").getCount();
+  const copies = new Map();
+  const e = [];
+  for (let t = 0; t < index.length; t += 3) {
+    if (!eligible(index[t])) continue;
+    let u = 0;
+    let v = 0;
+    for (let k = 0; k < 3; k++) {
+      uv.getElement(index[t + k], e);
+      u += e[0] / 3;
+      v += e[1] / 3;
+    }
+    if (!lit(u, v)) continue;
+    for (let k = 0; k < 3; k++) {
+      const from = index[t + k];
+      if (!copies.has(from)) copies.set(from, count + copies.size);
+      index[t + k] = copies.get(from);
+    }
+  }
+  const sources = [...copies.keys()];
+  for (const semantic of prim.listSemantics()) {
+    const attribute = prim.getAttribute(semantic);
+    const size = attribute.getElementSize();
+    const old = attribute.getArray();
+    const grown = new old.constructor((count + sources.length) * size);
+    grown.set(old);
+    sources.forEach((from, i) => {
+      grown.set(
+        old.subarray(from * size, from * size + size),
+        (count + i) * size,
+      );
+    });
+    attribute.setArray(grown);
+  }
+  indices.setArray(new Uint32Array(index));
+  const glow = new Uint8Array(count + sources.length);
+  glow.fill(1, count);
+  return glow;
+}
+
+/**
+ * Union-find over welded positions; returns parts sorted largest first.
+ * Vertices flagged in `apart` only join each other.
+ */
+function findParts(prim, apart = null) {
   const pos = prim.getAttribute("POSITION");
   const idx = prim.getIndices().getArray();
   const n = pos.getCount();
@@ -487,7 +547,7 @@ function findParts(prim) {
   const e = [];
   for (let i = 0; i < n; i++) {
     pos.getElement(i, e);
-    const k = e.map((v) => Math.round(v * 2000)).join(",");
+    const k = `${e.map((v) => Math.round(v * 2000)).join(",")}|${apart?.[i] ?? 0}`;
     if (!seen.has(k)) seen.set(k, i);
     canonical[i] = seen.get(k);
   }
@@ -539,7 +599,7 @@ for (const model of MODELS) {
           semantic === "NORMAL" ||
           semantic === "_SRC" ||
           semantic === "_BONE" ||
-          (model.albedo && semantic === "TEXCOORD_0");
+          ((model.albedo || model.glow) && semantic === "TEXCOORD_0");
         if (!keep) {
           prim.setAttribute(semantic, null);
         }
@@ -564,7 +624,32 @@ for (const model of MODELS) {
   }
   const [mesh] = meshes;
   const [prim] = prims;
-  const parts = findParts(prim);
+  // Only the static blueprint meshes use the glow mask's textures.
+  const animated = new Set(
+    model.components.flatMap((c, i) => (c.vat || c.skeletal ? [i] : [])),
+  );
+  let glow = null;
+  if (model.glow) {
+    const flags = splitGlow(
+      prim,
+      model.glow,
+      (v) => !animated.has(prim.getAttribute("_SRC").getScalar(v) >> 1),
+    );
+    // Carry the flag as an attribute so welding again, once the UVs that
+    // split the seams are gone, keeps glowing faces apart.
+    prim.setAttribute(
+      "_GLOW",
+      doc
+        .createAccessor()
+        .setType("SCALAR")
+        .setArray(flags)
+        .setBuffer(prim.getAttribute("POSITION").getBuffer()),
+    );
+    if (!model.albedo) prim.setAttribute("TEXCOORD_0", null);
+    await doc.transform(weld());
+    glow = prim.getAttribute("_GLOW").getArray();
+  }
+  const parts = findParts(prim, glow);
   if (parts.length > 65535) throw new Error(`${model.name}: too many parts`);
 
   const ids = new Uint16Array(prim.getAttribute("POSITION").getCount());
@@ -580,12 +665,15 @@ for (const model of MODELS) {
       component: sources.getScalar(part.verts[0]) >> 1,
       /** Its material glows in the game. */
       emissive: (sources.getScalar(part.verts[0]) & 1) === 1,
+      /** It is one of the faces the game's emissive mask lights. */
+      glow: glow?.[part.verts[0]] === 1,
       /** The skinned bone it follows, by the game's name. */
       bone: boneNames?.[boneOf.getScalar(part.verts[0])] ?? null,
       min: part.min.map((v) => +v.toFixed(3)),
       max: part.max.map((v) => +v.toFixed(3)),
     };
-    bytes[id] = model.role(box);
+    // Glowing faces are the lit accent, whatever else the part would be.
+    bytes[id] = box.glow ? (model.role(box) & ~7) | LIT : model.role(box);
     debug.push({ ...box, verts: part.verts.length, byte: bytes[id] });
   });
   prim.setAttribute(
@@ -597,6 +685,7 @@ for (const model of MODELS) {
       .setBuffer(prim.getAttribute("POSITION").getBuffer()),
   );
   prim.setAttribute("_SRC", null);
+  prim.setAttribute("_GLOW", null);
   const palette =
     model.albedo || model.tint ? await paintSwatches(doc, model) : null;
   // Nothing from the game's naming goes out.
