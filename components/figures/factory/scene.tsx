@@ -48,6 +48,7 @@ import {
   lookStrengths,
 } from "./look";
 import { type Animation, loadModels, type Model } from "./models";
+import { createGovernor, govern } from "./quality";
 import {
   builtShare,
   type RevealMode,
@@ -86,7 +87,6 @@ const PIXEL_BUDGET = 20e6;
 /** While the view moves: at most this much supersampling, these pixels. */
 const MOVING_SUPERSAMPLE = 2;
 const MOVING_PIXEL_BUDGET = 5e6;
-/** While running, step supersampling down above this frame time and back up below the other. */
 /** The view eases after the gestures with this time constant, seconds. */
 const EASE = 0.09;
 /** Under a drag, panning follows with this much softer time constant. */
@@ -100,8 +100,6 @@ const KEY_STEP = 80;
 const PAGE_STEP = 0.8;
 /** The default reveal: already standing. */
 const BUILT_REVEAL = { mode: "built", armed: true } as const;
-const SLOW_FRAME = 1 / 40;
-const FAST_FRAME = 1 / 55;
 /** Drill turns per second while the miner works. */
 const DRILL_SPEED = Math.PI * 0.8;
 /** Seconds a machine's accents take to wake, and to fall asleep. */
@@ -1102,16 +1100,15 @@ function Factory({
     };
   }, [explore, deckOpen, gl]);
 
-  // Adaptive quality while running: a smoothed frame time steps the
-  // supersampling cap down when frames run long and back up when they don't.
-  const quality = useRef({ cap: 3, ema: 1 / 60, slow: 0, fast: 0 });
+  // Adaptive quality while running: see quality.ts.
+  const quality = useRef(createGovernor(look.supersample));
   useEffect(() => {
     // Back to full quality the moment the line stops.
     if (!running) {
-      quality.current = { cap: 3, ema: 1 / 60, slow: 0, fast: 0 };
+      quality.current = createGovernor(look.supersample);
       invalidate();
     }
-  }, [running, invalidate]);
+  }, [running, invalidate, look.supersample]);
 
   // Placing: each piece's step in the build, and when the build began.
   const plan = useMemo(
@@ -1194,24 +1191,7 @@ function Factory({
     // The parent owns the line; this loop only moves it forward.
     if (running) stepLine(line, dt);
     const q = quality.current;
-    if (running) {
-      q.ema = q.ema * 0.9 + delta * 0.1;
-      if (q.ema > SLOW_FRAME) {
-        q.slow += delta;
-        q.fast = 0;
-        if (q.slow > 1 && q.cap > 1) {
-          q.cap -= 1;
-          q.slow = 0;
-        }
-      } else if (q.ema < FAST_FRAME) {
-        q.fast += delta;
-        q.slow = 0;
-        if (q.fast > 3 && q.cap < look.supersample) {
-          q.cap += 1;
-          q.fast = 0;
-        }
-      }
-    }
+    if (running) govern(q, delta);
 
     const miner = line.nodes[0];
     if (running && miner?.status === "working")
