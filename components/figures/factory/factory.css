@@ -1,0 +1,60 @@
+/* Anatomy palette for the factory figure. The WebGL passes read these tokens
+   from the figure element, so both themes stay in CSS. */
+.factory {
+  --anatomy-top: #1c1c1c;
+  --anatomy-shade-0: #0f0f0f;
+  --anatomy-shade-1: #121212;
+  --anatomy-shade-2: #151515;
+  --anatomy-shade-3: #181818;
+  --anatomy-lit-top: #262626;
+  --anatomy-lit-shade: #1d1d1d;
+  --anatomy-hi: #d4d4d4;
+  --anatomy-mid: #6a6a6a;
+  --anatomy-lo: #3e3e3e;
+  --anatomy-lit: #ffffff;
+  /* Inside a port: what belts and items fade into as they go in. */
+  --anatomy-deep: #0b0b0b;
+  /* The uploader's glow, and the halftone light it throws. */
+  --anatomy-glow: #e48cff;
+  /* The smelter's forge, deep at the rim (Height_Color FF6B00). */
+  --anatomy-forge: #f2600f;
+  /* Chimney smoke's halftone dots. */
+  --anatomy-smoke: #5c5c5c;
+  /* Power lamps: amber, the same orange family as the forge. */
+  --anatomy-power: #ffa62b;
+  /* The forge's hot core (toward GlowColor FFB500, paled). */
+  --anatomy-forge-core: #ffe39a;
+  /* Weld sparks: white-hot off the weld, red as they die. */
+  --anatomy-spark-hot: #fffbea;
+  --anatomy-spark-cool: #e0281a;
+  /* The seam machines materialize behind as they are placed (the game's
+     build effect, its hologram blue). */
+  --anatomy-build: #7fdcff;
+  --anatomy-green: #6be0a0;
+  --anatomy-red: #ff6b6b;
+}
+
+:root:not(.dark) .factory {
+  --anatomy-top: #ffffff;
+  --anatomy-shade-0: #dcdcd9;
+  --anatomy-shade-1: #e5e5e2;
+  --anatomy-shade-2: #ededea;
+  --anatomy-shade-3: #f4f4f1;
+  --anatomy-lit-top: #ffffff;
+  --anatomy-lit-shade: #eeeeeb;
+  --anatomy-hi: #26262a;
+  --anatomy-mid: #8a8a8f;
+  --anatomy-lo: #b4b4b8;
+  --anatomy-lit: #000000;
+  --anatomy-deep: #cfcfcb;
+  --anatomy-glow: #b24fdb;
+  --anatomy-forge: #d4520a;
+  --anatomy-smoke: #9c9ca0;
+  --anatomy-power: #e08a00;
+  --anatomy-forge-core: #f7b733;
+  --anatomy-spark-hot: #ffd84a;
+  --anatomy-spark-cool: #c41e12;
+  --anatomy-build: #0a84c6;
+  --anatomy-green: #30a46c;
+  --anatomy-red: #e5484d;
+}

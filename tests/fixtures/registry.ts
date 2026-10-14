@@ -10,7 +10,11 @@ import {
   ContributionGraphSparseFixture,
   ContributionGraphSquareFixture,
 } from "./contribution-graph";
-import { DitherAnimatedFixture, DitherStaticFixture } from "./dither-footer";
+import {
+  DitherAnimatedFixture,
+  DitherNudgeFixture,
+  DitherStaticFixture,
+} from "./dither-footer";
 import type { FixtureRegistry } from "./fixture-types";
 import {
   TooltipCollisionFixture,
@@ -146,6 +150,11 @@ export const fixtureRegistry: FixtureRegistry = {
         name: "Static",
         component: DitherStaticFixture,
         stageClassName: "p-0",
+      },
+      {
+        id: "nudge",
+        name: "Scroll nudge",
+        component: DitherNudgeFixture,
       },
     ],
   },

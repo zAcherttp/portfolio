@@ -94,3 +94,9 @@ production origin when building outside Vercel.
 
 The source is [MIT licensed](LICENSE). See [attribution notes](docs/ATTRIBUTION.md)
 for component and design credits.
+
+## Credits
+
+Inspired by [Chánh Đại](https://chanhdai.com/) & [ruru.build](https://ruru.build/).
+
+The factory is drawn from Coffee Stain Studios' Satisfactory models, used non-commercially. Not affiliated.

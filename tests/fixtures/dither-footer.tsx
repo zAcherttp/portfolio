@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import BottomShader from "@/components/BottomShader";
 
 const Dither = dynamic(() => import("@/components/ui/shaders/dither"), {
   ssr: false,
@@ -50,4 +51,9 @@ export function DitherAnimatedFixture() {
 
 export function DitherStaticFixture() {
   return <ShaderStage disableAnimation />;
+}
+
+/** The root integration: idle until a downward nudge at the page bottom. */
+export function DitherNudgeFixture() {
+  return <BottomShader />;
 }

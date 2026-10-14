@@ -110,7 +110,9 @@ test.describe("dither footer", () => {
       .toBeLessThan(0.002);
   });
 
-  test("only mounts the footer wrapper on the home route", async ({ page }) => {
+  test("does not mount the footer wrapper on other routes", async ({
+    page,
+  }) => {
     await page.goto("/components/theme-hotkey");
     await expect(page.getByTestId("bottom-shader")).toHaveCount(0);
     await expect(page.getByTestId("bottom-shader-fallback")).toHaveCount(0);
@@ -180,7 +182,7 @@ test.describe("dither footer", () => {
         value: undefined,
       });
     });
-    await page.goto("/");
+    await page.goto("/dev/components/dither-footer?case=nudge");
 
     await expect(page.getByTestId("bottom-shader-fallback")).toBeVisible();
     await expect(
@@ -191,7 +193,7 @@ test.describe("dither footer", () => {
   test("activates after a downward nudge at the page bottom", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/dev/components/dither-footer?case=nudge");
     const shader = page.getByTestId("bottom-shader");
     await expect(shader).toBeVisible();
     await expect(shader.locator("canvas")).toHaveCount(0);
