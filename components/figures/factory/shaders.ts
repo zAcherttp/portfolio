@@ -111,8 +111,14 @@ export function createPortTexture(
 
 /** Lights a scene can hold. */
 export const MAX_LIGHTS = 8;
-/** Points shadows are seen from, over all lights: each keeps a cube. */
-export const MAX_VIEWS = 12;
+/**
+ * Points shadows are seen from, over all lights: each keeps a cube. The
+ * scene's fragment stage may sample 16 textures (WebGL 2's least, and what
+ * most GPUs give); the parts, animation, port, cutout and glow textures
+ * take five, so the cubes get the other eleven. One more and a texture goes
+ * unbound, with three.js warning on every draw.
+ */
+export const MAX_VIEWS = 11;
 
 export function createSharedUniforms() {
   return {
@@ -162,6 +168,8 @@ export function createSharedUniforms() {
     },
     /** Set while drawing a light's shadows: its origin and reach. */
     uShadowPass: { value: 0 },
+    /** Set while laying down depth alone, before the shaded pass. */
+    uDepthPass: { value: 0 },
     uShadowFrom: { value: new THREE.Vector4() },
     uGlow: vec3(),
     /** The line's power, eased 0–1: glowing openings stay filled while on. */
@@ -625,6 +633,7 @@ uniform sampler2D uCutout;
 // Placing: everything above the seam's height (x, world metres) is not built
 // yet; a band of y metres under it glows in uBuildColour as it materializes.
 uniform vec2 uBuild;
+uniform float uDepthPass;
 // Laying: everything past this many metres along its run is not laid yet.
 uniform float uAlong;
 // A run that dissolves: from x metres along to y, into ever smaller halftone
@@ -677,6 +686,12 @@ void main() {
     vec2 cell = fract(q) - .5;
     float radius = sqrt(clamp(uHalftoneCover, 0., .78) / 3.14159265);
     if (length(cell) > radius) discard;
+  }
+  // Depth first: what is cut away above is all it needs.
+  if (uDepthPass > .5) {
+    oColor = vec4(0.);
+    oData = vec4(0.);
+    return;
   }
   // A face the glow mask lights in part is, where it stays dark, the part
   // beside it that it was split from.

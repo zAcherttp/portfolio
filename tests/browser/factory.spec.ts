@@ -1,5 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
+// These exercise rendering and controls, not high-DPI image quality.
+test.use({ deviceScaleFactor: 1 });
+
 async function openFactory(page: Page) {
   await page.goto("/");
   const heading = page.getByRole("heading", { name: "Screw factory" });
@@ -15,6 +18,13 @@ function minerStatus(page: Page) {
 }
 
 test.describe("screw factory", () => {
+  test.beforeEach(async ({ page }) => {
+    // Cover the scene and controls without multiplying software-GPU fill work.
+    await page.addInitScript(() => {
+      window.__factoryProfile = { factor: 1 };
+    });
+  });
+
   test("draws the factory without errors", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -35,6 +45,67 @@ test.describe("screw factory", () => {
     await expect(minerStatus(page)).toContainText("working", {
       timeout: 10_000,
     });
+  });
+
+  test("draws a powered frame without GL errors", async ({ page }) => {
+    // Cold shader compilation on SwiftShader can exceed the UI test budget.
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    // An unbound texture, or a shadow cube read while it is drawn into,
+    // makes the driver drop draws and three.js warn on each one.
+    const problems: string[] = [];
+    page.on("console", (message) => {
+      if (/texture units|feedback loop|GL_INVALID/i.test(message.text())) {
+        problems.push(message.text());
+      }
+    });
+    // As most GPUs do: WebGL 2's least, 16 textures per fragment shader.
+    await page.addInitScript(() => {
+      const MAX_TEXTURE_IMAGE_UNITS = 0x8872;
+      const original = WebGL2RenderingContext.prototype.getParameter;
+      WebGL2RenderingContext.prototype.getParameter = function (
+        this: WebGL2RenderingContext,
+        name: number,
+      ) {
+        const value = original.call(this, name);
+        return name === MAX_TEXTURE_IMAGE_UNITS ? Math.min(value, 16) : value;
+      };
+    });
+    const factory = await openFactory(page);
+    await expect(factory.locator("canvas:not([aria-hidden])")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect
+      .poll(() => page.evaluate(() => window.__factoryProfile?.frames ?? 0), {
+        timeout: 60_000,
+      })
+      .toBeGreaterThan(0);
+    const renderedFrames = await page.evaluate(
+      () => window.__factoryProfile?.frames ?? 0,
+    );
+    await factory.getByRole("button", { name: "Power on" }).click();
+    await expect(factory.locator("output")).toHaveText(
+      /^2[2-4]\d screws\/min$/,
+    );
+    // Reduced motion draws the powered, settled line on demand. A continuous
+    // loop can saturate SwiftShader and starve the browser's test protocol.
+    await expect
+      .poll(() => page.evaluate(() => window.__factoryProfile?.frames ?? 0), {
+        timeout: 60_000,
+      })
+      .toBeGreaterThan(renderedFrames);
+    const error = await factory
+      .locator("canvas:not([aria-hidden])")
+      .evaluate((canvas: HTMLCanvasElement) => {
+        const gl = canvas.getContext("webgl2");
+        if (!gl)
+          throw new Error("The factory requires a real WebGL 2 context.");
+        gl.finish();
+        return gl.getError();
+      });
+    expect(error).toBe(0);
+    expect(problems).toEqual([]);
   });
 
   test("keeps the line running when frames stall", async ({ page }) => {

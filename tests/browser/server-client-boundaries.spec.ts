@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { projectsData } from "../../data/projects";
 
+// Keep unrelated WebGL work bounded on the runner's software GPU.
+test.use({ deviceScaleFactor: 1 });
+
 test.describe("server and client page boundaries", () => {
   test("renders the server homepage around its interactive islands", async ({
     page,
@@ -61,6 +64,11 @@ test.describe("server and client page boundaries", () => {
   });
 
   test("reveals every see-all favicon after hover", async ({ page }) => {
+    // The adjacent factory must not monopolize a software GPU during this
+    // hover assertion. Its shader and supersampling behavior has its own tests.
+    await page.addInitScript(() => {
+      window.__factoryProfile = { factor: 1 };
+    });
     await page.goto("/");
 
     const reveal = page.locator("[data-see-all-reveal]").first();
