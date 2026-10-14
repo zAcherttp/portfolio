@@ -448,9 +448,12 @@ export function FactoryLive({
   // The slot keeps its layer while the deck is open, faded out and inert, so
   // it fades back in on return; the deck's fades in once the deck shows and
   // out as soon as it starts to close.
+  // In the slot it snaps with the drawing: icons a few pixels wide, left
+  // between pixels, blur unevenly and look off centre.
   const controls = (onDeck: boolean) => (
     <div
       inert={!onDeck && deck.open}
+      style={onDeck ? undefined : snap}
       className={cn(
         "pointer-events-none absolute inset-0 flex flex-col justify-between transition-opacity duration-150 ease-out",
         onDeck ? "p-4 starting:opacity-0" : "p-3",
