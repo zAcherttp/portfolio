@@ -1,6 +1,13 @@
 // How the factory drawing is inked. Kept free of three.js so the page can
 // import it without the renderer.
 
+/**
+ * Every halftone in the drawing (see-through floor, light, smoke, a fading
+ * wire) prints on one grid: dots this many CSS pixels apart, turned 45° and
+ * anchored to the world's origin, so they line up wherever they meet.
+ */
+export const HALFTONE_CELL = 2;
+
 /** How the drawing is inked; /dev/factory tunes these live. */
 export interface FactoryLook {
   /** Render scale over the canvas: ink is found at this size, then averaged down. */
@@ -23,16 +30,18 @@ export interface FactoryLook {
   portRadius: number;
   /** What a port's dark fades to: 0 the deep colour, 1 the shade of right-facing walls. */
   portTone: number;
-  /** Spacing of the halftone dots on see-through floor, CSS pixels. */
-  halftoneCell: number;
-  /** Share of each halftone cell a dot covers, 0–0.78. */
+  /** Share of each halftone cell a dot covers on see-through floor, 0–0.78. */
   halftoneCover: number;
-  /** Spacing of the halftone dots that light prints, CSS pixels. */
-  lightCell: number;
   /** Share of a cell a dot covers in full light, 0–0.78. */
   lightCover: number;
   /** Exposure on the light that falls: higher prints dots further out. */
   lightGain: number;
+  /** Share of a cell a dot covers in the thickest smoke, 0–0.78. */
+  smokeCover: number;
+  /** Scale on the game's puff sizes. */
+  smokeSize: number;
+  /** How strongly port glyphs and belt lamps show their colour, 0–1. */
+  glyphLevel: number;
 }
 
 export const DEFAULT_LOOK: FactoryLook = {
@@ -46,11 +55,12 @@ export const DEFAULT_LOOK: FactoryLook = {
   portSoft: 0,
   portRadius: 0.2,
   portTone: 1,
-  halftoneCell: 2,
   halftoneCover: 0.2,
-  lightCell: 2,
   lightCover: 0.5,
   lightGain: 10,
+  smokeCover: 0.3,
+  smokeSize: 0.8,
+  glyphLevel: 0.7,
 };
 
 /** Creases and details fade in between 40% and 100% of `fadeScale`. */

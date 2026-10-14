@@ -36,18 +36,16 @@ export interface Framing {
   height: number;
 }
 
-/** Fits a world-space box in the picture. */
-export function frameBox(min: Vec3, max: Vec3, basis = viewBasis()): Framing {
+/** Fits a set of world points in the picture. */
+export function framePoints(
+  points: readonly Readonly<Vec3>[],
+  basis = viewBasis(),
+): Framing {
   let x0 = Infinity;
   let x1 = -Infinity;
   let y0 = Infinity;
   let y1 = -Infinity;
-  for (let i = 0; i < 8; i++) {
-    const p: Vec3 = [
-      i & 1 ? max[0] : min[0],
-      i & 2 ? max[1] : min[1],
-      i & 4 ? max[2] : min[2],
-    ];
+  for (const p of points) {
     const x = dot(p, basis.right);
     const y = dot(p, basis.up);
     x0 = Math.min(x0, x);

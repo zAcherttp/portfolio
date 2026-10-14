@@ -1,4 +1,3 @@
-import BottomShader from "../components/BottomShader";
 import ComponentRegistryList from "../components/ComponentRegistryList";
 import { ExternalLink } from "../components/ExternalLink";
 import Footer from "../components/Footer";
@@ -258,10 +257,8 @@ export default function Home() {
 
         <FactoryFigure />
 
-        {/* Footer/Framing Placeholder */}
         <Footer />
       </div>
-      <BottomShader />
     </main>
   );
 }

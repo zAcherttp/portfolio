@@ -19,7 +19,9 @@ test.describe("screw factory", () => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     const factory = await openFactory(page);
-    await expect(factory.locator("canvas")).toBeVisible({ timeout: 20_000 });
+    await expect(factory.locator("canvas:not([aria-hidden])")).toBeVisible({
+      timeout: 20_000,
+    });
     expect(errors).toEqual([]);
   });
 

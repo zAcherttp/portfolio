@@ -324,6 +324,8 @@ describe("depot light", () => {
     // Out from the port to the back wall, along the normal.
     expect((px - port[0]) * nx + (pz - port[2]) * nz).toBeCloseTo(0.2);
     expect(entrance?.position[1]).toBeCloseTo(port[1] + 0.6);
-    expect(lights.find((l) => l.kind === "sphere")?.on).toBe("power");
+    expect(
+      lights.find((l) => l.kind === "sphere" && l.building === depot)?.on,
+    ).toBe("power");
   });
 });

@@ -21,6 +21,19 @@ export interface Palette {
   deep: string;
   /** What glowing machines give off: the light, and its halftone pools. */
   glow: string;
+  /** What a forge gives off: the smelter's slits and their light. */
+  forge: string;
+  /** Smoke's dots. */
+  smoke: string;
+  /** Power lamps. */
+  power: string;
+  /** The pale core of a forge's glow. */
+  forgeCore: string;
+  /** A weld spark as it leaves the weld, and as it dies. */
+  sparkHot: string;
+  sparkCool: string;
+  /** The seam a building materializes behind as it is placed. */
+  build: string;
 }
 
 type Rgb = [number, number, number];
@@ -97,9 +110,9 @@ export function createPortTexture(
 }
 
 /** Lights a scene can hold. */
-export const MAX_LIGHTS = 4;
+export const MAX_LIGHTS = 8;
 /** Points shadows are seen from, over all lights: each keeps a cube. */
-export const MAX_VIEWS = 8;
+export const MAX_VIEWS = 12;
 
 export function createSharedUniforms() {
   return {
@@ -127,6 +140,10 @@ export function createSharedUniforms() {
       value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4()),
     },
     uLightCount: { value: 0 },
+    /** Each light's colour. */
+    uLightColour: {
+      value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector3()),
+    },
     /**
      * Shadow views, up to MAX_VIEWS: (origin, size of the glow it stands
      * for), the light it belongs to, and the distance over its light's reach
@@ -137,27 +154,44 @@ export function createSharedUniforms() {
     },
     uViewLight: { value: Array.from({ length: MAX_VIEWS }, () => -1) },
     uViewCount: { value: 0 },
-    uShadow0: { value: null as THREE.Texture | null },
-    uShadow1: { value: null as THREE.Texture | null },
-    uShadow2: { value: null as THREE.Texture | null },
-    uShadow3: { value: null as THREE.Texture | null },
-    uShadow4: { value: null as THREE.Texture | null },
-    uShadow5: { value: null as THREE.Texture | null },
-    uShadow6: { value: null as THREE.Texture | null },
-    uShadow7: { value: null as THREE.Texture | null },
+    uShadows: {
+      value: Array.from(
+        { length: MAX_VIEWS },
+        () => null as THREE.Texture | null,
+      ),
+    },
     /** Set while drawing a light's shadows: its origin and reach. */
     uShadowPass: { value: 0 },
     uShadowFrom: { value: new THREE.Vector4() },
     uGlow: vec3(),
     /** The line's power, eased 0–1: glowing openings stay filled while on. */
     uPower: { value: 0 },
-    /** Halftone light: dot spacing in target pixels, most coverage, exposure. */
-    uLightCell: { value: 12 },
+    /** Halftone light: most coverage, exposure. */
     uLightCover: { value: 0.6 },
     uLightGain: { value: 20 },
-    /** Halftone dots on see-through surfaces; the scene keeps them on screen. */
+    /** How strongly glyphs and belt lamps show their colour, 0–1. */
+    uGlyphLevel: { value: 1 },
+    /** Power lamps' colour. */
+    uPowerColour: vec3(),
+    /** The pale core of a forge's glow. */
+    uCoreColour: vec3(),
+    /** A forge's orange, that sparks cool through. */
+    uForgeColour: vec3(),
+    /** A weld spark white-hot at the weld, and its red as it dies. */
+    uSparkHot: vec3(),
+    uSparkCool: vec3(),
+    /** The colour of the seam things materialize behind. */
+    uBuildColour: vec3(),
+    /** The scene target's size in pixels, and a spark's width in them. */
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uSparkWidth: { value: 3 },
+    /**
+     * The one halftone grid: where its origin falls on the target and its
+     * spacing there, in target pixels. See-through floor, light, smoke and
+     * fading wires all print on it.
+     */
     uHalftoneOrigin: { value: new THREE.Vector2() },
-    uHalftoneCell: { value: 12 },
+    uHalftoneCell: { value: 6 },
     uHalftoneCover: { value: 0.5 },
     /** The face whose shade ports fade to; the scene sets it to the view's right. */
     uPortFace: { value: new THREE.Vector3(1, 0, 0) },
@@ -179,6 +213,12 @@ export function createCompositeUniforms() {
     tData: { value: null as THREE.Texture | null },
     tDepth: { value: null as THREE.Texture | null },
     uDepthRange: { value: 1 },
+    /** Smoke's density, printed as halftone dots over the picture. */
+    tSmoke: { value: null as THREE.Texture | null },
+    uSmoke: vec3(),
+    uHalftoneOrigin: { value: new THREE.Vector2() },
+    uHalftoneCell: { value: 6 },
+    uSmokeCover: { value: 0.5 },
     /** Ink width in supersampled pixels. */
     uRadius: { value: 1 },
     /** Strength of creases, and of outlines on base and detail parts, 0–1. */
@@ -210,6 +250,13 @@ export function applyPalette(
   set(shared.uLitShade, palette.litShade);
   set(shared.uDeep, palette.deep);
   set(shared.uGlow, palette.glow);
+  set(shared.uCoreColour, palette.forgeCore);
+  set(shared.uForgeColour, palette.forge);
+  set(shared.uSparkHot, palette.sparkHot);
+  set(shared.uSparkCool, palette.sparkCool);
+  set(shared.uBuildColour, palette.build);
+  set(composite.uSmoke, palette.smoke);
+  set(shared.uPowerColour, palette.power);
   // Edge ink by role: base lo, structure mid, detail lo, subject hi, lit.
   set(composite.uE0, palette.lo);
   set(composite.uE1, palette.mid);
@@ -224,6 +271,12 @@ attribute float _part;
 attribute float _swatch;
 attribute float _bone;
 attribute vec2 _ports;
+attribute vec2 _cut;
+// Faces the glow mask lights only in part: their mask UVs, then how to draw
+// where it leaves them dark (the byte beside plus one, 0 for none; id offset).
+attribute vec4 _mask;
+// Belts and wires: metres along their run, for laying them out in order.
+attribute float _along;
 uniform sampler2D uParts;
 // The ports this mesh opens onto, by index; -1 for none. Items take theirs
 // from their belt, per instance.
@@ -244,6 +297,10 @@ flat out vec4 vPorts;
 flat out float vId;
 flat out float vByte;
 flat out float vSwatch;
+out vec2 vCut;
+out vec2 vMaskUv;
+out float vAlong;
+flat out vec2 vMask;
 
 vec3 rotate(vec4 q, vec3 v) {
   return v + 2. * cross(q.xyz, cross(q.xyz, v) + q.w * v);
@@ -254,7 +311,7 @@ void main() {
   // Hidden parts (flat cards the game textures with alpha) collapse away, and
   // the bodies light comes from cast no shadow of it.
   bool hidden = mod(floor(byte / 16.), 2.) > .5;
-  bool emitter = byte >= 32.;
+  bool emitter = mod(floor(byte / 32.), 2.) > .5;
   if (hidden || (uShadowPass > .5 && emitter)) {
     gl_Position = vec4(2., 2., 2., 1.);
     return;
@@ -298,6 +355,10 @@ void main() {
   vId = uIdBase + float(gl_InstanceID) * uInstanceStride + (uPartIds > .5 ? _part : 0.);
   vByte = byte;
   vSwatch = _swatch;
+  vCut = _cut;
+  vMaskUv = _mask.xy;
+  vAlong = _along;
+  vMask = _mask.zw;
   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.);
 }
 `;
@@ -307,8 +368,18 @@ precision highp float;
 uniform vec3 uTop, uS0, uS1, uS2, uS3, uLitTop, uLitShade;
 uniform vec2 uLight;
 uniform float uLit;
-// A building that gives off light wakes its accents in the glow's colour.
+// A building that gives off light wakes its accents in its light's colour,
+// uGlowColour; the body its light comes from wakes as uEmitter says.
 uniform float uGlowAccents;
+uniform vec3 uGlowColour;
+uniform float uEmitter;
+// Power lamps glow in this colour while the line has power.
+uniform vec3 uPowerColour;
+// A glowing body heats toward uCoreColour at its core, an oval: (centre,
+// half length) and (long axis, half width); half length 0 for none.
+uniform vec4 uCore;
+uniform vec4 uCoreAxis;
+uniform vec3 uCoreColour;
 uniform float uSwatched;
 uniform vec3 uSwatches[4];
 uniform float uSeeThrough;
@@ -316,13 +387,14 @@ uniform float uSeeThrough;
 // elevations a sphere's light leaves between and 0), (half size, level,
 // sphere radius).
 uniform vec4 uLightA[${MAX_LIGHTS}], uLightB[${MAX_LIGHTS}], uLightC[${MAX_LIGHTS}];
-uniform float uLightCount, uLightCell, uLightCover, uLightGain;
+uniform float uLightCount, uLightCover, uLightGain;
 // Shadow views: (origin, size of the glow it stands for), its light, and the
 // distance to the nearest surface in every direction from it, over the reach.
 uniform vec4 uViewA[${MAX_VIEWS}];
 uniform float uViewLight[${MAX_VIEWS}];
 uniform float uViewCount;
-uniform samplerCube uShadow0, uShadow1, uShadow2, uShadow3, uShadow4, uShadow5, uShadow6, uShadow7;
+uniform samplerCube uShadows[${MAX_VIEWS}];
+uniform vec3 uLightColour[${MAX_LIGHTS}];
 // While drawing a light's shadows: where from, and its reach.
 uniform float uShadowPass;
 uniform vec4 uShadowFrom;
@@ -391,15 +463,10 @@ float sphereFactor(vec3 p, vec3 n, vec3 centre, float radius) {
   return radius * radius / (d * d) * max(dot(n, v / d), 0.);
 }
 
+// Sampler arrays take constant indices only: one branch per view.
 float shadowDistance(int i, vec3 dir) {
-  if (i == 0) return textureLod(uShadow0, dir, 0.).r;
-  if (i == 1) return textureLod(uShadow1, dir, 0.).r;
-  if (i == 2) return textureLod(uShadow2, dir, 0.).r;
-  if (i == 3) return textureLod(uShadow3, dir, 0.).r;
-  if (i == 4) return textureLod(uShadow4, dir, 0.).r;
-  if (i == 5) return textureLod(uShadow5, dir, 0.).r;
-  if (i == 6) return textureLod(uShadow6, dir, 0.).r;
-  return textureLod(uShadow7, dir, 0.).r;
+${Array.from({ length: MAX_VIEWS }, (_, i) => `  if (i == ${i}) return textureLod(uShadows[${i}], dir, 0.).r;`).join("\n")}
+  return 1.;
 }
 
 // A look k of n around dir, out to radius: a golden-angle spiral.
@@ -413,7 +480,16 @@ vec3 around(vec3 dir, vec3 t1, vec3 t2, int k, float n, float radius) {
 // shadow as soft as the glow is wide and the blocker is far from p. First
 // find how far off the blockers stand, then average looks over the penumbra
 // they cast (percentage-closer soft shadows).
-float visibility(int i, vec3 p, vec3 n, vec3 from, float reach, float size) {
+float visibility(
+  int i,
+  vec3 p,
+  vec3 n,
+  vec3 from,
+  float reach,
+  float size,
+  int blockerLooks,
+  int looks
+) {
   vec3 d = p + n * .04 - from;
   float dist = length(d);
   vec3 dir = d / dist;
@@ -423,8 +499,8 @@ float visibility(int i, vec3 p, vec3 n, vec3 from, float reach, float size) {
   float search = min(size / dist, .6);
   float blocker = 0.;
   float blockers = 0.;
-  for (int k = 0; k < 8; k++) {
-    float b = shadowDistance(i, around(dir, t1, t2, k, 8., search)) * reach;
+  for (int k = 0; k < blockerLooks; k++) {
+    float b = shadowDistance(i, around(dir, t1, t2, k, float(blockerLooks), search)) * reach;
     if (b < own) {
       blocker += b;
       blockers += 1.;
@@ -435,24 +511,29 @@ float visibility(int i, vec3 p, vec3 n, vec3 from, float reach, float size) {
   // The penumbra's width at p, as an angle seen from the light.
   float spread = min(size * (dist - blocker) / (max(blocker, .05) * dist), .6);
   float seen = 0.;
-  for (int k = 0; k < 12; k++) {
-    seen += step(own, shadowDistance(i, around(dir, t1, t2, k, 12., spread)) * reach);
+  for (int k = 0; k < looks; k++) {
+    seen += step(own, shadowDistance(i, around(dir, t1, t2, k, float(looks), spread)) * reach);
   }
-  return seen / 12.;
+  return seen / float(looks);
 }
 
-// How much light falls on a surface at p facing n, 0–1: each glowing sphere
-// and opening face by its form factor, and by how much of it p sees, from
-// each point its shadows are seen from; exposed by uLightGain so the faint
-// far light still prints a few dots.
-float lightAt(vec3 p, vec3 n) {
+// How much light falls on a surface at p facing n, 0–1, and its colour: each
+// glowing sphere and face by its form factor, and by how much of it p sees,
+// from each point its shadows are seen from; exposed by uLightGain so the
+// faint far light still prints a few dots. The colour is the lights' own,
+// weighted by what each gives.
+vec4 lightAt(vec3 p, vec3 n) {
   float total = 0.;
+  vec3 colour = vec3(0.);
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     if (float(i) >= uLightCount) break;
     vec4 a = uLightA[i];
     vec4 b = uLightB[i];
     vec4 c = uLightC[i];
     if (c.z <= 0.) continue;
+    // Out of reach first: most of the picture is, and it is the cheap test.
+    float d = distance(p, a.xyz);
+    if (d >= a.w) continue;
     float factor;
     if (b.w > .5) {
       if (dot(p - a.xyz, b.xyz) < .01) continue;
@@ -465,22 +546,29 @@ float lightAt(vec3 p, vec3 n) {
       factor = sphereFactor(p, n, a.xyz, c.w) * band;
     }
     if (factor <= 1e-4) continue;
-    float d = distance(p, a.xyz);
-    if (d >= a.w) continue;
     // Past the shadows' reach the light is long faint; let it go gently.
     float fade = 1. - smoothstep(a.w * .75, a.w, d);
-    float seen = 0.;
+    // A light seen from several points averages them, so each needs fewer
+    // looks for the same softness.
     float views = 0.;
+    for (int v = 0; v < ${MAX_VIEWS}; v++) {
+      if (float(v) >= uViewCount) break;
+      if (abs(uViewLight[v] - float(i)) < .5) views += 1.;
+    }
+    int blockerLooks = views > 1.5 ? 4 : 8;
+    int looks = views > 1.5 ? 6 : 12;
+    float seen = 0.;
     for (int v = 0; v < ${MAX_VIEWS}; v++) {
       if (float(v) >= uViewCount) break;
       if (abs(uViewLight[v] - float(i)) > .5) continue;
       vec4 view = uViewA[v];
-      seen += visibility(v, p, n, view.xyz, a.w, view.w);
-      views += 1.;
+      seen += visibility(v, p, n, view.xyz, a.w, view.w, blockerLooks, looks);
     }
-    total += c.z * factor * fade * seen / max(views, 1.);
+    float given = c.z * factor * fade * seen / max(views, 1.);
+    total += given;
+    colour += uLightColour[i] * given;
   }
-  return 1. - exp(-total * uLightGain);
+  return vec4(colour / max(total, 1e-6), 1. - exp(-total * uLightGain));
 }
 
 // Signed distance to a rounded rectangle of the given half size, with corner
@@ -528,6 +616,29 @@ in vec3 vNormal;
 flat in float vId;
 flat in float vByte;
 flat in float vSwatch;
+in vec2 vCut;
+in vec2 vMaskUv;
+in float vAlong;
+flat in vec2 vMask;
+// A decal tile's alpha: cutout parts (role bit 128) show only where it is set.
+uniform sampler2D uCutout;
+// Placing: everything above the seam's height (x, world metres) is not built
+// yet; a band of y metres under it glows in uBuildColour as it materializes.
+uniform vec2 uBuild;
+// Laying: everything past this many metres along its run is not laid yet.
+uniform float uAlong;
+// A run that dissolves: from x metres along to y, into ever smaller halftone
+// dots, gone at y.
+uniform vec2 uFade;
+uniform vec3 uBuildColour;
+// Where the glow mask lights: faces lit in part glow only there.
+uniform sampler2D uGlowMask;
+// The game's colour for what that mask lights: w 1 for its accents, 2 for
+// its power lamps too; 0 leaves them the palette's.
+uniform vec4 uGlyphColour;
+uniform float uGlyphLevel;
+// Outputs' colour where the mask reads brightest; w 0 for none.
+uniform vec4 uGlyphOut;
 layout(location = 0) out vec4 oColor;
 layout(location = 1) out vec4 oData;
 
@@ -539,6 +650,10 @@ vec2 octEncode(vec3 n) {
 }
 
 void main() {
+  // Cutout parts are only their tile's opaque bars, in shadows too.
+  if (vByte >= 128. && texture(uCutout, vCut).r < .5) discard;
+  // Not built yet, in shadows too.
+  if (vWorld.y > uBuild.x || vAlong > uAlong) discard;
   // A light's shadows: how far the nearest surface lies, over its reach.
   // See-through surfaces cast none.
   if (uShadowPass > .5) {
@@ -546,6 +661,12 @@ void main() {
     oColor = vec4(distance(vWorld, uShadowFrom.xyz) / uShadowFrom.w, 0., 0., 1.);
     oData = vec4(0.);
     return;
+  }
+  if (vAlong > uFade.x) {
+    float left = 1. - clamp((vAlong - uFade.x) / (uFade.y - uFade.x), 0., 1.);
+    vec2 q = (gl_FragCoord.xy - uHalftoneOrigin) / uHalftoneCell;
+    q = mat2(.70710678, -.70710678, .70710678, .70710678) * q;
+    if (length(fract(q) - .5) > sqrt(.78 * left / 3.14159265)) discard;
   }
   // Faint surfaces print as a halftone: round dots on a grid turned 45°,
   // sized for uHalftoneCover of each cell, anchored to the scene so they pan
@@ -556,6 +677,18 @@ void main() {
     vec2 cell = fract(q) - .5;
     float radius = sqrt(clamp(uHalftoneCover, 0., .78) / 3.14159265);
     if (length(cell) > radius) discard;
+  }
+  // A face the glow mask lights in part is, where it stays dark, the part
+  // beside it that it was split from.
+  float byte = vByte;
+  float part = vId;
+  float masked = 1.;
+  if (vMask.x > .5) {
+    masked = texture(uGlowMask, vMaskUv).r;
+    if (masked < .25) {
+      byte = vMask.x - 1.;
+      part += vMask.y;
+    }
   }
   vec3 n = normalize(vNormal);
   if (!gl_FrontFacing) n = -n;
@@ -575,14 +708,37 @@ void main() {
   } else {
     c = b == 4 ? uTop : b == 0 ? uS0 : b == 1 ? uS1 : b == 2 ? uS2 : uS3;
   }
-  float role = mod(vByte, 8.);
+  float role = mod(byte, 8.);
   bool accent = role > 3.5;
-  // An accent wakes with its machine: uLit eases between 0 and 1.
-  // The body a building's light comes from glows while the line has power.
-  float wake = vByte >= 32. ? uPower : uLit;
+  // An accent wakes with its machine: uLit eases between 0 and 1. The body
+  // a building's light comes from glows in that light's colour, as uEmitter.
+  bool emitter = mod(floor(byte / 32.), 2.) > .5;
+  bool lamp = mod(floor(byte / 64.), 2.) > .5;
+  // Glyphs, the port indicators in the game's colour, show with power.
+  // Only faces read through the mask: other accents keep their own colour.
+  bool read = vMask.x > .5;
+  bool glyph = read && !lamp && !emitter && uGlyphColour.w > .5;
+  float wake = lamp || glyph ? uPower : emitter ? uEmitter : uLit;
   if (accent) {
-    vec3 awake = uGlowAccents > .5 ? uGlow : n.y > .55 ? uLitTop : uLitShade;
-    c = mix(c, awake, wake);
+    vec3 awake = lamp
+      ? read && uGlyphColour.w > 1.5 ? uGlyphColour.rgb : uPowerColour
+      : glyph
+        ? uGlyphOut.w > .5 && masked > .75 ? uGlyphOut.rgb : uGlyphColour.rgb
+        : emitter || uGlowAccents > .5
+          ? uGlowColour
+          : n.y > .55 ? uLitTop : uLitShade;
+    if (emitter && uCore.w > 0.) {
+      // Deep at the rim, hot through the middle: a saturated body with a
+      // pale core.
+      vec3 r = vWorld - uCore.xyz;
+      float along = dot(r, uCoreAxis.xyz) / uCore.w;
+      float across = length(r - uCoreAxis.xyz * dot(r, uCoreAxis.xyz)) / uCoreAxis.w;
+      float heat = 1. - smoothstep(0., 1., length(vec2(along, across)));
+      awake = mix(awake, uCoreColour, heat);
+    }
+    // Glyphs, and lamps in their colour, show at the tuned strength.
+    bool tuned = glyph || (lamp && read && uGlyphColour.w > 1.5);
+    c = mix(c, awake, wake * (tuned ? uGlyphLevel : 1.));
   }
   if (uSeeThrough > .5) role = SEE_THROUGH;
   // Accents glow, so a port's dark never covers them; their upper bits carry
@@ -591,29 +747,36 @@ void main() {
   // then it fills with the glow as far as that light is awake.
   float dark = 0.;
   float lit = 0.;
+  vec3 fill = vec3(0.);
   for (int k = 0; k < 4; k++) {
     float f = portFade(vPorts[k]);
     if (f <= 0.) continue;
     float light = texelFetch(uPorts, ivec2(3, int(vPorts[k] + .5)), 0).z;
-    if (light > -.5) lit = max(lit, f * uPower);
-    else dark = max(dark, f);
+    if (light > -.5 && f * uPower > lit) {
+      lit = f * uPower;
+      fill = uLightColour[int(light + .5)];
+    } else if (light < -.5) dark = max(dark, f);
   }
   // Ink sinks into a glowing opening as it does into a dark one.
   float fade = accent ? wake : max(dark, lit);
   if (!accent) c = mix(c, mix(uDeep, toneOf(uPortFace), uPortTone), dark);
-  c = mix(c, uGlow, lit);
-  // Light falling on surfaces prints as halftone dots in the glow's colour,
-  // denser where more falls.
+  c = mix(c, fill, lit);
+  // Light falling on surfaces prints as halftone dots in its colour, denser
+  // where more falls.
   if (uSeeThrough < .5) {
-    float light = lightAt(vWorld, n) * (1. - lit);
+    vec4 falling = lightAt(vWorld, n);
+    float light = falling.a * (1. - lit);
     if (light > .01) {
-      vec2 q = (gl_FragCoord.xy - uHalftoneOrigin) / uLightCell;
+      vec2 q = (gl_FragCoord.xy - uHalftoneOrigin) / uHalftoneCell;
       q = mat2(.70710678, -.70710678, .70710678, .70710678) * q;
       float radius = sqrt(light * clamp(uLightCover, 0., .78) / PI);
-      if (length(fract(q) - .5) < radius) c = uGlow;
+      if (length(fract(q) - .5) < radius) c = falling.rgb;
     }
   }
-  float id = vId + 1.;
+  // The seam glows hottest at its edge and cools into the finished surface.
+  float seam = min(uBuild.x - vWorld.y, uAlong - vAlong) / uBuild.y;
+  if (seam < 1.) c = mix(c, uBuildColour, (1. - seam) * (1. - seam));
+  float id = part + 1.;
   // Role in the low three bits, the port fade above, for the ink pass.
   oColor = vec4(c, (role + 8. * floor(fade * 31. + .5)) / 255.);
   oData = vec4(octEncode(n), floor(id / 256.) / 255., mod(id, 256.) / 255.);
@@ -635,11 +798,35 @@ export interface SceneMaterialOptions {
   faint?: boolean;
   /** Accents wake in the glow's colour: the building gives off light. */
   glowAccents?: boolean;
+  /** The alpha its cutout parts are cut by. */
+  cutout?: THREE.Texture;
+  /** Where its glow mask lights, for faces it lights in part. */
+  glowMask?: THREE.Texture;
+  /** The game's colour for what its mask lights. */
+  glyph?: { colour: string; lamp: boolean; output?: string };
   /** Ports this mesh opens onto (up to four), by index. */
   ports?: readonly number[];
   /** Items: their ports come per instance, from `_ports`. */
   portsPerInstance?: boolean;
 }
+
+/** A seam height above everything: all of it built. */
+export const BUILT = 1e6;
+/** How far under the seam, in metres, a materializing surface still glows. */
+export const BUILD_BAND = 0.6;
+
+/** Stands in for a cutout mask on materials that have none. */
+const NO_CUTOUT = (() => {
+  const t = new THREE.DataTexture(
+    new Uint8Array([255]),
+    1,
+    1,
+    THREE.RedFormat,
+    THREE.UnsignedByteType,
+  );
+  t.needsUpdate = true;
+  return t;
+})();
 
 /** Stands in for an animation texture on materials that have none. */
 const NO_ANIMATION = (() => {
@@ -665,6 +852,9 @@ export function createSceneMaterial(
     animation,
     faint = false,
     glowAccents = false,
+    cutout,
+    glowMask,
+    glyph,
     ports = [],
     portsPerInstance = false,
   }: SceneMaterialOptions,
@@ -684,6 +874,25 @@ export function createSceneMaterial(
       uSpin: { value: 0 },
       uLit: { value: 0 },
       uGlowAccents: { value: glowAccents ? 1 : 0 },
+      uGlowColour: { value: new THREE.Vector3() },
+      uCore: { value: new THREE.Vector4() },
+      uCutout: { value: cutout ?? NO_CUTOUT },
+      uGlowMask: { value: glowMask ?? NO_CUTOUT },
+      uGlyphColour: {
+        value: glyph
+          ? new THREE.Vector4(...rgb(glyph.colour), glyph.lamp ? 2 : 1)
+          : new THREE.Vector4(),
+      },
+      uGlyphOut: {
+        value: glyph?.output
+          ? new THREE.Vector4(...rgb(glyph.output), 1)
+          : new THREE.Vector4(),
+      },
+      uCoreAxis: { value: new THREE.Vector4() },
+      uBuild: { value: new THREE.Vector2(BUILT, BUILD_BAND) },
+      uAlong: { value: BUILT },
+      uFade: { value: new THREE.Vector2(BUILT, BUILT + 1) },
+      uEmitter: { value: 0 },
       uSwatched: { value: swatches ? 1 : 0 },
       uSwatches: { value: colours },
       uVat: { value: animation?.texture ?? NO_ANIMATION },
@@ -729,8 +938,11 @@ void main() {
 
 const compositeFragment = /* glsl */ `
 precision highp float;
-uniform sampler2D tColor, tData, tDepth;
+uniform sampler2D tColor, tData, tDepth, tSmoke;
 uniform float uDepthRange;
+uniform vec3 uSmoke;
+uniform vec2 uHalftoneOrigin;
+uniform float uHalftoneCell, uSmokeCover;
 uniform float uRadius, uCrease, uDetail;
 uniform vec3 uE0, uE1, uE2, uE3, uE4, uFaint;
 layout(location = 0) out vec4 oColor;
@@ -749,13 +961,25 @@ float idOf(vec4 d) {
   return floor(d.b * 255. + .5) * 256. + floor(d.a * 255. + .5);
 }
 
+// Whether smoke prints a dot here: halftone on the scene's grid, the dot as
+// big as the smoke is thick.
+bool smokeDot(ivec2 p) {
+  float density = texelFetch(tSmoke, p, 0).r;
+  if (density <= 0.) return false;
+  vec2 q = (gl_FragCoord.xy - uHalftoneOrigin) / uHalftoneCell;
+  q = mat2(.70710678, -.70710678, .70710678, .70710678) * q;
+  float radius = sqrt(density * clamp(uSmokeCover, 0., .78) / 3.14159265);
+  return length(fract(q) - .5) < radius;
+}
+
 void main() {
   ivec2 p = ivec2(gl_FragCoord.xy);
   ivec2 last = textureSize(tData, 0) - 1;
+  bool puff = smokeDot(p);
   vec4 d0 = texelFetch(tData, p, 0);
   float id0 = idOf(d0);
   if (id0 < .5) {
-    oColor = vec4(0.);
+    oColor = puff ? vec4(uSmoke, 1.) : vec4(0.);
     return;
   }
   vec4 c = texelFetch(tColor, p, 0);
@@ -768,7 +992,7 @@ void main() {
   float deep = accent ? 0. : level;
   // See-through pixels show their tone and take no ink.
   if (role > 4.5) {
-    oColor = vec4(c.rgb, 1.);
+    oColor = vec4(puff ? uSmoke : c.rgb, 1.);
     return;
   }
   vec3 n0 = octDecode(d0.rg);
@@ -803,7 +1027,7 @@ void main() {
   vec3 col = c.rgb;
   col = mix(col, role > 3.5 ? mix(e, c.rgb, .45) : mix(uFaint, c.rgb, deep), uCrease * crease);
   col = mix(col, e, weight * outline);
-  oColor = vec4(col, 1.);
+  oColor = vec4(puff ? uSmoke : col, 1.);
 }
 `;
 
@@ -828,6 +1052,159 @@ void main() {
   oColor = sum / float(f * f);
 }
 `;
+
+const smokeVertex = /* glsl */ `
+// Each puff is a square facing the camera: centre and width, and opacity.
+attribute vec4 aPuff;
+attribute float aAlpha;
+uniform float uShadowPass;
+out vec2 vCorner;
+out float vAlpha;
+out float vSize;
+
+void main() {
+  // Puffs cast no shadow.
+  if (uShadowPass > .5 || aAlpha <= 0.) {
+    gl_Position = vec4(2., 2., 2., 1.);
+    return;
+  }
+  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+  vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+  vec3 p = aPuff.xyz + (right * position.x + up * position.y) * aPuff.w * .5;
+  vCorner = position.xy;
+  vAlpha = aAlpha;
+  vSize = aPuff.w;
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.);
+}
+`;
+
+const smokeFragment = /* glsl */ `
+precision highp float;
+uniform sampler2D tDepth;
+uniform float uDepthRange;
+in vec2 vCorner;
+in float vAlpha;
+in float vSize;
+layout(location = 0) out vec4 oColor;
+
+void main() {
+  // A soft ball, dense through its middle. Where the scene stands close
+  // behind it, it thins out instead of cutting off on the surface (a soft
+  // particle); where the scene is in front, it is hidden.
+  float scene = texelFetch(tDepth, ivec2(gl_FragCoord.xy), 0).x;
+  float gap = (scene - gl_FragCoord.z) * uDepthRange;
+  if (gap <= 0.) discard;
+  float r = length(vCorner);
+  float density = vAlpha * (1. - smoothstep(.35, 1., r));
+  density *= smoothstep(0., vSize * .35, gap);
+  // Overlapping puffs keep the thickest (max blending).
+  oColor = vec4(density, 0., 0., 1.);
+}
+`;
+
+const sparkVertex = /* glsl */ `
+// Each spark is a streak from its head back along its flight to its tail, a
+// few pixels wide on screen whatever the zoom.
+attribute vec3 aHead;
+attribute vec3 aTail;
+attribute float aHeat;
+uniform float uShadowPass;
+uniform vec2 uResolution;
+uniform float uSparkWidth;
+out float vHeat;
+
+void main() {
+  if (uShadowPass > .5) {
+    gl_Position = vec4(2., 2., 2., 1.);
+    return;
+  }
+  vec4 head = projectionMatrix * viewMatrix * vec4(aHead, 1.);
+  vec4 tail = projectionMatrix * viewMatrix * vec4(aTail, 1.);
+  vec2 a = head.xy / head.w * uResolution;
+  vec2 b = tail.xy / tail.w * uResolution;
+  vec2 along = b - a;
+  float l = length(along);
+  vec2 dir = l > 1e-3 ? along / l : vec2(1., 0.);
+  vec2 side = vec2(-dir.y, dir.x) * uSparkWidth;
+  vec4 p = mix(head, tail, position.x);
+  p.xy += side * position.y / uResolution * p.w;
+  vHeat = aHeat;
+  gl_Position = p;
+}
+`;
+
+const sparkFragment = /* glsl */ `
+precision highp float;
+uniform vec3 uSparkHot, uCoreColour, uForgeColour, uSparkCool;
+in float vHeat;
+layout(location = 0) out vec4 oColor;
+layout(location = 1) out vec4 oData;
+
+void main() {
+  // White-hot as it leaves the weld, cooling through yellow and the forge's
+  // orange to red as it dies; light itself, so the ink pass leaves it alone.
+  float h = vHeat * 3.;
+  vec3 colour = h > 2. ? mix(uCoreColour, uSparkHot, h - 2.)
+    : h > 1. ? mix(uForgeColour, uCoreColour, h - 1.)
+    : mix(uSparkCool, uForgeColour, h);
+  oColor = vec4(colour, 5. / 255.);
+  oData = vec4(.5, .5, 1., 1.);
+}
+`;
+
+/** Weld sparks: streaks drawn straight into the scene, unlit and uninked. */
+export function createSparkMaterial(shared: SharedUniforms) {
+  return new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3,
+    uniforms: {
+      uShadowPass: shared.uShadowPass,
+      uResolution: shared.uResolution,
+      uSparkWidth: shared.uSparkWidth,
+      uSparkHot: shared.uSparkHot,
+      uCoreColour: shared.uCoreColour,
+      uForgeColour: shared.uForgeColour,
+      uSparkCool: shared.uSparkCool,
+    },
+    vertexShader: sparkVertex,
+    fragmentShader: sparkFragment,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+}
+
+/**
+ * Chimney smoke's density, drawn on its own target after the scene and read
+ * by the composite, which prints it as halftone dots.
+ */
+export function createSmokeMaterial(shared: SharedUniforms) {
+  return new THREE.ShaderMaterial({
+    glslVersion: THREE.GLSL3,
+    uniforms: {
+      uShadowPass: shared.uShadowPass,
+      tDepth: { value: null as THREE.Texture | null },
+      uDepthRange: { value: 1 },
+    },
+    vertexShader: smokeVertex,
+    fragmentShader: smokeFragment,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.MaxEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
+  });
+}
+
+/** Holds smoke's density at the supersampled size. */
+export function createSmokeTarget(width: number, height: number) {
+  return new THREE.WebGLRenderTarget(width, height, {
+    type: THREE.UnsignedByteType,
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    depthBuffer: false,
+  });
+}
 
 /** Averages the supersampled ink down onto the canvas. */
 export function createDownsampleMaterial() {

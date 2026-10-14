@@ -27,6 +27,7 @@ export type ModelName =
   | "belt-mk3"
   | "foundation"
   | "node-iron"
+  | "power-pole"
   | ItemKind;
 
 export type BuildingKind =
@@ -91,7 +92,7 @@ export type LightSpec = (
       reach: number;
       strength?: number;
     }
-) & { on?: LightOn };
+) & { on?: LightOn; colour?: LightColour };
 
 interface BuildingSpec {
   model: ModelName;
@@ -110,9 +111,27 @@ interface BuildingSpec {
   recipe?: Recipe;
   /** Seconds of power before its first craft. */
   startup?: number;
-  /** Lights it gives off while it works. */
+  /** Lights it gives off. */
   lights?: readonly LightSpec[];
+  /** The palette colour its lights and glowing body take; the glow's by default. */
+  lightColour?: LightColour;
+  /** Every accent wakes in its light's colour, not only the glowing body. */
+  glowAccents?: boolean;
+  /** When the body its light comes from glows; while it works by default. */
+  emitterOn?: LightOn;
+  /** Where its chimney smokes from while it produces, in its own frame. */
+  smoke?: Vec3;
+  /** Where power lines plug in, in its own frame. */
+  power?: Vec3;
+  /**
+   * Its glowing body heats toward a core, an oval in its own frame: centre,
+   * long axis, and half length and half width, metres.
+   */
+  core?: { at: Vec3; axis: Vec3; length: number; width: number };
 }
+
+/** Palette colours a light can take. */
+export type LightColour = "glow" | "forge" | "power";
 
 export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
   miner: {
@@ -122,6 +141,8 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     height: 18.4,
     recipe: RECIPES.ironOre,
     startup: MINER_STARTUP_SECONDS,
+    // Build_MinerMk1's PowerInput, high on the tower.
+    power: [1.2616, 17.9981, 0.1579],
   },
   smelter: {
     model: "smelter",
@@ -129,6 +150,37 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-2.5, -5, 2.5, 4],
     height: 8.6,
     recipe: RECIPES.ironIngot,
+    // The forge's mouth on top of the tower glows while it smelts, paling to
+    // a hot core in its middle, as in the game.
+    lightColour: "forge",
+    // The mouth is 1.7 m along the tower by 0.56 m across.
+    core: { at: [0, 7.9, 1.57], axis: [0, 0, 1], length: 0.85, width: 0.28 },
+    lights: [
+      // The forge's heat glows up out of the mouth onto its walls and rim.
+      {
+        kind: "sphere",
+        at: [0, 8.05, 1.57],
+        radius: 0.35,
+        reach: 3,
+        band: [0, 90],
+      },
+      // The power strip down the tower's front glows softly onto what is near.
+      {
+        kind: "panel",
+        at: [0, 5.98, 3.5],
+        normal: [0, 0, 1],
+        halfWidth: 0.06,
+        halfHeight: 0.94,
+        reach: 3,
+        on: "power",
+        colour: "power",
+      },
+    ],
+    // NS_SmelterSmoke rises from SM_VAT_Smelter_01's burnerVfxSocket, the
+    // chimney's top, where Build_SmelterMk1 places the tower.
+    smoke: [0, 7.92, 1.57],
+    // Build_SmelterMk1's PowerConnection, on its turned body proxy.
+    power: [2.2, 4.8, -3.1],
   },
   constructor: {
     model: "constructor",
@@ -136,6 +188,8 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-3.8, -5, 3.8, 4.7],
     height: 7.3,
     recipe: RECIPES.castScrews,
+    // Build_ConstructorMk1's PowerInput, up on its top.
+    power: [2.1, 6.8717, -4.7],
   },
   depot: {
     model: "depot",
@@ -143,6 +197,8 @@ export const BUILDINGS: Record<BuildingKind, BuildingSpec> = {
     footprint: [-2.5, -4.7, 2.5, 5.2],
     height: 6,
     recipe: RECIPES.upload,
+    glowAccents: true,
+    emitterOn: "power",
     lights: [
       // The Mercer sphere inside the top cap: the rings' centre, where
       // Build_CentralStorage's MainMesh places them; SM_Mercer_Rings'
@@ -817,6 +873,8 @@ export interface Light {
   on: LightOn;
   /** How bright beside the building's other lights, 0–1. */
   strength: number;
+  /** Its palette colour. */
+  colour: LightColour;
   /** The port an opening light glows through. */
   port?: string;
 }
@@ -843,6 +901,7 @@ export function lightsOf(
             band: spec.band ?? [-90, 90],
             on: spec.on ?? "work",
             strength: 1,
+            colour: spec.colour ?? BUILDINGS[b.kind].lightColour ?? "glow",
           },
         ];
       }
@@ -861,6 +920,7 @@ export function lightsOf(
             band: [-90, 90],
             on: spec.on ?? "work",
             strength: spec.strength ?? 1,
+            colour: spec.colour ?? BUILDINGS[b.kind].lightColour ?? "glow",
           },
         ];
       }
@@ -890,6 +950,7 @@ export function lightsOf(
           band: [-90, 90],
           on: spec.on ?? "work",
           strength: 1,
+          colour: spec.colour ?? BUILDINGS[b.kind].lightColour ?? "glow",
           port: spec.port,
         },
       ];
@@ -904,6 +965,11 @@ export interface ShadowView {
   origin: Vec3;
   /** Half the width of the part of the glow it stands for, metres. */
   size: number;
+  /**
+   * Items pass through what it sees, so its shadows move: an opening's. The
+   * rest see only the buildings and are drawn once.
+   */
+  moving: boolean;
 }
 
 /** How far out from an opening's face its shadows are seen, clear of it. */
@@ -918,7 +984,9 @@ const SHADOW_LIFT = 0.05;
 export function shadowViews(lights: readonly Light[]): ShadowView[] {
   return lights.flatMap((light, i): ShadowView[] => {
     if (light.kind === "sphere") {
-      return [{ light: i, origin: light.position, size: light.radius }];
+      return [
+        { light: i, origin: light.position, size: light.radius, moving: false },
+      ];
     }
     const [nx, , nz] = light.normal;
     const [x, y, z] = light.position;
@@ -928,6 +996,7 @@ export function shadowViews(lights: readonly Light[]): ShadowView[] {
           light: i,
           origin: [x + nx * SHADOW_LIFT, y, z + nz * SHADOW_LIFT],
           size: Math.max(light.halfWidth, light.halfHeight),
+          moving: false,
         },
       ];
     }
@@ -946,6 +1015,151 @@ export function shadowViews(lights: readonly Light[]): ShadowView[] {
         z + nz * SHADOW_LIFT + nx * u * w,
       ],
       size: Math.max(w, h),
+      moving: true,
     }));
   });
+}
+
+/** Every chimney that smokes, by building, placed in the world. */
+export function smokeOf(layout: FactoryLayout) {
+  return layout.buildings.flatMap((b, i) => {
+    const at = BUILDINGS[b.kind].smoke;
+    if (!at) return [];
+    const [x, y, z] = rotate(at, b.yaw);
+    const position: Vec3 = [
+      b.position[0] + x,
+      b.position[1] + y,
+      b.position[2] + z,
+    ];
+    return [{ building: i, position }];
+  });
+}
+
+/** A point in a building's own frame, placed in the world. */
+export function toWorld(building: PlacedBuilding, at: Vec3): Vec3 {
+  const [x, y, z] = rotate(at, building.yaw);
+  return [
+    building.position[0] + x,
+    building.position[1] + y,
+    building.position[2] + z,
+  ];
+}
+
+/** A Mk1 power pole: SM_PowerPole_Mk1, its wires on the PowerConnection 7 m up. */
+const POLE_TOP = 7;
+/** How far the grid feed runs back off the pole, level with its top. */
+const FEED_RUN = 24;
+/** Share of the feed, from the pole, drawn whole before it dissolves. */
+const FEED_SOLID = 0.3;
+
+export interface PowerWire {
+  from: Vec3;
+  to: Vec3;
+  /** Past this share of its run, the wire dissolves into halftone dots. */
+  fade?: number;
+}
+
+/**
+ * The factory's power, run square to the floor grid: every wire goes along
+ * x or along z. One feed pole stands where the miner's line crosses the far
+ * smelter's: the grid feed comes in along x, the miner's wire runs up its
+ * line along z and the far smelter's along x. The rest daisy-chain, as the
+ * game allows: back along the smelters, across to the first constructor
+ * (their plugs share a row), then down the array. The uploader takes no
+ * power in the game.
+ */
+export function powerOf(layout: FactoryLayout) {
+  const base = layout.buildings[0]?.position[1] ?? 0;
+  const plug = (b: PlacedBuilding) => {
+    const at = BUILDINGS[b.kind].power;
+    return at ? toWorld(b, at) : null;
+  };
+  const plugs = (kind: BuildingKind) =>
+    layout.buildings
+      .filter((b) => b.kind === kind)
+      .map(plug)
+      .filter((p): p is Vec3 => p !== null)
+      .sort((a, b) => a[2] - b[2]);
+  const miner = plugs("miner")[0];
+  const smelters = plugs("smelter").reverse();
+  const constructors = plugs("constructor");
+  const far = smelters[0];
+  if (!miner || !far) return { poles: [] as Vec3[], wires: [] as PowerWire[] };
+  const pole: Vec3 = [miner[0], base, far[2]];
+  const top: Vec3 = [pole[0], base + POLE_TOP, pole[2]];
+  const wires: PowerWire[] = [
+    // The grid feed: back across the platform's far edge, fading away.
+    { from: top, to: [top[0], top[1], top[2] - FEED_RUN], fade: FEED_SOLID },
+    { from: top, to: miner },
+  ];
+  let last = top;
+  for (const at of [...smelters, ...constructors]) {
+    wires.push({ from: last, to: at });
+    last = at;
+  }
+  return { poles: [pole], wires };
+}
+
+/** How far a wire sags at its middle: a little, more on longer spans. */
+export const SAG_PER_METRE = 0.025;
+
+/** Points along a wire, sagging as a parabola between its ends. */
+export function wirePoints(wire: PowerWire, segments = 24): Vec3[] {
+  const { from, to } = wire;
+  // Sag grows with the level distance spanned; a wire straight up hangs true.
+  const span = Math.hypot(to[0] - from[0], to[2] - from[2]);
+  const sag = span * SAG_PER_METRE;
+  return Array.from({ length: segments + 1 }, (_, i): Vec3 => {
+    const t = i / segments;
+    return [
+      from[0] + (to[0] - from[0]) * t,
+      from[1] + (to[1] - from[1]) * t - 4 * sag * t * (1 - t),
+      from[2] + (to[2] - from[2]) * t,
+    ];
+  });
+}
+
+/**
+ * Points that bound what is actually drawn, for framing the picture: each
+ * building's own box, the foundation's slab, and the power up to where the
+ * feed has faded. The layout's overall box is looser: in this view its
+ * top-back corner stands well above anything there.
+ */
+export function contentPoints(layout: FactoryLayout): Vec3[] {
+  const points: Vec3[] = [];
+  for (const b of layout.buildings) {
+    const { footprint, height } = BUILDINGS[b.kind];
+    const [fx0, fz0, fx1, fz1] = footprint;
+    for (const [x, z] of [
+      [fx0, fz0],
+      [fx1, fz0],
+      [fx0, fz1],
+      [fx1, fz1],
+    ] as const) {
+      points.push(toWorld(b, [x, 0, z]), toWorld(b, [x, height, z]));
+    }
+  }
+  const half = FOUNDATION / 2;
+  for (const [x, z] of layout.tiles) {
+    for (const y of [0, FLOOR]) {
+      points.push(
+        [x - half, y, z - half],
+        [x + half, y, z - half],
+        [x - half, y, z + half],
+        [x + half, y, z + half],
+      );
+    }
+  }
+  const { poles, wires } = powerOf(layout);
+  for (const [x, y, z] of poles) points.push([x, y + POLE_TOP, z]);
+  for (const { from, to, fade } of wires) {
+    // A fading wire counts out to where it is mostly gone.
+    const reach = fade === undefined ? 1 : fade + (1 - fade) / 2;
+    points.push(from, [
+      from[0] + (to[0] - from[0]) * reach,
+      from[1] + (to[1] - from[1]) * reach,
+      from[2] + (to[2] - from[2]) * reach,
+    ]);
+  }
+  return points;
 }

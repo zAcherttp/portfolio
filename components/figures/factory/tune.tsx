@@ -59,7 +59,6 @@ const GROUPS: readonly { name: string; controls: readonly Control[] }[] = [
   {
     name: "Halftone",
     controls: [
-      { key: "halftoneCell", label: "Spacing px", min: 2, max: 24, step: 1 },
       {
         key: "halftoneCover",
         label: "Coverage",
@@ -72,7 +71,6 @@ const GROUPS: readonly { name: string; controls: readonly Control[] }[] = [
   {
     name: "Light",
     controls: [
-      { key: "lightCell", label: "Dot spacing px", min: 2, max: 16, step: 1 },
       {
         key: "lightCover",
         label: "Strength",
@@ -81,6 +79,20 @@ const GROUPS: readonly { name: string; controls: readonly Control[] }[] = [
         step: 0.01,
       },
       { key: "lightGain", label: "Exposure", min: 2, max: 80, step: 1 },
+      { key: "glyphLevel", label: "Glyphs", min: 0.2, max: 1, step: 0.05 },
+    ],
+  },
+  {
+    name: "Smoke",
+    controls: [
+      {
+        key: "smokeCover",
+        label: "Thickness",
+        min: 0.05,
+        max: 0.78,
+        step: 0.01,
+      },
+      { key: "smokeSize", label: "Size", min: 0.25, max: 1.5, step: 0.05 },
     ],
   },
 ];
