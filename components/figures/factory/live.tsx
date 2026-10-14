@@ -170,6 +170,8 @@ export function FactoryLive({
   const [powered, setPowered] = useState(false);
   const [version, setVersion] = useState(0);
   const [palette, setPalette] = useState<Palette | null>(null);
+  /** Draws a new palette at once; see FactoryScene's repaint. */
+  const repaint = useRef<((palette: Palette) => void) | null>(null);
   const [failed, setFailed] = useState(false);
   const [paused, setPaused] = useState(false);
   /** Bumped to remount the drawing after the GPU gives it back. */
@@ -400,12 +402,17 @@ export function FactoryLive({
     const el = rootRef.current;
     if (!el) return;
     let frame = 0;
+    let shown = "";
     const read = () => {
       frame = 0;
       const next = readPalette(el);
-      setPalette((was) =>
-        was && JSON.stringify(was) === JSON.stringify(next) ? was : next,
-      );
+      const key = JSON.stringify(next);
+      if (key === shown) return;
+      // Draw it now, in this frame, as the page restyles: then let React
+      // catch up.
+      if (shown) repaint.current?.(next);
+      shown = key;
+      setPalette(next);
     };
     read();
     const observer = new MutationObserver(() => {
@@ -590,6 +597,7 @@ export function FactoryLive({
                 deck={full ? undefined : { ...deck, element: deckRef.current }}
                 closeDeck={closeDeck}
                 onDrawn={drawn}
+                repaint={repaint}
                 look={look}
                 speed={speed}
                 wireframe={wireframe}

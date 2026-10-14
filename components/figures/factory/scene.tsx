@@ -2,7 +2,15 @@
 
 /* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
 import {
   type Layer,
@@ -616,6 +624,11 @@ export interface FactorySceneProps {
   closeDeck?: number;
   /** Each frame once drawn, with where the deck stands. */
   onDrawn?: (frame: DrawnFrame) => void;
+  /**
+   * Filled with a function that takes a new palette and draws with it at
+   * once, so a theme change can land in the same frame as the page's.
+   */
+  repaint?: RefObject<((palette: Palette) => void) | null>;
   /** How the drawing is inked. */
   look?: FactoryLook;
   /** Line time per real second, for checking the line quickly. */
@@ -649,6 +662,7 @@ function Factory({
   deck,
   closeDeck = 0,
   onDrawn,
+  repaint,
 }: FactorySceneProps & { models: Map<ModelName, Model> }) {
   const shared = useMemo(createSharedUniforms, []);
   const compositeUniforms = useMemo(createCompositeUniforms, []);
@@ -746,21 +760,41 @@ function Factory({
   }, [scene, wireframe, invalidate]);
 
   // Theme tokens and the light from screen-left.
+  const paint = useCallback(
+    (palette: Palette) => {
+      applyPalette(palette, shared, compositeUniforms);
+      // Each light and each building's glowing body take their palette colour.
+      scene.lights.forEach((light, l) => {
+        shared.uLightColour.value[l].set(...rgb(palette[light.colour]));
+      });
+      scene.buildingMaterials.forEach((material, i) => {
+        const colour =
+          BUILDINGS[layout.buildings[i].kind].lightColour ?? "glow";
+        material.uniforms.uGlowColour.value.set(...rgb(palette[colour]));
+      });
+      // Ports fade to the shade of walls facing the picture's right.
+      shared.uPortFace.value.set(basis.right[0], 0, basis.right[2]).normalize();
+      shared.uLight.value.set(...lightFromLeft(basis));
+    },
+    [shared, compositeUniforms, basis, scene, layout],
+  );
   useEffect(() => {
-    applyPalette(palette, shared, compositeUniforms);
-    // Each light and each building's glowing body take their palette colour.
-    scene.lights.forEach((light, l) => {
-      shared.uLightColour.value[l].set(...rgb(palette[light.colour]));
-    });
-    scene.buildingMaterials.forEach((material, i) => {
-      const colour = BUILDINGS[layout.buildings[i].kind].lightColour ?? "glow";
-      material.uniforms.uGlowColour.value.set(...rgb(palette[colour]));
-    });
-    // Ports fade to the shade of walls facing the picture's right.
-    shared.uPortFace.value.set(basis.right[0], 0, basis.right[2]).normalize();
-    shared.uLight.value.set(...lightFromLeft(basis));
+    paint(palette);
     invalidate();
-  }, [palette, shared, compositeUniforms, basis, invalidate, scene, layout]);
+  }, [palette, paint, invalidate]);
+  // A theme change, drawn there and then rather than a frame or two after
+  // React passes the palette down.
+  const advance = useThree((s) => s.advance);
+  useEffect(() => {
+    if (!repaint) return;
+    repaint.current = (next) => {
+      paint(next);
+      advance(performance.now());
+    };
+    return () => {
+      repaint.current = null;
+    };
+  }, [repaint, paint, advance]);
 
   useEffect(() => {
     void version;
