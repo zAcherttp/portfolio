@@ -27,6 +27,7 @@ import { gzipSync } from "node:zlib";
 import { Logger, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import {
+  compactPrimitive,
   dedup,
   flatten,
   join,
@@ -45,10 +46,26 @@ import { fromUnrealAxes } from "../../components/figures/factory/game.ts";
 import { BUILDINGS } from "../../components/figures/factory/layout.ts";
 import { packModels } from "../../components/figures/factory/pack.ts";
 import { gather, keyFrames, offsetRanges, packKeys } from "./keys.mjs";
-import { HIDDEN, LIT, MODELS } from "./models.mjs";
+import { CUTOUT, EMITTER, HIDDEN, LIT, MODELS, POWERED } from "./models.mjs";
 import { measureOpening } from "./openings.mjs";
 import { bakeSkeletal, readPsa, subtree } from "./skeletal.mjs";
 import { convertClip, decodeTexture, turn } from "./vat.mjs";
+
+/** The tone role of decal cutouts: small parts, inked lightly. */
+const DETAIL_ROLE = 2;
+/** The _GLOW value of faces a component's own mask lights. */
+const GLOW_EMITTER = 2;
+/** The _GLOW value of faces that glow with the line's power instead. */
+const GLOW_POWER = 3;
+/**
+ * A _GLOW bit for faces the mask lights only in part: their glow is decided
+ * per pixel, through their UVs in `_MASK`, against the model's mask.
+ */
+const GLOW_PARTLY = 8;
+/** Points sampled across a face, per edge, to tell how much the mask lights. */
+const GLOW_SAMPLES = 8;
+/** How far past a face's edge, in texels, its mask is still read. */
+const GLOW_MARGIN = 0.75;
 
 const args = process.argv.slice(2);
 const [root, out] = args;
@@ -478,18 +495,73 @@ async function paintSwatches(doc, model, swatches = 4) {
 }
 
 /**
- * Splits off the faces a model's emissive mask lights (sampled at each face's
- * centre through TEXCOORD_0), giving them vertices of their own so they make
- * parts of their own. Returns 1 per vertex of a lit face.
+ * Splits off the faces an emissive mask lights (sampled through TEXCOORD_0),
+ * giving them vertices of their own so they make parts of their own. Returns
+ * `previous` (0 where absent), grown to the new vertex count, with `value`
+ * for every vertex of a lit face. A colour test reads each face's centre; a
+ * channel mask is sampled across the face, and a face it lights only in part
+ * is marked GLOW_PARTLY, to be cut along the mask per pixel at draw time.
  */
-function splitGlow(prim, { mask, channel, dark }, eligible = () => true) {
+function splitGlow(
+  prim,
+  { mask, channel, test, dark, threshold = 0.5 },
+  eligible = () => true,
+  value = 1,
+  previous = null,
+) {
   const png = decode(readFileSync(joinPath(root, mask)));
   const max = 2 ** png.depth - 1;
-  const lit = (u, v) => {
-    const wrap = (t) => ((t % 1) + 1) % 1;
-    const x = Math.floor(wrap(u) * (png.width - 1));
-    const y = Math.floor(wrap(v) * (png.height - 1));
-    return png.data[(y * png.width + x) * png.channels + channel] / max > 0.5;
+  // Texels as the shader's nearest, repeating lookup finds them.
+  const texel = (x, y) => {
+    const tx = ((x % png.width) + png.width) % png.width;
+    const ty = ((y % png.height) + png.height) % png.height;
+    const at = (ty * png.width + tx) * png.channels;
+    // A colour test reads the texel as 0–255 RGB; otherwise one channel.
+    if (test) {
+      const rgb = [0, 1, 2].map((c) => (png.data[at + c] / max) * 255);
+      return test(rgb);
+    }
+    return png.data[at + channel] / max > threshold;
+  };
+  const lit = (u, v) =>
+    texel(Math.floor(u * png.width), Math.floor(v * png.height));
+  // Every texel a face's UVs touch, within a texel's margin, so no stroke of
+  // the mask thinner than the sampling grid slips through.
+  const scan = (corners) => {
+    const p = corners.map(([u, v]) => [u * png.width, v * png.height]);
+    const area =
+      (p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) -
+      (p[2][0] - p[0][0]) * (p[1][1] - p[0][1]);
+    const edges = [0, 1, 2].map((k) => {
+      const [a, b] = [p[k], p[(k + 1) % 3]];
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      return { a, b, length };
+    });
+    const inside = (x, y) =>
+      edges.every(({ a, b, length }) => {
+        const cross = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]);
+        return (Math.sign(area) || 1) * cross >= -GLOW_MARGIN * length;
+      });
+    const xs = p.map((q) => q[0]);
+    const ys = p.map((q) => q[1]);
+    let shown = 0;
+    let samples = 0;
+    for (
+      let y = Math.floor(Math.min(...ys) - 1);
+      y <= Math.max(...ys) + 1;
+      y++
+    ) {
+      for (
+        let x = Math.floor(Math.min(...xs) - 1);
+        x <= Math.max(...xs) + 1;
+        x++
+      ) {
+        if (!inside(x + 0.5, y + 0.5)) continue;
+        samples += 1;
+        if (texel(x, y)) shown += 1;
+      }
+    }
+    return { shown, samples };
   };
   const uv = prim.getAttribute("TEXCOORD_0");
   const position = prim.getAttribute("POSITION");
@@ -497,17 +569,35 @@ function splitGlow(prim, { mask, channel, dark }, eligible = () => true) {
   const index = Array.from(indices.getArray());
   const count = prim.getAttribute("POSITION").getCount();
   const copies = new Map();
+  // Faces lit in part get copies of their own: their vertices carry `_MASK`.
+  const partly = new Map();
   const e = [];
+  const corners = [[], [], []];
   for (let t = 0; t < index.length; t += 3) {
     if (!eligible(index[t])) continue;
-    let u = 0;
-    let v = 0;
-    for (let k = 0; k < 3; k++) {
-      uv.getElement(index[t + k], e);
-      u += e[0] / 3;
-      v += e[1] / 3;
+    for (let k = 0; k < 3; k++) uv.getElement(index[t + k], corners[k]);
+    let shown = 0;
+    let samples = 0;
+    if (test) {
+      const u = (corners[0][0] + corners[1][0] + corners[2][0]) / 3;
+      const v = (corners[0][1] + corners[1][1] + corners[2][1]) / 3;
+      shown = lit(u, v) ? 1 : 0;
+      samples = 1;
+    } else {
+      ({ shown, samples } = scan(corners));
+      const n = GLOW_SAMPLES;
+      for (let a = 0; a <= n; a++) {
+        for (let b = 0; a + b <= n; b++) {
+          const [w0, w1] = [a / n, b / n];
+          const w2 = 1 - w0 - w1;
+          const at = (c) =>
+            corners[0][c] * w0 + corners[1][c] * w1 + corners[2][c] * w2;
+          if (lit(at(0), at(1))) shown += 1;
+          samples += 1;
+        }
+      }
     }
-    if (!lit(u, v)) continue;
+    if (shown === 0) continue;
     // Faces the model keeps dark, by their middle, stay with their part.
     if (dark) {
       const middle = [0, 0, 0];
@@ -517,31 +607,135 @@ function splitGlow(prim, { mask, channel, dark }, eligible = () => true) {
       }
       if (dark(middle)) continue;
     }
+    // A channel mask is read per pixel on every face it lights: for its
+    // shape, its colour, and to tell its glyphs from other accents.
+    const these = shown < samples || !test ? partly : copies;
     for (let k = 0; k < 3; k++) {
       const from = index[t + k];
-      if (!copies.has(from)) copies.set(from, count + copies.size);
-      index[t + k] = copies.get(from);
+      if (!these.has(from)) {
+        these.set(from, count + copies.size + partly.size);
+      }
+      index[t + k] = these.get(from);
     }
   }
-  const sources = [...copies.keys()];
+  const sources = [
+    ...[...copies].map(([from, to]) => ({ from, to })),
+    ...[...partly].map(([from, to]) => ({ from, to, partly: true })),
+  ].sort((a, b) => a.to - b.to);
   for (const semantic of prim.listSemantics()) {
     const attribute = prim.getAttribute(semantic);
     const size = attribute.getElementSize();
     const old = attribute.getArray();
     const grown = new old.constructor((count + sources.length) * size);
     grown.set(old);
-    sources.forEach((from, i) => {
-      grown.set(
-        old.subarray(from * size, from * size + size),
-        (count + i) * size,
-      );
-    });
+    for (const { from, to } of sources) {
+      grown.set(old.subarray(from * size, from * size + size), to * size);
+    }
     attribute.setArray(grown);
   }
   indices.setArray(new Uint32Array(index));
   const glow = new Uint8Array(count + sources.length);
-  glow.fill(1, count);
+  if (previous) glow.set(previous);
+  for (const { to, partly } of sources) {
+    glow[to] = value | (partly ? GLOW_PARTLY : 0);
+  }
   return glow;
+}
+
+/** How far, in texels, an output's square reaches past its bright middle. */
+const OUTPUT_RIM = 3;
+/** The largest glow mask shipped, in texels a side. */
+const GLOW_MASK_MOST = 1024;
+
+/**
+ * A model's glow mask as the shader reads it: lit or not, at its threshold.
+ * A larger mask is pooled down, a texel lit if any it covers is, so thin
+ * strokes stay.
+ */
+function glowMask({ mask, channel, threshold = 0.5, output }) {
+  const png = decode(readFileSync(joinPath(root, mask)));
+  const max = 2 ** png.depth - 1;
+  const pool = Math.max(
+    1,
+    Math.ceil(Math.max(png.width, png.height) / GLOW_MASK_MOST),
+  );
+  const width = Math.ceil(png.width / pool);
+  const height = Math.ceil(png.height / pool);
+  const out = new Uint8Array(width * height);
+  const value = (x, y) =>
+    png.data[(y * png.width + x) * png.channels + channel] / max;
+  // An output's square fades at its rim through the inputs' level; it stays
+  // an output out to OUTPUT_RIM texels from its bright middle.
+  const bright = (x, y) => {
+    for (let dy = -OUTPUT_RIM; dy <= OUTPUT_RIM; dy++) {
+      for (let dx = -OUTPUT_RIM; dx <= OUTPUT_RIM; dx++) {
+        const [sx, sy] = [x + dx, y + dy];
+        if (sx < 0 || sy < 0 || sx >= png.width || sy >= png.height) continue;
+        if (value(sx, sy) > output.threshold) return true;
+      }
+    }
+    return false;
+  };
+  for (let y = 0; y < png.height; y++) {
+    for (let x = 0; x < png.width; x++) {
+      if (value(x, y) <= threshold) continue;
+      // Lit at 128; a two-tone mask's outputs at 255.
+      const level = output && bright(x, y) ? 255 : 128;
+      const at = Math.floor(y / pool) * width + Math.floor(x / pool);
+      out[at] = Math.max(out[at], level);
+    }
+  }
+  return { width, height, data: Buffer.from(out).toString("base64") };
+}
+
+/** `_MASK` for faces lit in part: their mask UVs; 0 elsewhere. */
+function seedMask(doc, prim, glow) {
+  const uv = prim.getAttribute("TEXCOORD_0");
+  const mask = new Float32Array(glow.length * 4);
+  const e = [];
+  for (let v = 0; v < glow.length; v++) {
+    if (glow[v] & GLOW_PARTLY) mask.set(uv.getElement(v, e), v * 4);
+  }
+  return doc
+    .createAccessor()
+    .setType("VEC4")
+    .setArray(mask)
+    .setBuffer(prim.getAttribute("POSITION").getBuffer());
+}
+
+/**
+ * Completes `_MASK` with how to draw where the mask leaves a face dark: as
+ * the part beside it that it was split from, by that part's byte plus one
+ * (0 for none) and its id less the face's own.
+ */
+function finishMask(prim, glow, ids, bytes, unlit) {
+  const position = prim.getAttribute("POSITION");
+  const attribute = prim.getAttribute("_MASK");
+  const mask = attribute.getArray();
+  const key = (v) =>
+    position
+      .getElement(v, [])
+      .map((c) => Math.round(c * 2000))
+      .join(",");
+  const plainAt = new Map();
+  for (let v = 0; v < glow.length; v++) {
+    if ((glow[v] & 7) === 0) plainAt.set(key(v), ids[v]);
+  }
+  const index = prim.getIndices().getArray();
+  for (let t = 0; t < index.length; t += 3) {
+    const face = [index[t], index[t + 1], index[t + 2]];
+    if (!(glow[face[0]] & GLOW_PARTLY)) continue;
+    const own = ids[face[0]];
+    const beside = face
+      .map((v) => plainAt.get(key(v)))
+      .find((id) => id !== undefined);
+    const byte = beside === undefined ? unlit(own) : bytes[beside];
+    for (const v of face) {
+      mask[v * 4 + 2] = byte + 1;
+      mask[v * 4 + 3] = (beside ?? own) - own;
+    }
+  }
+  attribute.setArray(mask);
 }
 
 /**
@@ -590,6 +784,66 @@ function findParts(prim, apart = null) {
   return [...byRoot.values()].sort((a, b) => extent(b) - extent(a));
 }
 
+/**
+ * Keeps a decal's faces that use one tile of its atlas (a grate, say) and
+ * drops the rest. Their UVs, mapped onto the tile, go in `_CUT`; the tile's
+ * alpha, as a small mask, cuts the gaps out at draw time.
+ */
+function keepCutout(doc, prim, { region }) {
+  const [u0, v0, u1, v1] = region;
+  const uv = prim.getAttribute("TEXCOORD_0");
+  const index = prim.getIndices().getArray();
+  const kept = [];
+  const e = [];
+  for (let t = 0; t < index.length; t += 3) {
+    let u = 0;
+    let v = 0;
+    for (let k = 0; k < 3; k++) {
+      uv.getElement(index[t + k], e);
+      u += e[0] / 3;
+      v += e[1] / 3;
+    }
+    if (u >= u0 && u <= u1 && v >= v0 && v <= v1) {
+      kept.push(index[t], index[t + 1], index[t + 2]);
+    }
+  }
+  prim.getIndices().setArray(new Uint32Array(kept));
+  compactPrimitive(prim);
+  const count = prim.getAttribute("POSITION").getCount();
+  const cut = new Float32Array(count * 2);
+  const local = prim.getAttribute("TEXCOORD_0");
+  for (let i = 0; i < count; i++) {
+    local.getElement(i, e);
+    cut[i * 2] = (e[0] - u0) / (u1 - u0);
+    cut[i * 2 + 1] = (e[1] - v0) / (v1 - v0);
+  }
+  prim.setAttribute(
+    "_CUT",
+    doc
+      .createAccessor()
+      .setType("VEC2")
+      .setArray(cut)
+      .setBuffer(prim.getAttribute("POSITION").getBuffer()),
+  );
+  return kept.length / 3;
+}
+
+/** A model's cutout tile's alpha, `size` square, from its atlas. */
+function cutoutMask({ mask, region, size }) {
+  const png = decode(readFileSync(joinPath(root, mask)));
+  const [u0, v0, u1, v1] = region;
+  const out = new Uint8Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const px = Math.floor((u0 + ((x + 0.5) / size) * (u1 - u0)) * png.width);
+      const py = Math.floor((v0 + ((y + 0.5) / size) * (v1 - v0)) * png.height);
+      const a = png.data[(py * png.width + px) * png.channels + 3];
+      out[y * size + x] = a > 127 ? 255 : 0;
+    }
+  }
+  return { size, data: Buffer.from(out).toString("base64") };
+}
+
 let total = 0;
 const packed = [];
 for (const model of MODELS) {
@@ -599,9 +853,24 @@ for (const model of MODELS) {
 
   for (const mesh of docRoot.listMeshes()) {
     for (const prim of mesh.listPrimitives()) {
-      if (/decal/i.test(prim.getMaterial()?.getName() ?? "")) {
-        prim.dispose();
-        continue;
+      const name = prim.getMaterial()?.getName() ?? "";
+      if (/decal/i.test(name)) {
+        const tile = model.cutout && /DecalColor/i.test(name);
+        if (!tile || keepCutout(doc, prim, model.cutout) === 0) {
+          prim.dispose();
+          continue;
+        }
+      } else if (model.cutout) {
+        // Every primitive carries _CUT so they join; -1 marks no cutout.
+        const count = prim.getAttribute("POSITION").getCount();
+        prim.setAttribute(
+          "_CUT",
+          doc
+            .createAccessor()
+            .setType("VEC2")
+            .setArray(new Float32Array(count * 2).fill(-1))
+            .setBuffer(prim.getAttribute("POSITION").getBuffer()),
+        );
       }
       for (const semantic of prim.listSemantics()) {
         const keep =
@@ -609,6 +878,7 @@ for (const model of MODELS) {
           semantic === "NORMAL" ||
           semantic === "_SRC" ||
           semantic === "_BONE" ||
+          semantic === "_CUT" ||
           ((model.albedo || model.glow) && semantic === "TEXCOORD_0");
         if (!keep) {
           prim.setAttribute(semantic, null);
@@ -634,17 +904,38 @@ for (const model of MODELS) {
   }
   const [mesh] = meshes;
   const [prim] = prims;
-  // Only the static blueprint meshes use the glow mask's textures.
+  // Only the static blueprint meshes use the model's glow mask's textures;
+  // an animated component names its own. Faces lit by a component's mask
+  // are where the building's light comes from (GLOW_EMITTER).
   const animated = new Set(
     model.components.flatMap((c, i) => (c.vat || c.skeletal ? [i] : [])),
   );
+  const componentOf = (v) => prim.getAttribute("_SRC").getScalar(v) >> 1;
+  // Decal cutouts read their atlas through TEXCOORD_0, not the glow masks.
+  const cutAt = prim.getAttribute("_CUT");
+  const plain = (v) => !cutAt || cutAt.getElement(v, [])[0] < 0;
   let glow = null;
+  let flags = null;
   if (model.glow) {
-    const flags = splitGlow(
+    flags = splitGlow(
       prim,
       model.glow,
-      (v) => !animated.has(prim.getAttribute("_SRC").getScalar(v) >> 1),
+      (v) => !animated.has(componentOf(v)) && plain(v),
+      model.glow.power ? GLOW_POWER : 1,
     );
+  }
+  for (const [i, component] of model.components.entries()) {
+    for (const glowing of [component.glow ?? []].flat()) {
+      flags = splitGlow(
+        prim,
+        glowing,
+        (v) => componentOf(v) === i,
+        glowing.power ? GLOW_POWER : GLOW_EMITTER,
+        flags,
+      );
+    }
+  }
+  if (flags) {
     // Carry the flag as an attribute so welding again, once the UVs that
     // split the seams are gone, keeps glowing faces apart.
     prim.setAttribute(
@@ -655,18 +946,27 @@ for (const model of MODELS) {
         .setArray(flags)
         .setBuffer(prim.getAttribute("POSITION").getBuffer()),
     );
+    if (flags.some((f) => f & GLOW_PARTLY)) {
+      prim.setAttribute("_MASK", seedMask(doc, prim, flags));
+    }
     if (!model.albedo) prim.setAttribute("TEXCOORD_0", null);
     await doc.transform(weld());
     glow = prim.getAttribute("_GLOW").getArray();
   }
-  const parts = findParts(prim, glow);
+  const parts = findParts(
+    prim,
+    glow?.map((g) => g & 7),
+  );
   if (parts.length > 65535) throw new Error(`${model.name}: too many parts`);
 
   const ids = new Uint16Array(prim.getAttribute("POSITION").getCount());
   const bytes = new Uint8Array(parts.length);
   const debug = [];
+  /** What each part would be without its glow, for faces lit in part. */
+  const unlitBytes = new Uint8Array(parts.length);
   const sources = prim.getAttribute("_SRC");
   const boneOf = prim.getAttribute("_BONE");
+  const cutOf = prim.getAttribute("_CUT");
   parts.forEach((part, id) => {
     for (const v of part.verts) ids[v] = id;
     const box = {
@@ -676,7 +976,13 @@ for (const model of MODELS) {
       /** Its material glows in the game. */
       emissive: (sources.getScalar(part.verts[0]) & 1) === 1,
       /** It is one of the faces the game's emissive mask lights. */
-      glow: glow?.[part.verts[0]] === 1,
+      glow: ((glow?.[part.verts[0]] ?? 0) & 7) > 0,
+      /** Its light is the building's own: a component's mask lights it. */
+      emitter: ((glow?.[part.verts[0]] ?? 0) & 7) === GLOW_EMITTER,
+      /** It glows while the line has power: a power light. */
+      power: ((glow?.[part.verts[0]] ?? 0) & 7) === GLOW_POWER,
+      /** It is cut from a decal's tile: drawn where the tile is opaque. */
+      cutout: (cutOf?.getElement(part.verts[0], [])[0] ?? -1) >= 0,
       /** The skinned bone it follows, by the game's name. */
       bone: boneNames?.[boneOf.getScalar(part.verts[0])] ?? null,
       min: part.min.map((v) => +v.toFixed(3)),
@@ -684,10 +990,20 @@ for (const model of MODELS) {
     };
     // Glowing faces are the lit accent, whatever else the part would be.
     bytes[id] = box.glow
-      ? (model.role(box) & ~7) | (model.glowTone ?? LIT)
-      : model.role(box);
+      ? (model.role(box) & ~7) |
+        LIT |
+        (box.emitter ? EMITTER : 0) |
+        (box.power ? POWERED : 0)
+      : box.cutout
+        ? (model.role(box) & ~7) | DETAIL_ROLE | CUTOUT
+        : model.role(box);
     debug.push({ ...box, verts: part.verts.length, byte: bytes[id] });
+    unlitBytes[id] = model.role(box);
   });
+  const masked = Boolean(prim.getAttribute("_MASK"));
+  if (masked) {
+    finishMask(prim, glow, ids, bytes, (id) => unlitBytes[id]);
+  }
   prim.setAttribute(
     "_PART",
     doc
@@ -712,6 +1028,17 @@ for (const model of MODELS) {
     ...(palette ? { palette } : {}),
     ...(vat ? { vat } : {}),
     ...(openings ? { openings } : {}),
+    ...(model.cutout ? { cutout: cutoutMask(model.cutout) } : {}),
+    ...(masked && model.glow ? { glowMask: glowMask(model.glow) } : {}),
+    ...(model.glow?.colour
+      ? {
+          glyph: {
+            colour: model.glow.colour,
+            lamp: !!model.glow.power,
+            ...(model.glow.output ? { output: model.glow.output.colour } : {}),
+          },
+        }
+      : {}),
   });
 
   await doc.transform(

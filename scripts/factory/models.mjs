@@ -10,7 +10,8 @@
 //
 // Roles: 0 base, 1 structure, 2 detail, 3 subject (the belt items), 4 lit (the
 // accent that wakes when the machine runs). SPIN marks parts that turn around
-// the model's y axis; EMITTER the glowing body a building's light comes from.
+// the model's y axis; EMITTER the glowing body a building's light comes from;
+// POWERED a lamp lit by the line's power.
 
 const BUILD = "FactoryGame/Content/FactoryGame/Buildable/Factory";
 const RES = "FactoryGame/Content/FactoryGame/Resource";
@@ -23,7 +24,17 @@ const RES = "FactoryGame/Content/FactoryGame/Resource";
 const FACTORY_GLOW = {
   mask: "FactoryGame/Content/FactoryGame/Buildable/-Shared/Material/Resources/TX2D_FactoryBase_MREO_LAYER8.png",
   channel: 2,
+  // Inputs' stripes sit on the mask's dim squares (0.29), outputs' brackets
+  // on its bright ones (0.67): both glow.
+  threshold: 0.2,
+  // MM_Factory_Array's Input_Color and Output_Color: the bright squares are
+  // outputs, read per pixel.
+  colour: "#ffba00",
+  output: { colour: "#1bffd5", threshold: 0.5 },
 };
+
+/** The smelter albedo's orange paint, by colour. */
+const ORANGE_PAINT = ([r, g, b]) => r > 200 && g > 100 && g < 180 && b < 60;
 
 export const BASE = 0;
 export const STRUCTURE = 1;
@@ -35,6 +46,10 @@ export const SPIN = 8;
 export const HIDDEN = 16;
 /** Where a building's light comes from: it casts no shadow of that light. */
 export const EMITTER = 32;
+/** A lamp that glows while the line has power, in the power colour. */
+export const POWERED = 64;
+/** Cut from a decal's tile: drawn only where the tile is opaque. */
+export const CUTOUT = 128;
 
 const size = (p) => p.max.map((v, i) => v - p.min[i]);
 const diagonal = (p) => Math.hypot(...size(p));
@@ -97,6 +112,25 @@ export const MODELS = [
         source: `${BUILD}/SmelterMk1/Mesh/SM_VAT_Smelter_01.glb`,
         yaw: Math.PI,
         offset: [0, 0.05, -0.3],
+        glow: [
+          // The forge's mouth on top, round the burner socket the smoke
+          // leaves by, glows in the game; the albedo paints it orange. (The
+          // AO masks' blue channel also lights slits beside the windows;
+          // they stay plain.)
+          {
+            mask: `${BUILD}/SmelterMk1/Texture/TX_SK_Smelter_01_BC.png`,
+            test: ORANGE_PAINT,
+            dark: ([, y]) => y < 7.5,
+          },
+          // The strip down the tower's front, painted the same orange,
+          // glows as its power lamp.
+          {
+            mask: `${BUILD}/SmelterMk1/Texture/TX_SK_Smelter_01_BC.png`,
+            test: ORANGE_PAINT,
+            dark: ([, y, z]) => y < 4.5 || y > 7.2 || z < 3,
+            power: true,
+          },
+        ],
         // MI_VAT_Smelter_*: position and rotation textures, clip seconds.
         vat: {
           clips: {
@@ -139,17 +173,22 @@ export const MODELS = [
       },
     ],
     role: (p) => generic(p, 0.5),
+    // The deck on top is a grate: a flat card the decal atlas's grate tile
+    // cuts into bars (DecalColor_Masked, ColorAtlas_Alb's alpha).
+    cutout: {
+      mask: "FactoryGame/Content/FactoryGame/Buildable/-Shared/Texture/ColorAtlas_Alb.png",
+      region: [0, 0.125, 0.28, 0.42],
+      size: 128,
+    },
   },
   {
     name: "depot",
+    // MI_CentralStorage_01 (MM_FactoryBaked) glows E8CF76 where its
+    // reflection map's blue channel is set: the input's three stripes.
     glow: {
-      ...FACTORY_GLOW,
-      // The shared mask also lights the cradle round the sphere, a patch on
-      // its cap and slivers of the frame's corners; on the uploader only the
-      // sphere glows up there, and the corners are plain frame.
-      dark: ([x, y, z]) =>
-        (y > 2.8 && y < 4.2 && Math.abs(x) < 1.2 && z > -1.7 && z < 0) ||
-        (Math.abs(x) > 1.5 && Math.abs(z) > 3.6),
+      mask: `${BUILD}/CentralStorage/Texture/TX_CentralStorage_Refl.png`,
+      channel: 2,
+      colour: "#e8cf76",
     },
     components: [
       // Build_CentralStorage: the uploader body faces back, input on +z.
@@ -168,18 +207,24 @@ export const MODELS = [
       },
     ],
     // Glows in the game: the windows and the encapsulated Mercer sphere
-    // (component 1), which is where the depot's light comes from. The input
-    // frame inks like the rest of the body.
+    // (component 1), which is where the depot's light comes from.
     role: (p) => {
       if (p.component === 1 && size(p)[1] < 0.05) return HIDDEN;
       if (p.component === 1) return LIT | EMITTER;
-      if (p.emissive) return LIT;
+      // The windows glow with the sphere's light, not the glyphs' colour.
+      if (p.emissive) return LIT | EMITTER;
       return generic(p, 0.5);
     },
   },
   {
     name: "splitter",
-    glow: FACTORY_GLOW,
+    // MI_Splitter_01 (MM_FactoryBaked) glows F6CB00 where its
+    // reflection map's blue channel is set: the ports' stripes and brackets.
+    glow: {
+      mask: `${BUILD}/CA_Splitter/Texture/TX_Splitter_Refl.png`,
+      channel: 2,
+      colour: "#f6cb00",
+    },
     components: [
       // Build_ConveyorAttachmentSplitter: SM_Splitter_01, turned half round, 55 cm down.
       {
@@ -192,7 +237,13 @@ export const MODELS = [
   },
   {
     name: "merger",
-    glow: FACTORY_GLOW,
+    // MI_Merger_01 (MM_FactoryBaked) glows F6CB00 where its
+    // reflection map's blue channel is set: the ports' stripes and brackets.
+    glow: {
+      mask: `${BUILD}/CA_Merger/Texture/TX_Merger_Refl.png`,
+      channel: 2,
+      colour: "#f6cb00",
+    },
     components: [
       // Build_ConveyorAttachmentMerger: SM_Merger_01, 55 cm down.
       {
@@ -209,12 +260,14 @@ export const MODELS = [
     ],
     // MI_ConveyorBelt_Mk1_01 (MM_ConveyorBelt): the lights along the rails
     // glow where the MREO texture's emissive channel is set.
+    // Lamps along every belt, lit in full while the line has power, in
+    // MI_ConveyorBelt's EmissiveColour.
     glow: {
       mask: `${BUILD}/ConveyorBeltMk1/Texture/TX_ConveyorBeltMk1_MREO.png`,
       channel: 2,
+      power: true,
+      colour: "#ffe786",
     },
-    // Lamps along every belt: `hi`, so they read without taking the accent.
-    glowTone: SUBJECT,
     role: () => STRUCTURE,
   },
   {
@@ -222,12 +275,14 @@ export const MODELS = [
     components: [
       { source: `${BUILD}/ConveyorBeltMk3/Mesh/SM_ConveyorBelt_Mk3.glb` },
     ],
+    // Lamps along every belt, lit in full while the line has power, in
+    // MI_ConveyorBelt's EmissiveColour.
     glow: {
       mask: `${BUILD}/ConveyorBeltMk3/Texture/TX_ConveyorBeltMk3_MREO.png`,
       channel: 2,
+      power: true,
+      colour: "#ffe786",
     },
-    // Lamps along every belt: `hi`, so they read without taking the accent.
-    glowTone: SUBJECT,
     role: () => STRUCTURE,
   },
   {
@@ -239,6 +294,17 @@ export const MODELS = [
       },
     ],
     role: () => BASE,
+  },
+  {
+    name: "power-pole",
+    components: [
+      // Build_PowerPoleMk1 sets SM_PowerPole_Mk1 10 cm up.
+      {
+        source: `${BUILD}/PowerPoleMk1/Mesh/SM_PowerPole_Mk1.glb`,
+        offset: [0, 0.1, 0],
+      },
+    ],
+    role: (p) => generic(p, 0.3),
   },
   {
     name: "node-iron",

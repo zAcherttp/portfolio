@@ -32,6 +32,19 @@ export interface Model {
   animation?: Animation;
   /** A building's openings by port name, measured from the game's mesh. */
   openings?: Record<string, Opening>;
+  /** The alpha its cutout parts are cut by, through their `_cut` UVs. */
+  cutout?: THREE.Texture;
+  /** Its glow mask, cutting faces lit in part along it, through `_mask`. */
+  glowMask?: THREE.Texture;
+  /** The game's colour for what its mask lights; `lamp` for power lamps. */
+  glyph?: Glyph;
+}
+
+export interface Glyph {
+  colour: string;
+  lamp: boolean;
+  /** Outputs' colour, where the mask is brightest. */
+  output?: string;
 }
 
 interface BakedAnimation {
@@ -129,6 +142,10 @@ function prepare(scene: THREE.Object3D): Model {
   if (swatch) geometry.setAttribute("_swatch", swatch);
   const bone = source.getAttribute("_bone");
   if (bone) geometry.setAttribute("_bone", bone);
+  const cut = source.getAttribute("_cut");
+  if (cut) geometry.setAttribute("_cut", cut);
+  const mask = source.getAttribute("_mask");
+  if (mask) geometry.setAttribute("_mask", mask);
   geometry.setIndex(source.getIndex());
   geometry.applyMatrix4(mesh.matrixWorld);
   geometry.computeBoundingSphere();
@@ -143,7 +160,38 @@ function prepare(scene: THREE.Object3D): Model {
       ? bakeAnimation(mesh.userData.vat as BakedAnimation)
       : undefined,
     openings: mesh.userData.openings as Record<string, Opening> | undefined,
+    cutout: mesh.userData.cutout
+      ? maskTexture(mesh.userData.cutout as Mask)
+      : undefined,
+    glowMask: mesh.userData.glowMask
+      ? maskTexture(mesh.userData.glowMask as Mask)
+      : undefined,
+    glyph: mesh.userData.glyph as Glyph | undefined,
   };
+}
+
+/** A one-channel mask as the build ships it: square `size`, or its sides. */
+interface Mask {
+  size?: number;
+  width?: number;
+  height?: number;
+  data: string;
+}
+
+/** A one-channel mask: a decal tile's alpha, or where a glow mask lights. */
+function maskTexture({ size, width = size, height = size, data }: Mask) {
+  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  const texture = new THREE.DataTexture(
+    bytes,
+    width,
+    height,
+    THREE.RedFormat,
+    THREE.UnsignedByteType,
+  );
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 export async function loadModels(
