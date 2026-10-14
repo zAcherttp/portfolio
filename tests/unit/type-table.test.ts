@@ -46,7 +46,7 @@ const documentedTypes = [
   {
     name: "GlobalHotkeysProps",
     path: "components/GlobalHotkeys.tsx",
-    props: ["shortcut", "throttleMs", "ignoreInputs"],
+    props: ["shortcut", "throttleMs", "ignoreInputs", "instantWhileHeld"],
   },
   {
     name: "KbdOwnProps",

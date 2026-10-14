@@ -50,7 +50,10 @@ export function ThemeHotkeyRapidFixture() {
   return (
     <div className="flex flex-col items-center gap-4">
       <ThemeStatus />
-      <button className={buttonClassName} type="button">
+      <button
+        className={`${buttonClassName} transition-colors duration-200`}
+        type="button"
+      >
         Hold <Kbd className="mx-1.5">D</Kbd> to inspect throttling
       </button>
     </div>

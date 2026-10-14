@@ -6158,6 +6158,83 @@
               }
             ]
           }
+        },
+        {
+          "name": "instantWhileHeld",
+          "required": false,
+          "description": "While the shortcut is held down and repeating, switch themes without CSS\ntransitions, so the page doesn't restart every colour transition on each\ntoggle. A single press still transitions as usual.",
+          "highlightedType": {
+            "type": "root",
+            "children": [
+              {
+                "type": "element",
+                "tagName": "pre",
+                "properties": {
+                  "class": "shiki shiki-themes github-light vesper",
+                  "style": "--shiki-light:#24292e;--shiki-dark:#FFF;--shiki-light-bg:#fff;--shiki-dark-bg:#101010",
+                  "tabindex": "0"
+                },
+                "children": [
+                  {
+                    "type": "element",
+                    "tagName": "code",
+                    "properties": {},
+                    "children": [
+                      {
+                        "type": "element",
+                        "tagName": "span",
+                        "properties": {
+                          "class": "line",
+                          "data-line": ""
+                        },
+                        "children": [
+                          {
+                            "type": "element",
+                            "tagName": "span",
+                            "properties": {
+                              "style": "--shiki-light:#24292E;--shiki-dark:#FFF"
+                            },
+                            "children": [
+                              {
+                                "type": "text",
+                                "value": "boolean "
+                              }
+                            ]
+                          },
+                          {
+                            "type": "element",
+                            "tagName": "span",
+                            "properties": {
+                              "style": "--shiki-light:#D73A49;--shiki-dark:#A0A0A0"
+                            },
+                            "children": [
+                              {
+                                "type": "text",
+                                "value": "|"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "element",
+                            "tagName": "span",
+                            "properties": {
+                              "style": "--shiki-light:#005CC5;--shiki-dark:#FFF"
+                            },
+                            "children": [
+                              {
+                                "type": "text",
+                                "value": " undefined"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
         }
       ]
     }
