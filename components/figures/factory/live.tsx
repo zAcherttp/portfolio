@@ -426,9 +426,17 @@ export function FactoryLive({
 
   useEffect(() => {
     if (!running) return;
+    let moved = line.time;
+    let last = performance.now();
     const id = window.setInterval(() => {
-      // Without a drawing, nothing else moves the line forward.
-      if (failed) stepLine(line, 0.25 * speed);
+      const now = performance.now();
+      // Frames move the line. Without a drawing, or while a slow GPU stalls
+      // them, nothing else would: the clock moves it instead.
+      if (failed || line.time === moved) {
+        stepLine(line, Math.min((now - last) / 1000, 1) * speed);
+      }
+      moved = line.time;
+      last = now;
       setSnapshot(snapshotOf(line));
     }, 250);
     return () => window.clearInterval(id);

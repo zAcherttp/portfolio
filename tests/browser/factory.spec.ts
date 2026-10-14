@@ -37,6 +37,20 @@ test.describe("screw factory", () => {
     });
   });
 
+  test("keeps the line running when frames stall", async ({ page }) => {
+    // A software GPU can take seconds per frame; the line must not wait on it.
+    await page.addInitScript(() => {
+      const raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = (callback) =>
+        window.setTimeout(() => raf(callback), 60_000);
+    });
+    const factory = await openFactory(page);
+    await factory.getByRole("button", { name: "Power on" }).click();
+    await expect(minerStatus(page)).toContainText("working", {
+      timeout: 5_000,
+    });
+  });
+
   test("shows the settled line at once under reduced motion", async ({
     page,
   }) => {
