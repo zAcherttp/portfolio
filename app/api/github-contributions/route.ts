@@ -2,7 +2,12 @@ import { cacheLife } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Activity } from "../../../components/kibo-ui/contribution-graph";
+import { profile } from "../../../data/profile";
 import { fetchBoundedJson } from "../../../lib/bounded-fetch";
+import {
+  combineContributions,
+  resolveContributionUsernames,
+} from "../../../lib/github-contributions";
 
 const apiActivitySchema = z.object({
   date: z.iso.date(),
@@ -11,7 +16,14 @@ const apiActivitySchema = z.object({
 });
 
 const githubContributionsSchema = z.object({
-  contributions: z.array(apiActivitySchema).max(400),
+  contributions: z
+    .array(apiActivitySchema)
+    .min(1)
+    .max(400)
+    .refine(
+      (days) => new Set(days.map((day) => day.date)).size === days.length,
+      "Contribution dates must be unique within each account.",
+    ),
 });
 
 const CONTRIBUTIONS_MAX_BYTES = 512 * 1024;
@@ -37,10 +49,18 @@ async function getCachedContributions(username: string, baseUrl: string) {
 }
 
 export async function GET() {
-  const username = process.env.GITHUB_USERNAME;
   const baseUrl = process.env.GITHUB_CONTRIBUTIONS_API_URL || DEFAULT_BASE_URL;
+  let usernames: string[];
 
-  if (!username) {
+  try {
+    usernames = resolveContributionUsernames(
+      profile.githubContributionUsernames,
+      {
+        GITHUB_USERNAMES: process.env.GITHUB_USERNAMES,
+        GITHUB_USERNAME: process.env.GITHUB_USERNAME,
+      },
+    );
+  } catch {
     return NextResponse.json(
       {
         error: {
@@ -53,7 +73,10 @@ export async function GET() {
   }
 
   try {
-    const data = await getCachedContributions(username, baseUrl);
+    const calendars = await Promise.all(
+      usernames.map((username) => getCachedContributions(username, baseUrl)),
+    );
+    const data = combineContributions(calendars);
     return NextResponse.json(data, {
       headers: {
         // Client browser caching of the API response for 1 hour to reduce server load

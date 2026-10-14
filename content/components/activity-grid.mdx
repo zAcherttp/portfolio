@@ -2,6 +2,10 @@
 
 Supply column data and render each SVG cell yourself. Pointer geometry and active-cell anchors stay inside the primitive.
 
+The `title` prop supplies the SVG's accessible name without creating a browser-native hover popup. Cell details can use the floating tooltip independently.
+
+Active-cell anchors use document CSS pixels, so they stay aligned during page zoom and trackpad pinch zoom. Scrolling or zooming clears the active cell; move the pointer over a cell again to show its current details.
+
 ```tsx title="activity-grid.tsx"
 import { ActivityGrid } from "@/components/registry/activity-grid";
 

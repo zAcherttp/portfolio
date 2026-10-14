@@ -404,7 +404,7 @@ export const ContributionGraphCalendar = ({
   children,
   ...props
 }: ContributionGraphCalendarProps) => {
-  const { weeks, blockSize, blockMargin, labels, labelHeight } =
+  const { weeks, blockSize, blockMargin, blockRadius, labels, labelHeight } =
     useContributionGraph();
 
   const monthLabels = useMemo(
@@ -471,7 +471,7 @@ export const ContributionGraphCalendar = ({
       />
       <VirtualTooltip
         anchor={activeCell?.anchor ?? null}
-        highlightRadius={2}
+        highlightRadius={`${(blockRadius / blockSize) * 100}%`}
         highlightThickness={1}
         showAnchor
       >

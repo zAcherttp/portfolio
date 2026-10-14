@@ -46,7 +46,7 @@ export default function GitHubContributions({
     setFallbackData(generateFallbackData(new Date()));
   }, []);
 
-  const { data, isLoading } = useQuery<Activity[]>({
+  const { data, isLoading, isError } = useQuery<Activity[]>({
     queryKey: ["github-contributions", endpoint],
     queryFn: async () => {
       const response = await fetch(endpoint);
@@ -56,6 +56,14 @@ export default function GitHubContributions({
     staleTime: 1000 * 60 * 60,
   });
 
+  if (isError && !data) {
+    return (
+      <p role="status" className="text-xs text-muted-foreground">
+        Contributions are temporarily unavailable.
+      </p>
+    );
+  }
+
   return (
     <div className="w-full min-w-0 max-w-full overflow-hidden">
       <ContributionGraph
@@ -64,7 +72,9 @@ export default function GitHubContributions({
         blockMargin={2}
         fontSize={10}
         weekStart={1}
-        labels={{ totalCount: "{{count}} contributions in the last year" }}
+        labels={{
+          totalCount: "{{count}} contributions in the last year",
+        }}
       >
         <ContributionGraphCalendar>
           {({ activity, dayIndex, weekIndex }) => (

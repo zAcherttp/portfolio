@@ -4,6 +4,8 @@ import {
   type HTMLAttributes,
   type PointerEvent,
   type ReactNode,
+  useCallback,
+  useEffect,
   useRef,
 } from "react";
 import { cn } from "@/lib/utils";
@@ -27,7 +29,7 @@ export type ActivityGridOwnProps<T> = {
   labelHeight?: number;
   /** Minimum scrollable content width in CSS pixels. */
   minContentWidth?: number;
-  /** Accessible title announced for the generated SVG. */
+  /** Accessible name for the SVG, without a browser-native hover tooltip. */
   title?: string;
   /** Returns a stable React key for a grid position. */
   getKey: (
@@ -74,17 +76,34 @@ export function ActivityGrid<T>({
 }: ActivityGridProps<T>) {
   const svgRef = useRef<SVGSVGElement>(null);
   const activeKeyRef = useRef("");
+  const activeItemRef = useRef<T | undefined>(undefined);
   const rowCount = Math.max(0, ...columns.map((column) => column.length));
   const stride = cellSize + gap;
   const width = columns.length * stride - gap;
   const height = labelHeight + rowCount * stride - gap;
   const resolvedMinContentWidth = Math.max(width, minContentWidth ?? width);
 
-  const clearActiveCell = () => {
+  const clearActiveCell = useCallback(() => {
     if (!activeKeyRef.current) return;
     activeKeyRef.current = "";
+    activeItemRef.current = undefined;
     onActiveCellChange?.(null);
-  };
+  }, [onActiveCellChange]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    // A fresh pointer sample is needed after the grid's screen geometry changes.
+    window.addEventListener("scroll", clearActiveCell, true);
+    window.addEventListener("resize", clearActiveCell);
+    viewport?.addEventListener("scroll", clearActiveCell);
+    viewport?.addEventListener("resize", clearActiveCell);
+    return () => {
+      window.removeEventListener("scroll", clearActiveCell, true);
+      window.removeEventListener("resize", clearActiveCell);
+      viewport?.removeEventListener("scroll", clearActiveCell);
+      viewport?.removeEventListener("resize", clearActiveCell);
+    };
+  }, [clearActiveCell]);
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const svg = svgRef.current;
@@ -109,12 +128,10 @@ export function ActivityGrid<T>({
     }
 
     const key = `${columnIndex}-${rowIndex}`;
-    if (key === activeKeyRef.current) return;
+    if (key === activeKeyRef.current && item === activeItemRef.current) return;
     activeKeyRef.current = key;
+    activeItemRef.current = item;
 
-    const viewport = window.visualViewport;
-    const pageLeft = viewport?.pageLeft ?? window.scrollX;
-    const pageTop = viewport?.pageTop ?? window.scrollY;
     const scaleX = rect.width / width;
     const scaleY = rect.height / height;
 
@@ -123,8 +140,13 @@ export function ActivityGrid<T>({
       columnIndex,
       rowIndex,
       anchor: {
-        left: pageLeft + rect.left + columnIndex * stride * scaleX,
-        top: pageTop + rect.top + (labelHeight + rowIndex * stride) * scaleY,
+        // Client rects already use layout-viewport CSS pixels. Pinch-pan offsets
+        // belong to tooltip collision bounds, not this document-space anchor.
+        left: window.scrollX + rect.left + columnIndex * stride * scaleX,
+        top:
+          window.scrollY +
+          rect.top +
+          (labelHeight + rowIndex * stride) * scaleY,
         width: cellSize * scaleX,
         height: cellSize * scaleY,
       },
@@ -146,10 +168,11 @@ export function ActivityGrid<T>({
       >
         <svg
           ref={svgRef}
+          role="img"
+          aria-label={title}
           className="block h-auto w-full overflow-visible"
           viewBox={`0 0 ${width} ${height}`}
         >
-          <title>{title}</title>
           {renderLabels?.()}
           {columns.map((column, columnIndex) =>
             column.map((item, rowIndex) => (

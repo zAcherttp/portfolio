@@ -11,6 +11,28 @@ export interface Project {
 
 export const projectsData: Project[] = [
   {
+    id: "11",
+    title: "session-hub",
+    url: "https://github.com/zAcherttp/session-hub",
+    urlLabel: "github.com",
+    tags: ["macOS", "SwiftUI", "Claude Code"],
+    primaryLanguage: "Swift",
+    description:
+      "A macOS Kanban board for Claude Code sessions across Desktop accounts and the CLI. Move, share, or stash sessions with backups and undo, then fork or resume work from your terminal.",
+    languages: ["Swift", "Shell"],
+  },
+  {
+    id: "12",
+    title: "claude-fleet",
+    url: "https://github.com/zAcherttp/claude-fleet",
+    urlLabel: "github.com",
+    tags: ["Claude Code", "Plugin", "Git Worktrees"],
+    primaryLanguage: "JavaScript",
+    description:
+      "A Claude Code plugin that queues parallel sessions with a configurable concurrency limit. A shared task board tracks progress and file overlaps so sessions can coordinate changes and clean up after merge.",
+    languages: ["JavaScript", "Shell"],
+  },
+  {
     id: "10",
     title: "electron-boilerplate",
     url: "https://github.com/zAcherttp/electron-boilerplate",
@@ -40,7 +62,7 @@ export const projectsData: Project[] = [
     tags: ["Next.js", "Convex", "Better Auth", "Drizzle ORM"],
     primaryLanguage: "TypeScript",
     description:
-      "A warehouse management system built as a Turborepo monorepo with Next.js, Convex, Better Auth, Drizzle ORM, and PostgreSQL.",
+      "A warehouse operations demo with a public read-only workspace, inventory and order workflows, and a 3D layout editor. Built with Next.js, Convex, Better Auth, Drizzle ORM, and Neon/PostgreSQL in a Turborepo monorepo.",
     languages: ["TypeScript", "PowerShell", "CSS", "JavaScript"],
   },
   {
@@ -70,10 +92,10 @@ export const projectsData: Project[] = [
     title: "se104-auto-repair-shop",
     url: "https://github.com/zAcherttp/se104-auto-repair-shop",
     urlLabel: "github.com",
-    tags: [],
+    tags: ["Next.js", "Supabase", "Course Project"],
     primaryLanguage: "TypeScript",
     description:
-      "Automobile repair shop manager built using Next.js, Typescript, Shadcn, Tailwind, Supabase",
+      "A coursework repair-shop manager covering vehicle reception, repair orders, payments, customer status lookup, and garage reports. Built with Next.js, TypeScript, and Supabase.",
     languages: ["TypeScript", "JavaScript", "CSS"],
   },
   {

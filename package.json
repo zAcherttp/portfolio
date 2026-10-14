@@ -12,6 +12,7 @@
     "dev:app": "pnpm precompute-types && next dev",
     "build": "pnpm precompute-types && pnpm registry:build && next build",
     "precompute-types": "tsx scripts/precompute-type-tables.mts",
+    "projects:refresh": "tsx scripts/update-projects.mts",
     "start": "next start",
     "lint": "biome check",
     "check": "biome check --write",
