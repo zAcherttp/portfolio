@@ -48,6 +48,7 @@ import {
   lookStrengths,
 } from "./look";
 import { type Animation, loadModels, type Model } from "./models";
+import { profiler, timeMeshes } from "./profile";
 import { createGovernor, govern } from "./quality";
 import {
   builtShare,
@@ -1152,6 +1153,7 @@ function Factory({
   };
 
   useFrame((state, delta) => {
+    const prof = profiler(state.gl.getContext() as WebGL2RenderingContext);
     const dt = Math.min(delta, 0.1) * speed;
     easeView(delta, state.invalidate);
     // Placing: each group's seam, and how much of each building stands.
@@ -1396,7 +1398,7 @@ function Factory({
       (phase.current === "opening" ||
         phase.current === "closing" ||
         phase.current === "closed");
-    const factor = Math.max(
+    let factor = Math.max(
       1,
       Math.min(
         look.supersample,
@@ -1412,6 +1414,8 @@ function Factory({
         ),
       ),
     );
+    if (prof?.profile.factor) factor = prof.profile.factor;
+    if (prof?.profile.lights === false) shared.uLightCount.value = 0;
     const w = buffer.x * factor;
     const h = buffer.y * factor;
     if (target.width !== w || target.height !== h) {
@@ -1436,6 +1440,7 @@ function Factory({
     shared.uGlyphLevel.value = look.glyphLevel;
     shared.uHalftoneCover.value = look.halftoneCover;
 
+    prof?.mark("cpu");
     // Shadows first, from every light that is on. The view never turns and
     // the buildings stay put, so most are drawn once, without the items;
     // those items pass through follow them every other frame. Clear to the
@@ -1467,10 +1472,51 @@ function Factory({
       renderer.autoClear = autoClear;
     }
 
+    prof?.mark("shadows");
     renderer.setRenderTarget(target);
     renderer.setClearColor(0x000000, 0);
     renderer.clear(true, true, true);
+    // Depth first, cheaply, so the shaded pass shades each pixel once
+    // instead of every surface drawn over another.
+    const { color, depth } = renderer.state.buffers;
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    shared.uDepthPass.value = 1;
+    scene.sparks.visible = false;
+    color.setMask(false);
+    color.setLocked(true);
     renderer.render(scene.root, state.camera);
+    color.setLocked(false);
+    color.setMask(true);
+    prof?.mark("prepass");
+    scene.sparks.visible = true;
+    shared.uDepthPass.value = 0;
+    depth.setMask(false);
+    depth.setLocked(true);
+    renderer.render(scene.root, state.camera);
+    depth.setLocked(false);
+    depth.setMask(true);
+    renderer.autoClear = autoClear;
+    if (prof && (prof.profile as { perMesh?: boolean }).perMesh) {
+      timeMeshes(
+        renderer.getContext() as WebGL2RenderingContext,
+        prof.profile,
+        (object) => renderer.render(object, state.camera),
+        scene.root,
+      );
+    }
+    if (prof) {
+      const { calls, triangles } = renderer.info.render;
+      prof.profile.info = {
+        calls,
+        triangles,
+        programs: renderer.info.programs?.length ?? 0,
+        lights: shared.uLightCount.value,
+        views: shared.uViewCount.value,
+        units: renderer.capabilities.maxTextures,
+      };
+    }
+    prof?.mark("scene");
 
     // Smoke's density, thinning where it meets the scene.
     const puffMaterial = scene.puffs.material as THREE.ShaderMaterial;
@@ -1480,6 +1526,7 @@ function Factory({
     renderer.setClearColor(0x000000, 0);
     renderer.clear(true, false, false);
     if (scene.puffs.count > 0) renderer.render(scene.smoke, state.camera);
+    prof?.mark("smoke");
     compositeUniforms.tSmoke.value = smokeTarget.texture;
     compositeUniforms.uHalftoneOrigin.value.copy(shared.uHalftoneOrigin.value);
     compositeUniforms.uHalftoneCell.value = shared.uHalftoneCell.value;
@@ -1504,12 +1551,19 @@ function Factory({
     renderer.setRenderTarget(ink);
     renderer.clear(true, true, true);
     renderer.render(composite.scene, composite.camera);
+    prof?.mark("ink");
 
     composite.downsample.uniforms.tInk.value = ink.texture;
     composite.downsample.uniforms.uFactor.value = factor;
     renderer.setRenderTarget(null);
     renderer.clear(true, true, true);
     renderer.render(composite.downScene, composite.camera);
+    if (prof) {
+      prof.mark("down", true);
+      prof.profile.frames = (prof.profile.frames ?? 0) + 1;
+      prof.profile.drawnFactor = factor;
+      prof.profile.size = [w, h];
+    }
     drawnRef.current?.({
       canvas: renderer.domElement,
       width: buffer.x,

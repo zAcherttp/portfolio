@@ -168,6 +168,8 @@ export function createSharedUniforms() {
     },
     /** Set while drawing a light's shadows: its origin and reach. */
     uShadowPass: { value: 0 },
+    /** Set while laying down depth alone, before the shaded pass. */
+    uDepthPass: { value: 0 },
     uShadowFrom: { value: new THREE.Vector4() },
     uGlow: vec3(),
     /** The line's power, eased 0–1: glowing openings stay filled while on. */
@@ -631,6 +633,7 @@ uniform sampler2D uCutout;
 // Placing: everything above the seam's height (x, world metres) is not built
 // yet; a band of y metres under it glows in uBuildColour as it materializes.
 uniform vec2 uBuild;
+uniform float uDepthPass;
 // Laying: everything past this many metres along its run is not laid yet.
 uniform float uAlong;
 // A run that dissolves: from x metres along to y, into ever smaller halftone
@@ -683,6 +686,12 @@ void main() {
     vec2 cell = fract(q) - .5;
     float radius = sqrt(clamp(uHalftoneCover, 0., .78) / 3.14159265);
     if (length(cell) > radius) discard;
+  }
+  // Depth first: what is cut away above is all it needs.
+  if (uDepthPass > .5) {
+    oColor = vec4(0.);
+    oData = vec4(0.);
+    return;
   }
   // A face the glow mask lights in part is, where it stays dark, the part
   // beside it that it was split from.
