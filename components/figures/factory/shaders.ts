@@ -221,8 +221,14 @@ export function createCompositeUniforms() {
     tData: { value: null as THREE.Texture | null },
     tDepth: { value: null as THREE.Texture | null },
     uDepthRange: { value: 1 },
-    /** Smoke's density, printed as halftone dots over the picture. */
+    /**
+     * Smoke's density at the canvas's size, printed as halftone dots over
+     * the picture; off while there is none.
+     */
     tSmoke: { value: null as THREE.Texture | null },
+    uSmokeOn: { value: 0 },
+    /** Supersampled pixels across each canvas pixel. */
+    uFactor: { value: 1 },
     uSmoke: vec3(),
     uHalftoneOrigin: { value: new THREE.Vector2() },
     uHalftoneCell: { value: 6 },
@@ -957,7 +963,7 @@ uniform sampler2D tColor, tData, tDepth, tSmoke;
 uniform float uDepthRange;
 uniform vec3 uSmoke;
 uniform vec2 uHalftoneOrigin;
-uniform float uHalftoneCell, uSmokeCover;
+uniform float uHalftoneCell, uSmokeCover, uSmokeOn, uFactor;
 uniform float uRadius, uCrease, uDetail;
 uniform vec3 uE0, uE1, uE2, uE3, uE4, uFaint;
 layout(location = 0) out vec4 oColor;
@@ -979,7 +985,8 @@ float idOf(vec4 d) {
 // Whether smoke prints a dot here: halftone on the scene's grid, the dot as
 // big as the smoke is thick.
 bool smokeDot(ivec2 p) {
-  float density = texelFetch(tSmoke, p, 0).r;
+  if (uSmokeOn < .5) return false;
+  float density = texelFetch(tSmoke, p / int(uFactor), 0).r;
   if (density <= 0.) return false;
   vec2 q = (gl_FragCoord.xy - uHalftoneOrigin) / uHalftoneCell;
   q = mat2(.70710678, -.70710678, .70710678, .70710678) * q;
@@ -1097,6 +1104,8 @@ const smokeFragment = /* glsl */ `
 precision highp float;
 uniform sampler2D tDepth;
 uniform float uDepthRange;
+// Supersampled pixels across each of this target's.
+uniform float uFactor;
 in vec2 vCorner;
 in float vAlpha;
 in float vSize;
@@ -1106,7 +1115,7 @@ void main() {
   // A soft ball, dense through its middle. Where the scene stands close
   // behind it, it thins out instead of cutting off on the surface (a soft
   // particle); where the scene is in front, it is hidden.
-  float scene = texelFetch(tDepth, ivec2(gl_FragCoord.xy), 0).x;
+  float scene = texelFetch(tDepth, ivec2(gl_FragCoord.xy * uFactor), 0).x;
   float gap = (scene - gl_FragCoord.z) * uDepthRange;
   if (gap <= 0.) discard;
   float r = length(vCorner);
@@ -1198,6 +1207,7 @@ export function createSmokeMaterial(shared: SharedUniforms) {
       uShadowPass: shared.uShadowPass,
       tDepth: { value: null as THREE.Texture | null },
       uDepthRange: { value: 1 },
+      uFactor: { value: 1 },
     },
     vertexShader: smokeVertex,
     fragmentShader: smokeFragment,
@@ -1211,7 +1221,7 @@ export function createSmokeMaterial(shared: SharedUniforms) {
   });
 }
 
-/** Holds smoke's density at the supersampled size. */
+/** Holds smoke's density at the canvas's size. */
 export function createSmokeTarget(width: number, height: number) {
   return new THREE.WebGLRenderTarget(width, height, {
     type: THREE.UnsignedByteType,

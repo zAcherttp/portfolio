@@ -1421,7 +1421,9 @@ function Factory({
     if (target.width !== w || target.height !== h) {
       target.setSize(w, h);
       ink.setSize(w, h);
-      smokeTarget.setSize(w, h);
+    }
+    if (smokeTarget.width !== buffer.x || smokeTarget.height !== buffer.y) {
+      smokeTarget.setSize(buffer.x, buffer.y);
     }
     // Halftone dots: sized in CSS pixels, anchored where the world's origin
     // falls on the supersampled target, so they pan with the scene.
@@ -1518,16 +1520,24 @@ function Factory({
     }
     prof?.mark("scene");
 
-    // Smoke's density, thinning where it meets the scene.
-    const puffMaterial = scene.puffs.material as THREE.ShaderMaterial;
-    puffMaterial.uniforms.tDepth.value = target.depthTexture;
-    puffMaterial.uniforms.uDepthRange.value = camera.far - camera.near;
-    renderer.setRenderTarget(smokeTarget);
-    renderer.setClearColor(0x000000, 0);
-    renderer.clear(true, false, false);
-    if (scene.puffs.count > 0) renderer.render(scene.smoke, state.camera);
+    // Smoke's density, thinning where it meets the scene, at the canvas's
+    // size: it prints as dots several pixels apart, so finer is wasted, and
+    // a full-size target cleared every frame costs a tile GPU dearly.
+    const smoking = scene.puffs.count > 0;
+    if (smoking) {
+      const puffMaterial = scene.puffs.material as THREE.ShaderMaterial;
+      puffMaterial.uniforms.tDepth.value = target.depthTexture;
+      puffMaterial.uniforms.uDepthRange.value = camera.far - camera.near;
+      puffMaterial.uniforms.uFactor.value = factor;
+      renderer.setRenderTarget(smokeTarget);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, false, false);
+      renderer.render(scene.smoke, state.camera);
+    }
     prof?.mark("smoke");
     compositeUniforms.tSmoke.value = smokeTarget.texture;
+    compositeUniforms.uSmokeOn.value = smoking ? 1 : 0;
+    compositeUniforms.uFactor.value = factor;
     compositeUniforms.uHalftoneOrigin.value.copy(shared.uHalftoneOrigin.value);
     compositeUniforms.uHalftoneCell.value = shared.uHalftoneCell.value;
     compositeUniforms.uSmokeCover.value = look.smokeCover;
