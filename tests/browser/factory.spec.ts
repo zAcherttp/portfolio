@@ -1,5 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
+// These exercise rendering and controls, not high-DPI image quality.
+test.use({ deviceScaleFactor: 1 });
+
 async function openFactory(page: Page) {
   await page.goto("/");
   const heading = page.getByRole("heading", { name: "Screw factory" });
@@ -38,6 +41,7 @@ test.describe("screw factory", () => {
   });
 
   test("draws without GL errors while it runs", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
     // An unbound texture, or a shadow cube read while it is drawn into,
     // makes the driver drop draws and three.js warn on each one.
     const problems: string[] = [];
@@ -48,6 +52,9 @@ test.describe("screw factory", () => {
     });
     // As most GPUs do: WebGL 2's least, 16 textures per fragment shader.
     await page.addInitScript(() => {
+      // Exercise the full shader pipeline at native resolution. Supersampling
+      // multiplies software-GPU work without changing texture bindings.
+      window.__factoryProfile = { factor: 1 };
       const MAX_TEXTURE_IMAGE_UNITS = 0x8872;
       const original = WebGL2RenderingContext.prototype.getParameter;
       WebGL2RenderingContext.prototype.getParameter = function (
@@ -62,14 +69,14 @@ test.describe("screw factory", () => {
     await expect(factory.locator("canvas:not([aria-hidden])")).toBeVisible({
       timeout: 20_000,
     });
-    // The picture shows once drawn; that first frame drew every shadow cube
-    // and every material. Let a couple more frames pass for their warnings.
-    await page.evaluate(
-      () =>
-        new Promise((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve)),
-        ),
+    await factory.getByRole("button", { name: "Power on" }).click();
+    const renderedFrames = await page.evaluate(
+      () => window.__factoryProfile?.frames ?? 0,
     );
+    // Observe actual rendered frames, rather than unrelated browser callbacks.
+    await expect
+      .poll(() => page.evaluate(() => window.__factoryProfile?.frames ?? 0))
+      .toBeGreaterThan(renderedFrames + 1);
     expect(problems).toEqual([]);
   });
 
