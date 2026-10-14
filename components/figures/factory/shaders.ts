@@ -111,8 +111,14 @@ export function createPortTexture(
 
 /** Lights a scene can hold. */
 export const MAX_LIGHTS = 8;
-/** Points shadows are seen from, over all lights: each keeps a cube. */
-export const MAX_VIEWS = 12;
+/**
+ * Points shadows are seen from, over all lights: each keeps a cube. The
+ * scene's fragment stage may sample 16 textures (WebGL 2's least, and what
+ * most GPUs give); the parts, animation, port, cutout and glow textures
+ * take five, so the cubes get the other eleven. One more and a texture goes
+ * unbound, with three.js warning on every draw.
+ */
+export const MAX_VIEWS = 11;
 
 export function createSharedUniforms() {
   return {

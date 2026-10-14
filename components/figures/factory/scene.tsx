@@ -113,6 +113,11 @@ const WIRE_RADIUS = 0.0425;
 const STRUCTURE_ROLE = 1;
 /** Texels along each face of a light's shadow cube. */
 const SHADOW_SIZE = 256;
+/** What the shadow cubes read as while they are drawn. */
+const NO_SHADOWS: (THREE.Texture | null)[] = Array.from(
+  { length: MAX_VIEWS },
+  () => null,
+);
 /**
  * The bone a building's producing loop moves furthest up and down (the
  * smelter's press), with the lowest and highest it sits.
@@ -1466,6 +1471,9 @@ function Factory({
       renderer.autoClear = true;
       renderer.setClearColor(0xffffff, 1);
       shared.uShadowPass.value = 1;
+      // A cube can't be read while it is drawn into: unbind them all.
+      const cubes = shared.uShadows.value;
+      shared.uShadows.value = NO_SHADOWS;
       for (const shadow of due) {
         for (const mesh of scene.items.values()) mesh.visible = shadow.moving;
         const { x, y, z } = shadow.camera.position;
@@ -1474,6 +1482,7 @@ function Factory({
         shadow.drawn = true;
       }
       for (const mesh of scene.items.values()) mesh.visible = true;
+      shared.uShadows.value = cubes;
       shared.uShadowPass.value = 0;
       renderer.autoClear = autoClear;
     }

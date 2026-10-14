@@ -37,6 +37,42 @@ test.describe("screw factory", () => {
     });
   });
 
+  test("draws without GL errors while it runs", async ({ page }) => {
+    // An unbound texture, or a shadow cube read while it is drawn into,
+    // makes the driver drop draws and three.js warn on each one.
+    const problems: string[] = [];
+    page.on("console", (message) => {
+      if (/texture units|feedback loop|GL_INVALID/i.test(message.text())) {
+        problems.push(message.text());
+      }
+    });
+    // As most GPUs do: WebGL 2's least, 16 textures per fragment shader.
+    await page.addInitScript(() => {
+      const MAX_TEXTURE_IMAGE_UNITS = 0x8872;
+      const original = WebGL2RenderingContext.prototype.getParameter;
+      WebGL2RenderingContext.prototype.getParameter = function (
+        this: WebGL2RenderingContext,
+        name: number,
+      ) {
+        const value = original.call(this, name);
+        return name === MAX_TEXTURE_IMAGE_UNITS ? Math.min(value, 16) : value;
+      };
+    });
+    const factory = await openFactory(page);
+    await expect(factory.locator("canvas:not([aria-hidden])")).toBeVisible({
+      timeout: 20_000,
+    });
+    // The picture shows once drawn; that first frame drew every shadow cube
+    // and every material. Let a couple more frames pass for their warnings.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    expect(problems).toEqual([]);
+  });
+
   test("keeps the line running when frames stall", async ({ page }) => {
     // A software GPU can take seconds per frame; the line must not wait on it.
     await page.addInitScript(() => {
