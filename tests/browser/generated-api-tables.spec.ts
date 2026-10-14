@@ -7,7 +7,7 @@ const generatedApiPages = [
   },
   {
     slug: "theme-hotkey",
-    props: ["shortcut", "throttleMs", "ignoreInputs"],
+    props: ["shortcut", "throttleMs", "ignoreInputs", "instantWhileHeld"],
   },
   {
     slug: "kbd",

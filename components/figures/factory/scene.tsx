@@ -2,7 +2,15 @@
 
 /* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
 import {
   type Layer,
@@ -85,9 +93,6 @@ import { framePoints, lightFromLeft, viewBasis } from "./view";
 const ITEM_KINDS: readonly ItemKind[] = ["ore", "ingot", "screw"];
 /** Most pixels a supersampled frame may have. */
 const PIXEL_BUDGET = 20e6;
-/** While the view moves: at most this much supersampling, these pixels. */
-const MOVING_SUPERSAMPLE = 2;
-const MOVING_PIXEL_BUDGET = 5e6;
 /** The view eases after the gestures with this time constant, seconds. */
 const EASE = 0.09;
 /** Under a drag, panning follows with this much softer time constant. */
@@ -619,6 +624,11 @@ export interface FactorySceneProps {
   closeDeck?: number;
   /** Each frame once drawn, with where the deck stands. */
   onDrawn?: (frame: DrawnFrame) => void;
+  /**
+   * Filled with a function that takes a new palette and draws with it at
+   * once, so a theme change can land in the same frame as the page's.
+   */
+  repaint?: RefObject<((palette: Palette) => void) | null>;
   /** How the drawing is inked. */
   look?: FactoryLook;
   /** Line time per real second, for checking the line quickly. */
@@ -652,6 +662,7 @@ function Factory({
   deck,
   closeDeck = 0,
   onDrawn,
+  repaint,
 }: FactorySceneProps & { models: Map<ModelName, Model> }) {
   const shared = useMemo(createSharedUniforms, []);
   const compositeUniforms = useMemo(createCompositeUniforms, []);
@@ -749,21 +760,41 @@ function Factory({
   }, [scene, wireframe, invalidate]);
 
   // Theme tokens and the light from screen-left.
+  const paint = useCallback(
+    (palette: Palette) => {
+      applyPalette(palette, shared, compositeUniforms);
+      // Each light and each building's glowing body take their palette colour.
+      scene.lights.forEach((light, l) => {
+        shared.uLightColour.value[l].set(...rgb(palette[light.colour]));
+      });
+      scene.buildingMaterials.forEach((material, i) => {
+        const colour =
+          BUILDINGS[layout.buildings[i].kind].lightColour ?? "glow";
+        material.uniforms.uGlowColour.value.set(...rgb(palette[colour]));
+      });
+      // Ports fade to the shade of walls facing the picture's right.
+      shared.uPortFace.value.set(basis.right[0], 0, basis.right[2]).normalize();
+      shared.uLight.value.set(...lightFromLeft(basis));
+    },
+    [shared, compositeUniforms, basis, scene, layout],
+  );
   useEffect(() => {
-    applyPalette(palette, shared, compositeUniforms);
-    // Each light and each building's glowing body take their palette colour.
-    scene.lights.forEach((light, l) => {
-      shared.uLightColour.value[l].set(...rgb(palette[light.colour]));
-    });
-    scene.buildingMaterials.forEach((material, i) => {
-      const colour = BUILDINGS[layout.buildings[i].kind].lightColour ?? "glow";
-      material.uniforms.uGlowColour.value.set(...rgb(palette[colour]));
-    });
-    // Ports fade to the shade of walls facing the picture's right.
-    shared.uPortFace.value.set(basis.right[0], 0, basis.right[2]).normalize();
-    shared.uLight.value.set(...lightFromLeft(basis));
+    paint(palette);
     invalidate();
-  }, [palette, shared, compositeUniforms, basis, invalidate, scene, layout]);
+  }, [palette, paint, invalidate]);
+  // A theme change, drawn there and then rather than a frame or two after
+  // React passes the palette down.
+  const advance = useThree((s) => s.advance);
+  useEffect(() => {
+    if (!repaint) return;
+    repaint.current = (next) => {
+      paint(next);
+      advance(performance.now());
+    };
+    return () => {
+      repaint.current = null;
+    };
+  }, [repaint, paint, advance]);
 
   useEffect(() => {
     void version;
@@ -1101,15 +1132,13 @@ function Factory({
     };
   }, [explore, deckOpen, gl]);
 
-  // Adaptive quality while running: see quality.ts.
+  // Adaptive quality while frames run: see quality.ts.
   const quality = useRef(createGovernor(look.supersample));
+  // What it learns holds: stepping back up as the line stops would show.
   useEffect(() => {
-    // Back to full quality the moment the line stops.
-    if (!running) {
-      quality.current = createGovernor(look.supersample);
-      invalidate();
-    }
-  }, [running, invalidate, look.supersample]);
+    quality.current = createGovernor(look.supersample);
+    invalidate();
+  }, [invalidate, look.supersample]);
 
   // Placing: each piece's step in the build, and when the build began.
   const plan = useMemo(
@@ -1193,7 +1222,9 @@ function Factory({
     // The parent owns the line; this loop only moves it forward.
     if (running) stepLine(line, dt);
     const q = quality.current;
-    if (running) govern(q, delta);
+    // Frames come one after another while the line runs or the view moves;
+    // only then does their pace say anything.
+    if (running || viewMoving.current) govern(q, delta);
 
     const miner = line.nodes[0];
     if (running && miner?.status === "working")
@@ -1388,10 +1419,10 @@ function Factory({
     // Supersample, but stay inside what the GPU can hold and a pixel budget:
     // a high-DPI screen already has fine pixels, so it needs less.
     const limit = renderer.capabilities.maxTextureSize;
-    // While the view moves under a gesture, a lighter budget keeps every
-    // frame in time; the frame after it settles draws at full quality. As the
-    // deck hands off to and from its slot, it supersamples as the slot did.
-    const moving = viewMoving.current;
+    // The view moving draws at the same quality as it standing still, so
+    // nothing shifts when it settles; the governor steps it down, once and
+    // for good, only if frames can't keep up. As the deck hands off to and
+    // from its slot, it supersamples as the slot did.
     const handing =
       deck?.open &&
       deck.factor &&
@@ -1402,16 +1433,10 @@ function Factory({
       1,
       Math.min(
         look.supersample,
-        running ? q.cap : look.supersample,
+        q.cap,
         handing ? (deck.factor ?? look.supersample) : look.supersample,
-        moving && !handing ? MOVING_SUPERSAMPLE : look.supersample,
         Math.floor(limit / Math.max(buffer.x, buffer.y)),
-        Math.floor(
-          Math.sqrt(
-            (moving && !handing ? MOVING_PIXEL_BUDGET : PIXEL_BUDGET) /
-              (buffer.x * buffer.y),
-          ),
-        ),
+        Math.floor(Math.sqrt(PIXEL_BUDGET / (buffer.x * buffer.y))),
       ),
     );
     if (prof?.profile.factor) factor = prof.profile.factor;
@@ -1421,7 +1446,9 @@ function Factory({
     if (target.width !== w || target.height !== h) {
       target.setSize(w, h);
       ink.setSize(w, h);
-      smokeTarget.setSize(w, h);
+    }
+    if (smokeTarget.width !== buffer.x || smokeTarget.height !== buffer.y) {
+      smokeTarget.setSize(buffer.x, buffer.y);
     }
     // Halftone dots: sized in CSS pixels, anchored where the world's origin
     // falls on the supersampled target, so they pan with the scene.
@@ -1518,16 +1545,24 @@ function Factory({
     }
     prof?.mark("scene");
 
-    // Smoke's density, thinning where it meets the scene.
-    const puffMaterial = scene.puffs.material as THREE.ShaderMaterial;
-    puffMaterial.uniforms.tDepth.value = target.depthTexture;
-    puffMaterial.uniforms.uDepthRange.value = camera.far - camera.near;
-    renderer.setRenderTarget(smokeTarget);
-    renderer.setClearColor(0x000000, 0);
-    renderer.clear(true, false, false);
-    if (scene.puffs.count > 0) renderer.render(scene.smoke, state.camera);
+    // Smoke's density, thinning where it meets the scene, at the canvas's
+    // size: it prints as dots several pixels apart, so finer is wasted, and
+    // a full-size target cleared every frame costs a tile GPU dearly.
+    const smoking = scene.puffs.count > 0;
+    if (smoking) {
+      const puffMaterial = scene.puffs.material as THREE.ShaderMaterial;
+      puffMaterial.uniforms.tDepth.value = target.depthTexture;
+      puffMaterial.uniforms.uDepthRange.value = camera.far - camera.near;
+      puffMaterial.uniforms.uFactor.value = factor;
+      renderer.setRenderTarget(smokeTarget);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, false, false);
+      renderer.render(scene.smoke, state.camera);
+    }
     prof?.mark("smoke");
     compositeUniforms.tSmoke.value = smokeTarget.texture;
+    compositeUniforms.uSmokeOn.value = smoking ? 1 : 0;
+    compositeUniforms.uFactor.value = factor;
     compositeUniforms.uHalftoneOrigin.value.copy(shared.uHalftoneOrigin.value);
     compositeUniforms.uHalftoneCell.value = shared.uHalftoneCell.value;
     compositeUniforms.uSmokeCover.value = look.smokeCover;

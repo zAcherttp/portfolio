@@ -2,7 +2,6 @@
 
 import { Maximize2, Minimize2, Power } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useTheme } from "next-themes";
 import {
   Component,
   type CSSProperties,
@@ -171,6 +170,8 @@ export function FactoryLive({
   const [powered, setPowered] = useState(false);
   const [version, setVersion] = useState(0);
   const [palette, setPalette] = useState<Palette | null>(null);
+  /** Draws a new palette at once; see FactoryScene's repaint. */
+  const repaint = useRef<((palette: Palette) => void) | null>(null);
   const [failed, setFailed] = useState(false);
   const [paused, setPaused] = useState(false);
   /** Bumped to remount the drawing after the GPU gives it back. */
@@ -185,7 +186,6 @@ export function FactoryLive({
   }, []);
   const [snapshot, setSnapshot] = useState<Snapshot>(() => snapshotOf(line));
   const reduced = usePrefersReducedMotion();
-  const { resolvedTheme } = useTheme();
   const running = powered && visible && !reduced;
   // The build starts once the drawing is well in view, and only once.
   const frameRef = useRef<HTMLDivElement>(null);
@@ -393,27 +393,40 @@ export function FactoryLive({
     return () => observer.disconnect();
   }, []);
 
-  // Theme tokens live in CSS; read them again whenever the theme changes.
-  // The theme's class lands on <html> after React's state for it has moved
-  // on, so read once it has: when <html>'s class or theme attributes change.
+  // Theme tokens live in CSS; read them again whenever the theme changes:
+  // when <html>'s class or theme attributes do. Read at the next frame, not
+  // at once: reading computed style straight after the change would force
+  // the whole page's restyle inside the keypress, and a held key toggling
+  // faster than frames would read (and redraw) for every toggle.
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    void resolvedTheme;
+    let frame = 0;
+    let shown = "";
     const read = () => {
+      frame = 0;
       const next = readPalette(el);
-      setPalette((was) =>
-        was && JSON.stringify(was) === JSON.stringify(next) ? was : next,
-      );
+      const key = JSON.stringify(next);
+      if (key === shown) return;
+      // Draw it now, in this frame, as the page restyles: then let React
+      // catch up.
+      if (shown) repaint.current?.(next);
+      shown = key;
+      setPalette(next);
     };
     read();
-    const observer = new MutationObserver(read);
+    const observer = new MutationObserver(() => {
+      if (!frame) frame = requestAnimationFrame(read);
+    });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class", "data-theme", "style"],
     });
-    return () => observer.disconnect();
-  }, [resolvedTheme]);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     line.powered = powered;
@@ -448,9 +461,12 @@ export function FactoryLive({
   // The slot keeps its layer while the deck is open, faded out and inert, so
   // it fades back in on return; the deck's fades in once the deck shows and
   // out as soon as it starts to close.
+  // In the slot it snaps with the drawing: icons a few pixels wide, left
+  // between pixels, blur unevenly and look off centre.
   const controls = (onDeck: boolean) => (
     <div
       inert={!onDeck && deck.open}
+      style={onDeck ? undefined : snap}
       className={cn(
         "pointer-events-none absolute inset-0 flex flex-col justify-between transition-opacity duration-150 ease-out",
         onDeck ? "p-4 starting:opacity-0" : "p-3",
@@ -581,6 +597,7 @@ export function FactoryLive({
                 deck={full ? undefined : { ...deck, element: deckRef.current }}
                 closeDeck={closeDeck}
                 onDrawn={drawn}
+                repaint={repaint}
                 look={look}
                 speed={speed}
                 wireframe={wireframe}

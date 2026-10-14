@@ -95,4 +95,37 @@ test.describe("theme hotkey", () => {
       `Active theme: ${initial}`,
     );
   });
+
+  test("switches instantly while D is held, and transitions again after", async ({
+    page,
+  }) => {
+    await page.goto("/dev/components/theme-hotkey?case=rapid");
+    await activeTheme(page);
+    const button = page.getByRole("button", { name: /Hold D/ });
+    const press = (repeat: boolean, type = "keydown") =>
+      page.evaluate(
+        ({ repeat, type }) => {
+          const target = type === "keyup" ? window : document;
+          target.dispatchEvent(
+            new KeyboardEvent(type, {
+              bubbles: true,
+              code: "KeyD",
+              key: "d",
+              repeat,
+            }),
+          );
+        },
+        { repeat, type },
+      );
+
+    // A single press keeps the page's transitions.
+    await press(false);
+    await expect(button).not.toHaveCSS("transition-duration", "0s");
+
+    // Held, the key repeats: transitions pause until it comes back up.
+    await press(true);
+    await expect(button).toHaveCSS("transition-duration", "0s");
+    await press(false, "keyup");
+    await expect(button).not.toHaveCSS("transition-duration", "0s");
+  });
 });
