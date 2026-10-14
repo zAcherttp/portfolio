@@ -2,16 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { DitherFooter } from "@/components/DitherFooter";
-import { FOOTER_IGNITE_EVENT } from "@/lib/footer-ignite";
 import { playPopSound } from "@/lib/play-pop-sound";
 
 export default function BottomShader() {
   const [isActive, setIsActive] = useState(false);
-
-  // The factory line above the footer powers up when the flame lights.
-  useEffect(() => {
-    if (isActive) window.dispatchEvent(new Event(FOOTER_IGNITE_EVENT));
-  }, [isActive]);
 
   // Listen for scroll-nudge events (at the bottom, scroll down more)
   useEffect(() => {
