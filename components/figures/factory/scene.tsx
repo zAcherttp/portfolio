@@ -85,9 +85,6 @@ import { framePoints, lightFromLeft, viewBasis } from "./view";
 const ITEM_KINDS: readonly ItemKind[] = ["ore", "ingot", "screw"];
 /** Most pixels a supersampled frame may have. */
 const PIXEL_BUDGET = 20e6;
-/** While the view moves: at most this much supersampling, these pixels. */
-const MOVING_SUPERSAMPLE = 2;
-const MOVING_PIXEL_BUDGET = 5e6;
 /** The view eases after the gestures with this time constant, seconds. */
 const EASE = 0.09;
 /** Under a drag, panning follows with this much softer time constant. */
@@ -1101,15 +1098,13 @@ function Factory({
     };
   }, [explore, deckOpen, gl]);
 
-  // Adaptive quality while running: see quality.ts.
+  // Adaptive quality while frames run: see quality.ts.
   const quality = useRef(createGovernor(look.supersample));
+  // What it learns holds: stepping back up as the line stops would show.
   useEffect(() => {
-    // Back to full quality the moment the line stops.
-    if (!running) {
-      quality.current = createGovernor(look.supersample);
-      invalidate();
-    }
-  }, [running, invalidate, look.supersample]);
+    quality.current = createGovernor(look.supersample);
+    invalidate();
+  }, [invalidate, look.supersample]);
 
   // Placing: each piece's step in the build, and when the build began.
   const plan = useMemo(
@@ -1193,7 +1188,9 @@ function Factory({
     // The parent owns the line; this loop only moves it forward.
     if (running) stepLine(line, dt);
     const q = quality.current;
-    if (running) govern(q, delta);
+    // Frames come one after another while the line runs or the view moves;
+    // only then does their pace say anything.
+    if (running || viewMoving.current) govern(q, delta);
 
     const miner = line.nodes[0];
     if (running && miner?.status === "working")
@@ -1388,10 +1385,10 @@ function Factory({
     // Supersample, but stay inside what the GPU can hold and a pixel budget:
     // a high-DPI screen already has fine pixels, so it needs less.
     const limit = renderer.capabilities.maxTextureSize;
-    // While the view moves under a gesture, a lighter budget keeps every
-    // frame in time; the frame after it settles draws at full quality. As the
-    // deck hands off to and from its slot, it supersamples as the slot did.
-    const moving = viewMoving.current;
+    // The view moving draws at the same quality as it standing still, so
+    // nothing shifts when it settles; the governor steps it down, once and
+    // for good, only if frames can't keep up. As the deck hands off to and
+    // from its slot, it supersamples as the slot did.
     const handing =
       deck?.open &&
       deck.factor &&
@@ -1402,16 +1399,10 @@ function Factory({
       1,
       Math.min(
         look.supersample,
-        running ? q.cap : look.supersample,
+        q.cap,
         handing ? (deck.factor ?? look.supersample) : look.supersample,
-        moving && !handing ? MOVING_SUPERSAMPLE : look.supersample,
         Math.floor(limit / Math.max(buffer.x, buffer.y)),
-        Math.floor(
-          Math.sqrt(
-            (moving && !handing ? MOVING_PIXEL_BUDGET : PIXEL_BUDGET) /
-              (buffer.x * buffer.y),
-          ),
-        ),
+        Math.floor(Math.sqrt(PIXEL_BUDGET / (buffer.x * buffer.y))),
       ),
     );
     if (prof?.profile.factor) factor = prof.profile.factor;
