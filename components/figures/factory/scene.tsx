@@ -117,11 +117,6 @@ const WIRE_RADIUS = 0.0425;
 const STRUCTURE_ROLE = 1;
 /** Texels along each face of a light's shadow cube. */
 const SHADOW_SIZE = 256;
-/** What the shadow cubes read as while they are drawn. */
-const NO_SHADOWS: (THREE.Texture | null)[] = Array.from(
-  { length: MAX_VIEWS },
-  () => null,
-);
 /**
  * The bone a building's producing loop moves furthest up and down (the
  * smelter's press), with the lowest and highest it sits.
@@ -677,23 +672,38 @@ function Factory({
     [models, layout, line, shared],
   );
 
-  // Each shadow view keeps a cube of distances to what it sees.
-  const shadows = useMemo(() => {
+  // Each shadow view keeps a cube of distances to what it sees: six layers
+  // of one texture array, each drawn by the face camera three.js's
+  // CubeCamera would use, so the shader reads them as it would a cube.
+  const shadowFaces = useMemo(() => {
     const floats = gl.extensions.has("EXT_color_buffer_float");
-    return scene.views.map((view) => {
-      const { reach } = scene.lights[view.light];
-      const target = new THREE.WebGLCubeRenderTarget(SHADOW_SIZE, {
+    return new THREE.WebGLArrayRenderTarget(
+      SHADOW_SIZE,
+      SHADOW_SIZE,
+      Math.max(1, scene.views.length * 6),
+      {
         type: floats ? THREE.HalfFloatType : THREE.UnsignedByteType,
         minFilter: THREE.NearestFilter,
         magFilter: THREE.NearestFilter,
         generateMipmaps: false,
-      });
-      const camera = new THREE.CubeCamera(0.02, reach, target);
-      camera.position.set(...view.origin);
-      camera.updateMatrixWorld();
+        depthBuffer: true,
+      },
+    );
+  }, [gl, scene]);
+  const shadows = useMemo(() => {
+    // Only its six face cameras are used; the cube target is never drawn.
+    const unused = new THREE.WebGLCubeRenderTarget(1);
+    return scene.views.map((view, v) => {
+      const { reach } = scene.lights[view.light];
+      const cube = new THREE.CubeCamera(0.02, reach, unused);
+      cube.coordinateSystem = gl.coordinateSystem;
+      cube.updateCoordinateSystem();
+      cube.position.set(...view.origin);
+      cube.updateMatrixWorld(true);
       return {
-        target,
-        camera,
+        cube,
+        faces: cube.children as THREE.PerspectiveCamera[],
+        layer: v * 6,
         reach,
         light: view.light,
         moving: view.moving,
@@ -702,14 +712,10 @@ function Factory({
     });
   }, [gl, scene]);
   useEffect(() => {
-    shadows.forEach((shadow, i) => {
-      shared.uShadows.value[i] = shadow.target.texture;
-    });
+    shared.uShadowFaces.value = shadowFaces.texture;
     invalidate();
-    return () => {
-      for (const shadow of shadows) shadow.target.dispose();
-    };
-  }, [shadows, shared, invalidate]);
+    return () => shadowFaces.dispose();
+  }, [shadowFaces, shared, invalidate]);
 
   const composite = useMemo(() => {
     const quad = new THREE.Mesh(
@@ -1483,18 +1489,20 @@ function Factory({
       renderer.autoClear = true;
       renderer.setClearColor(0xffffff, 1);
       shared.uShadowPass.value = 1;
-      // A cube can't be read while it is drawn into: unbind them all.
-      const cubes = shared.uShadows.value;
-      shared.uShadows.value = NO_SHADOWS;
+      // The faces can't be read while they are drawn into: unbind them.
+      shared.uShadowFaces.value = null;
       for (const shadow of due) {
         for (const mesh of scene.items.values()) mesh.visible = shadow.moving;
-        const { x, y, z } = shadow.camera.position;
+        const { x, y, z } = shadow.cube.position;
         shared.uShadowFrom.value.set(x, y, z, shadow.reach);
-        shadow.camera.update(renderer, scene.root);
+        shadow.faces.forEach((face, f) => {
+          renderer.setRenderTarget(shadowFaces, shadow.layer + f);
+          renderer.render(scene.root, face);
+        });
         shadow.drawn = true;
       }
       for (const mesh of scene.items.values()) mesh.visible = true;
-      shared.uShadows.value = cubes;
+      shared.uShadowFaces.value = shadowFaces.texture;
       shared.uShadowPass.value = 0;
       renderer.autoClear = autoClear;
     }
