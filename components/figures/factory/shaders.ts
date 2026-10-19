@@ -112,13 +112,10 @@ export function createPortTexture(
 /** Lights a scene can hold. */
 export const MAX_LIGHTS = 8;
 /**
- * Points shadows are seen from, over all lights: each keeps a cube. The
- * scene's fragment stage may sample 16 textures (WebGL 2's least, and what
- * most GPUs give); the parts, animation, port, cutout and glow textures
- * take five, so the cubes get the other eleven. One more and a texture goes
- * unbound, with three.js warning on every draw.
+ * Points shadows are seen from, over all lights: each keeps a cube, as six
+ * layers of one texture array (see shadowDistance).
  */
-export const MAX_VIEWS = 11;
+export const MAX_VIEWS = 16;
 
 export function createSharedUniforms() {
   return {
@@ -160,12 +157,8 @@ export function createSharedUniforms() {
     },
     uViewLight: { value: Array.from({ length: MAX_VIEWS }, () => -1) },
     uViewCount: { value: 0 },
-    uShadows: {
-      value: Array.from(
-        { length: MAX_VIEWS },
-        () => null as THREE.Texture | null,
-      ),
-    },
+    /** Every view's cube of distances: its six faces, layers 6v to 6v + 5. */
+    uShadowFaces: { value: null as THREE.Texture | null },
     /** Set while drawing a light's shadows: its origin and reach. */
     uShadowPass: { value: 0 },
     /** Set while laying down depth alone, before the shaded pass. */
@@ -407,7 +400,7 @@ uniform float uLightCount, uLightCover, uLightGain;
 uniform vec4 uViewA[${MAX_VIEWS}];
 uniform float uViewLight[${MAX_VIEWS}];
 uniform float uViewCount;
-uniform samplerCube uShadows[${MAX_VIEWS}];
+uniform highp sampler2DArray uShadowFaces;
 uniform vec3 uLightColour[${MAX_LIGHTS}];
 // While drawing a light's shadows: where from, and its reach.
 uniform float uShadowPass;
@@ -477,10 +470,30 @@ float sphereFactor(vec3 p, vec3 n, vec3 centre, float radius) {
   return radius * radius / (d * d) * max(dot(n, v / d), 0.);
 }
 
-// Sampler arrays take constant indices only: one branch per view.
+// The distance view i's cube holds toward dir. Its faces are layers of one
+// texture array, picked and addressed as a cube map would be (the GL spec's
+// major-axis table), so one lookup serves every view: a sampler per view
+// needs a branch per view at every look, and the shader grows slow to build.
 float shadowDistance(int i, vec3 dir) {
-${Array.from({ length: MAX_VIEWS }, (_, i) => `  if (i == ${i}) return textureLod(uShadows[${i}], dir, 0.).r;`).join("\n")}
-  return 1.;
+  vec3 a = abs(dir);
+  float major;
+  float face;
+  vec2 st;
+  if (a.x >= a.y && a.x >= a.z) {
+    major = a.x;
+    face = dir.x > 0. ? 0. : 1.;
+    st = dir.x > 0. ? vec2(-dir.z, -dir.y) : vec2(dir.z, -dir.y);
+  } else if (a.y >= a.z) {
+    major = a.y;
+    face = dir.y > 0. ? 2. : 3.;
+    st = dir.y > 0. ? vec2(dir.x, dir.z) : vec2(dir.x, -dir.z);
+  } else {
+    major = a.z;
+    face = dir.z > 0. ? 4. : 5.;
+    st = dir.z > 0. ? vec2(dir.x, -dir.y) : vec2(-dir.x, -dir.y);
+  }
+  vec3 at = vec3(st / major * .5 + .5, float(i) * 6. + face);
+  return textureLod(uShadowFaces, at, 0.).r;
 }
 
 // A look k of n around dir, out to radius: a golden-angle spiral.

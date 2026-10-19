@@ -51,6 +51,16 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // The factory's model pack is named by a hash of its contents.
+        source: "/factory/:pack(models\\.[0-9a-f]{10}\\.bin)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
     ];
   },
   async rewrites() {
