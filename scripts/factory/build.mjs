@@ -18,7 +18,9 @@
 // (see skeletal.mjs).
 //
 // The site gets every model in one gzipped, scrambled blob,
-// public/factory/models.bin, with no names from the game. <outDir> holds plain copies for inspection:
+// public/factory/models.bin, with no names from the game. Large masks ride
+// beside the models as raw entries ("<model>.glow", "<model>.cutout") that
+// the extras name, not as base64 inside the glTF. <outDir> holds plain copies for inspection:
 // keep it outside the repository.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -685,7 +687,7 @@ function glowMask({ mask, channel, threshold = 0.5, output }) {
       out[at] = Math.max(out[at], level);
     }
   }
-  return { width, height, data: Buffer.from(out).toString("base64") };
+  return { width, height, data: out };
 }
 
 /** `_MASK` for faces lit in part: their mask UVs; 0 elsewhere. */
@@ -841,11 +843,21 @@ function cutoutMask({ mask, region, size }) {
       out[y * size + x] = a > 127 ? 255 : 0;
     }
   }
-  return { size, data: Buffer.from(out).toString("base64") };
+  return { size, data: out };
 }
 
 let total = 0;
 const packed = [];
+/**
+ * Raw bytes that ship as their own pack entries, named in the extras that
+ * use them: base64 in the glTF's JSON would be parsed and decoded on the
+ * page's main thread, and the masks run to megabytes.
+ */
+const blobs = [];
+function blob(entry, { data, ...rest }) {
+  blobs.push({ name: entry, data });
+  return { ...rest, entry };
+}
 for (const model of MODELS) {
   const { doc, pivots, boneNames } = await readModel(model);
   const docRoot = doc.getRoot();
@@ -1028,8 +1040,12 @@ for (const model of MODELS) {
     ...(palette ? { palette } : {}),
     ...(vat ? { vat } : {}),
     ...(openings ? { openings } : {}),
-    ...(model.cutout ? { cutout: cutoutMask(model.cutout) } : {}),
-    ...(masked && model.glow ? { glowMask: glowMask(model.glow) } : {}),
+    ...(model.cutout
+      ? { cutout: blob(`${model.name}.cutout`, cutoutMask(model.cutout)) }
+      : {}),
+    ...(masked && model.glow
+      ? { glowMask: blob(`${model.name}.glow`, glowMask(model.glow)) }
+      : {}),
     ...(model.glow?.colour
       ? {
           glyph: {
@@ -1068,7 +1084,7 @@ for (const model of MODELS) {
   );
 }
 mkdirSync(resolve(packFile, ".."), { recursive: true });
-const pack = await packModels(packed, async (bytes) =>
+const pack = await packModels([...packed, ...blobs], async (bytes) =>
   gzipSync(bytes, { level: 9 }),
 );
 writeFileSync(packFile, pack);

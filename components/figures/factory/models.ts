@@ -126,7 +126,7 @@ function toFloat(
 }
 
 /** Dequantizes a model into plain metres so shaders can spin parts in place. */
-function prepare(scene: THREE.Object3D): Model {
+function prepare(scene: THREE.Object3D, blobs: Blobs): Model {
   let mesh: THREE.Mesh | undefined;
   scene.updateMatrixWorld(true);
   scene.traverse((o) => {
@@ -161,26 +161,40 @@ function prepare(scene: THREE.Object3D): Model {
       : undefined,
     openings: mesh.userData.openings as Record<string, Opening> | undefined,
     cutout: mesh.userData.cutout
-      ? maskTexture(mesh.userData.cutout as Mask)
+      ? maskTexture(mesh.userData.cutout as Mask, blobs)
       : undefined,
     glowMask: mesh.userData.glowMask
-      ? maskTexture(mesh.userData.glowMask as Mask)
+      ? maskTexture(mesh.userData.glowMask as Mask, blobs)
       : undefined,
     glyph: mesh.userData.glyph as Glyph | undefined,
   };
 }
 
-/** A one-channel mask as the build ships it: square `size`, or its sides. */
+/**
+ * A one-channel mask as the build ships it: square `size`, or its sides,
+ * with its bytes in the pack's `entry`.
+ */
 interface Mask {
   size?: number;
   width?: number;
   height?: number;
-  data: string;
+  entry: string;
 }
 
+/** The pack's raw entries, by name, beside its models. */
+type Blobs = ReadonlyMap<string, Uint8Array>;
+
 /** A one-channel mask: a decal tile's alpha, or where a glow mask lights. */
-function maskTexture({ size, width = size, height = size, data }: Mask) {
-  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+function maskTexture(
+  { size, width = size, height = size, entry }: Mask,
+  blobs: Blobs,
+) {
+  const data = blobs.get(entry);
+  if (!width || !height || data?.length !== width * height) {
+    throw new Error(`Factory models: mask ${entry} is missing or misshapen.`);
+  }
+  // A copy, so the unpacked pack can be let go.
+  const bytes = data.slice();
   const texture = new THREE.DataTexture(
     bytes,
     width,
@@ -204,13 +218,15 @@ export async function loadModels(
   );
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const models = new Map<ModelName, Model>();
+  // Models are bare names; their raw blobs are "<model>.<kind>".
   for (const [name, data] of entries) {
+    if (name.includes(".")) continue;
     const buffer = data.buffer.slice(
       data.byteOffset,
       data.byteOffset + data.byteLength,
     ) as ArrayBuffer;
     const gltf = await loader.parseAsync(buffer, "");
-    models.set(name as ModelName, prepare(gltf.scene));
+    models.set(name as ModelName, prepare(gltf.scene, entries));
   }
   return models;
 }
