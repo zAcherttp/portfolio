@@ -13,6 +13,7 @@ import {
   RECIPES,
   type Recipe,
 } from "./sim";
+import { plumeReach } from "./smoke";
 
 export type Vec3 = readonly [number, number, number];
 
@@ -1149,6 +1150,10 @@ export function contentPoints(layout: FactoryLayout): Vec3[] {
         [x + half, y, z + half],
       );
     }
+  }
+  // Chimney smoke, as far as it shows.
+  for (const { position } of smokeOf(layout)) {
+    points.push(...plumeReach(position));
   }
   const { poles, wires } = powerOf(layout);
   for (const [x, y, z] of poles) points.push([x, y + POLE_TOP, z]);
