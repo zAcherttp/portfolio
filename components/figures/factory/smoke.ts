@@ -182,3 +182,43 @@ export function puffLook(puff: Puff) {
     alpha: 0.96 * FADE(t) * ease,
   };
 }
+
+/** A puff thinner than this prints too few dots to need framing. */
+const SEEN = 0.15;
+/** The share of a puff's sprite its dots reach out to (it is a soft ball). */
+const BALL = 0.4;
+
+/**
+ * Where a chimney's smoke is seen: the largest, longest-lived puff it can
+ * make run through its life, the edges of its ball at each step while it
+ * shows. Frames the picture.
+ */
+export function plumeReach(
+  at: Readonly<Vec3>,
+  wind: [number, number] = [-1, 0],
+): Vec3[] {
+  const source = createSmoke(at, wind);
+  // The top of every random draw: the biggest puff, from the top of the
+  // sphere round the socket.
+  const puff = spawn(source, () => 1);
+  source.puffs.push(puff);
+  const points: Vec3[] = [];
+  const dt = 1 / 30;
+  while (puff.age < puff.life) {
+    const { size, alpha } = puffLook(puff);
+    if (alpha > SEEN) {
+      const r = size * BALL;
+      const [x, y, z] = puff.position;
+      points.push(
+        [x, y + r, z],
+        [x, y - r, z],
+        [x + r, y, z],
+        [x - r, y, z],
+        [x, y, z + r],
+        [x, y, z - r],
+      );
+    }
+    stepSmoke(source, 0, dt);
+  }
+  return points;
+}

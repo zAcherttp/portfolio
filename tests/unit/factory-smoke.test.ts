@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { layoutFactory, smokeOf } from "@/components/figures/factory/layout";
+import {
+  contentPoints,
+  layoutFactory,
+  smokeOf,
+} from "@/components/figures/factory/layout";
 import {
   createSmoke,
   puffLook,
   stepSmoke,
 } from "@/components/figures/factory/smoke";
+import { framePoints, viewBasis } from "@/components/figures/factory/view";
 
 /** A repeatable stand-in for Math.random. */
 function seeded(seed = 1) {
@@ -65,5 +70,32 @@ describe("chimney smoke", () => {
       expect(b.kind).toBe("smelter");
       expect(c.position[1] - b.position[1]).toBeCloseTo(7.92);
     }
+  });
+
+  it("frames the picture tall enough for the plume it shows", () => {
+    // Run each chimney's real smoke and find the highest well-seen puff top
+    // on screen, against the top of the picture it is framed in.
+    const layout = layoutFactory();
+    const { up } = viewBasis();
+    const screenUp = (p: readonly number[]) =>
+      p[0] * up[0] + p[1] * up[1] + p[2] * up[2];
+    let plumeTop = -Infinity;
+    for (const chimney of smokeOf(layout)) {
+      const source = createSmoke(chimney.position);
+      const random = seeded(3);
+      for (let t = 0; t < 30; t += 0.05) {
+        stepSmoke(source, 1, 0.05, random);
+        for (const puff of source.puffs) {
+          const { size, alpha } = puffLook(puff);
+          if (alpha > 0.3) {
+            plumeTop = Math.max(plumeTop, screenUp(puff.position) + size * 0.3);
+          }
+        }
+      }
+    }
+    const frame = framePoints(contentPoints(layout));
+    expect(screenUp(frame.center) + frame.height / 2).toBeGreaterThanOrEqual(
+      plumeTop,
+    );
   });
 });
