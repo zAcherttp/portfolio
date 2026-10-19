@@ -61,6 +61,7 @@ import { createGovernor, govern } from "./quality";
 import {
   builtShare,
   type RevealMode,
+  revealClock,
   revealPlanOf,
   scheduleOf,
   seamsAt,
@@ -733,8 +734,45 @@ function Factory({
   }, [compositeUniforms]);
 
   const target = useMemo(() => createSceneTarget(1, 1), []);
+
   const ink = useMemo(() => createInkTarget(1, 1), []);
   const smokeTarget = useMemo(() => createSmokeTarget(1, 1), []);
+
+  // Compile every shader before the first frame, in the background where the
+  // browser can, each for the target it draws to (three.js keeps a shader
+  // per kind of target). Compiled by the first frame instead, they hold it
+  // up for a second or more, and the page with it.
+  const ready = useRef(false);
+  useEffect(() => {
+    ready.current = false;
+    let live = true;
+    const was = gl.getRenderTarget();
+    const compile = (
+      root: THREE.Object3D,
+      eye: THREE.Camera,
+      on: THREE.WebGLRenderTarget | null,
+    ) => {
+      gl.setRenderTarget(on);
+      return gl.compileAsync(root, eye);
+    };
+    const compiling = Promise.all([
+      compile(scene.root, camera, target),
+      compile(scene.smoke, camera, smokeTarget),
+      compile(composite.scene, composite.camera, ink),
+      compile(composite.downScene, composite.camera, null),
+    ]);
+    gl.setRenderTarget(was);
+    compiling
+      .catch(() => undefined)
+      .then(() => {
+        if (!live) return;
+        ready.current = true;
+        invalidate();
+      });
+    return () => {
+      live = false;
+    };
+  }, [gl, scene, camera, target, smokeTarget, composite, ink, invalidate]);
   useEffect(
     () => () => {
       target.dispose();
@@ -1146,8 +1184,8 @@ function Factory({
     [layout, scene],
   );
   const schedule = useMemo(() => scheduleOf(plan), [plan]);
-  const revealed = useRef<{ start: number | null; done: boolean }>({
-    start: null,
+  const revealed = useRef<{ time: number | null; done: boolean }>({
+    time: null,
     done: false,
   });
   const built = useMemo(() => layout.buildings.map(() => 1), [layout]);
@@ -1182,18 +1220,14 @@ function Factory({
   };
 
   useFrame((state, delta) => {
+    if (!ready.current) return;
     const prof = profiler(state.gl.getContext() as WebGL2RenderingContext);
     const dt = Math.min(delta, 0.1) * speed;
     easeView(delta, state.invalidate);
     // Placing: each group's seam, and how much of each building stands.
     const r = revealed.current;
-    if (reveal.armed && r.start === null) r.start = performance.now();
-    const seams = seamsAt(
-      reveal.mode,
-      r.start === null ? null : (performance.now() - r.start) / 1000,
-      plan,
-      schedule,
-    );
+    r.time = revealClock(r.time, reveal.armed, delta);
+    const seams = seamsAt(reveal.mode, r.time, plan, schedule);
     const { groups } = scene;
     for (const m of groups.platform) m.uniforms.uBuild.value.x = seams.platform;
     for (const m of groups.pole) m.uniforms.uBuild.value.x = seams.pole;
@@ -1209,8 +1243,9 @@ function Factory({
       m.uniforms.uBuild.value.x = seams.buildings[i];
       built[i] = builtShare(seams.buildings[i], base, top);
     });
-    if (!seams.done) {
-      // Keep drawing until it stands, and let shadows catch up as it grows.
+    if (!seams.done && r.time !== null) {
+      // Keep drawing until it stands, and let shadows catch up as it grows;
+      // not before it starts, though, while it waits to be seen.
       state.invalidate();
       if (shadowFrame.current % 3 === 0) {
         for (const shadow of shadows) shadow.drawn = false;

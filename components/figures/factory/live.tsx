@@ -393,6 +393,25 @@ export function FactoryLive({
     return () => observer.disconnect();
   }, []);
 
+  // Or sooner, once the page is idle: loading the models and drawing the
+  // first frame (where some GPUs finish compiling the shaders, for a second
+  // or so) then happen while the page above is read, not mid-scroll. The
+  // build waits until the picture is seen.
+  useEffect(() => {
+    if (near) return;
+    const load = () => setNear(true);
+    // Safari has no requestIdleCallback.
+    const idle = window.requestIdleCallback as
+      | typeof window.requestIdleCallback
+      | undefined;
+    if (idle) {
+      const id = window.requestIdleCallback(load, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(load, 1000);
+    return () => window.clearTimeout(id);
+  }, [near]);
+
   // Theme tokens live in CSS; read them again whenever the theme changes:
   // when <html>'s class or theme attributes do. Read at the next frame, not
   // at once: reading computed style straight after the change would force

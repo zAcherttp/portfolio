@@ -344,3 +344,22 @@ export function seamsAt(
 export function builtShare(seam: number, base: number, top: number) {
   return Math.min(1, Math.max(0, (seam - base) / Math.max(top - base, 0.01)));
 }
+
+/**
+ * Most seconds of the build one frame moves on: a frame held up (shaders
+ * compiling, a busy page) slows the build instead of skipping some of it.
+ */
+export const REVEAL_STEP = 1 / 30;
+
+/**
+ * The build's clock after a frame of `delta` seconds: unstarted (null)
+ * until armed, 0 on the first frame after, then frame by frame.
+ */
+export function revealClock(
+  time: number | null,
+  armed: boolean,
+  delta: number,
+): number | null {
+  if (!armed) return time;
+  return time === null ? 0 : time + Math.min(delta, REVEAL_STEP);
+}
