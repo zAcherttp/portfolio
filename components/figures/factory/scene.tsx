@@ -385,13 +385,13 @@ function buildScene(
     }
     players.push(m.animation ? startPlayer(m.animation.clips) : null);
     layers.push(m.animation?.layer ? startLayer() : null);
-    const mesh = new THREE.Mesh(m.geometry, mat);
+    const mesh = single(m.geometry, mat);
     mesh.position.set(...b.position);
     mesh.rotation.y = b.yaw;
     root.add(mesh);
     if (b.kind === "miner") {
       const node = model("node-iron");
-      const rock = new THREE.Mesh(node.geometry, material(node));
+      const rock = single(node.geometry, material(node));
       // The node sits under the miner, its top just below the slab's level.
       rock.position.set(b.position[0], b.position[1] - 0.5, b.position[2]);
       groups.platform.push(rock.material);
@@ -405,7 +405,7 @@ function buildScene(
   const power = powerOf(layout);
   const pole = model("power-pole");
   for (const at of power.poles) {
-    const mesh = new THREE.Mesh(pole.geometry, material(pole));
+    const mesh = single(pole.geometry, material(pole));
     mesh.position.set(...at);
     groups.pole.push(mesh.material);
     root.add(mesh);
@@ -438,14 +438,14 @@ function buildScene(
       wireMaterial.uniforms.uFade.value.set(length * wire.fade, length);
     }
     groups.wires.push(wireMaterial);
-    root.add(new THREE.Mesh(tube, wireMaterial));
+    root.add(single(tube, wireMaterial));
   }
 
   layout.belts.forEach((path, i) => {
     const m = model(path.tier === "mk3" ? "belt-mk3" : "belt");
     const beltMaterial = material(m, doors.byBelt[i]);
     groups.belts.push(beltMaterial);
-    root.add(new THREE.Mesh(sweepBelt(path, m), beltMaterial));
+    root.add(single(sweepBelt(path, m), beltMaterial));
   });
 
   // Chimney smoke: one camera-facing square per puff, all in one mesh.
@@ -1619,6 +1619,41 @@ function Factory({
   return null;
 }
 
+/**
+ * One mesh as a single instance. The scene shader then builds once, with
+ * instancing, for every mesh: three.js keeps a separate program for
+ * instanced and plain meshes, and on Direct3D each costs about a third of
+ * a second to compile at its first draw.
+ */
+function single<M extends THREE.Material>(
+  geometry: THREE.BufferGeometry,
+  material: M,
+) {
+  return new THREE.InstancedMesh(geometry, material, 1);
+}
+
+/** WEBGL_provoking_vertex, which TypeScript's DOM types don't carry yet. */
+interface ProvokingVertex {
+  FIRST_VERTEX_CONVENTION_WEBGL: number;
+  provokingVertexWEBGL(mode: number): void;
+}
+
+/**
+ * Takes flat varyings from a triangle's first vertex. Ours (part ids, roles,
+ * ports) are the same on all three, so either vertex will do; but GL's
+ * default is the last, D3D's the first, and ANGLE on Direct3D emulates the
+ * last with a geometry shader, compiling the big scene shader a second time
+ * for it at the first draw, about a third of a second per program.
+ */
+function firstVertexFlats(
+  context: WebGLRenderingContext | WebGL2RenderingContext,
+) {
+  const ext = context.getExtension(
+    "WEBGL_provoking_vertex",
+  ) as ProvokingVertex | null;
+  ext?.provokingVertexWEBGL(ext.FIRST_VERTEX_CONVENTION_WEBGL);
+}
+
 /** Loads the packed models, then draws; nothing shows until they are in. */
 function Loaded(props: FactorySceneProps) {
   const [models, setModels] = useState<Map<ModelName, Model> | null>(null);
@@ -1647,14 +1682,16 @@ export default function FactoryScene(props: FactorySceneProps) {
       className="absolute! inset-0"
       onCreated={({ gl }) => {
         const canvas = gl.domElement;
+        firstVertexFlats(gl.getContext());
         canvas.addEventListener("webglcontextlost", (event) => {
           // Let the browser restore the context instead of giving up on it.
           event.preventDefault();
           props.onContext?.("lost");
         });
-        canvas.addEventListener("webglcontextrestored", () =>
-          props.onContext?.("restored"),
-        );
+        canvas.addEventListener("webglcontextrestored", () => {
+          firstVertexFlats(gl.getContext());
+          props.onContext?.("restored");
+        });
       }}
     >
       <Loaded {...props} />
