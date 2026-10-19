@@ -1470,15 +1470,26 @@ function Factory({
       (phase.current === "opening" ||
         phase.current === "closing" ||
         phase.current === "closed");
+    const most = Math.floor(limit / Math.max(buffer.x, buffer.y));
+    // The frames the hand-off shows in the slot's place (held while the deck
+    // opens, copied once it has closed) match the slot's own exactly, at its
+    // supersampling even past the budget: nothing moves in them, and any
+    // other level inks the lines half a pixel apart as the slot takes over.
+    const still =
+      deck?.open &&
+      deck.factor &&
+      (phase.current === "opening" || phase.current === "closed");
     let factor = Math.max(
       1,
-      Math.min(
-        look.supersample,
-        q.cap,
-        handing ? (deck.factor ?? look.supersample) : look.supersample,
-        Math.floor(limit / Math.max(buffer.x, buffer.y)),
-        Math.floor(Math.sqrt(PIXEL_BUDGET / (buffer.x * buffer.y))),
-      ),
+      still
+        ? Math.min(deck.factor ?? look.supersample, most)
+        : Math.min(
+            look.supersample,
+            q.cap,
+            handing ? (deck.factor ?? look.supersample) : look.supersample,
+            most,
+            Math.floor(Math.sqrt(PIXEL_BUDGET / (buffer.x * buffer.y))),
+          ),
     );
     if (prof?.profile.factor) factor = prof.profile.factor;
     if (prof?.profile.lights === false) shared.uLightCount.value = 0;

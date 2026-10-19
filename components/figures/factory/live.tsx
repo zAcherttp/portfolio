@@ -273,7 +273,14 @@ export function FactoryLive({
       if (handoff.current === "opening" && at === "slot") {
         // The slot's last frame stands in while the deck opens, hidden.
         copy(canvas, 0, 0, width, height);
-        const r = frameRef.current?.getBoundingClientRect();
+        // The box the slot's drawing really fills: snapped to whole device
+        // pixels, not the frame's own. The deck grows out of it and shrinks
+        // back onto it, and closing copies exactly it: from the frame's box,
+        // a fraction off, the copy is resampled a pixel taller or wider and
+        // the picture shifts as the slot's own drawing takes over.
+        const r = (
+          deckRef.current ?? frameRef.current
+        )?.getBoundingClientRect();
         if (!r) return;
         handoff.current = "shown";
         setCanvasHidden(true);
@@ -358,11 +365,22 @@ export function FactoryLive({
       const r = el.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const whole = (v: number) => Math.round(v * dpr) / dpr;
+      // The most whole device pixels, up to v, that layout can also hold
+      // exactly: it keeps lengths in 64ths of a CSS pixel, so at 1.25x
+      // only every fifth device pixel is one. Otherwise the canvas, sized
+      // by rounding down, is stretched a row or column over what it fills.
+      const held = (v: number) => {
+        for (let n = Math.floor(v * dpr); n > 0 && n > v * dpr - 64; n--) {
+          const css = (n / dpr) * 64;
+          if (Math.abs(css - Math.round(css)) < 1e-6) return n / dpr;
+        }
+        return Math.floor(v * dpr) / dpr;
+      };
       const next = {
         left: whole(r.left) - r.left,
         top: whole(r.top) - r.top,
-        width: Math.floor(r.width * dpr) / dpr,
-        height: Math.floor(r.height * dpr) / dpr,
+        width: held(r.width),
+        height: held(r.height),
       };
       setSnap((was) =>
         was &&
