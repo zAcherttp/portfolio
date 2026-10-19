@@ -112,6 +112,26 @@ function supportsWebGL2() {
   }
 }
 
+/**
+ * Whether WebGL here draws on the CPU: SwiftShader, llvmpipe or Windows'
+ * Basic Render Driver, where there is no GPU (or none the browser will
+ * use). The factory compiles and draws slowly there, seconds at a time.
+ */
+function drawsInSoftware() {
+  try {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    if (!gl) return true;
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const name = String(
+      gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
+    );
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return /swiftshader|llvmpipe|softpipe|basic render|software/i.test(name);
+  } catch {
+    return true;
+  }
+}
+
 interface Snapshot {
   rate: number;
   statuses: NodeStatus[];
@@ -392,6 +412,27 @@ export function FactoryLive({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Or sooner, once the page is idle: loading the models and drawing the
+  // first frame (where some GPUs finish compiling the shaders, for a second
+  // or so) then happen while the page above is read, not mid-scroll. The
+  // build waits until the picture is seen. Not where WebGL draws in
+  // software, though: there that first frame holds the page up for
+  // seconds, and is better left until it is wanted.
+  useEffect(() => {
+    if (near || drawsInSoftware()) return;
+    const load = () => setNear(true);
+    // Safari has no requestIdleCallback.
+    const idle = window.requestIdleCallback as
+      | typeof window.requestIdleCallback
+      | undefined;
+    if (idle) {
+      const id = window.requestIdleCallback(load, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(load, 1000);
+    return () => window.clearTimeout(id);
+  }, [near]);
 
   // Theme tokens live in CSS; read them again whenever the theme changes:
   // when <html>'s class or theme attributes do. Read at the next frame, not

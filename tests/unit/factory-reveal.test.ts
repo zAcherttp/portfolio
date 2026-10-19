@@ -6,6 +6,7 @@ import {
   HIDDEN,
   PHASES,
   type RevealPlan,
+  revealClock,
   revealPlanOf,
   scheduleOf,
   seamsAt,
@@ -157,5 +158,26 @@ describe("factory build reveal", () => {
     const early = seamsAt("place", glitch.start + 0.01, plan, schedule);
     expect(early.buildings.every((s) => s === HIDDEN)).toBe(true);
     expect(early.belts.every((s) => s === HIDDEN)).toBe(true);
+  });
+});
+
+describe("factory reveal clock", () => {
+  it("waits, unstarted, until the picture is seen", () => {
+    expect(revealClock(null, false, 1 / 60)).toBeNull();
+  });
+
+  it("starts the build from its beginning on the first frame after", () => {
+    // The first frame can be held up for seconds, compiling shaders.
+    expect(revealClock(null, true, 2)).toBe(0);
+  });
+
+  it("does not skip part of the build over a held-up frame", () => {
+    const after = revealClock(0, true, 1.5) ?? Number.NaN;
+    expect(after).toBeGreaterThan(0);
+    expect(after).toBeLessThan(0.05);
+  });
+
+  it("runs at the frames' own pace otherwise", () => {
+    expect(revealClock(1, true, 1 / 60)).toBeCloseTo(1 + 1 / 60);
   });
 });
