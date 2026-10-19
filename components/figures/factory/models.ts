@@ -5,10 +5,9 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Clips } from "./animation";
 import type { ModelName, Opening } from "./layout";
+import { MODELS_URL } from "./models-url";
 import { unpackModels } from "./pack";
 import { createPartsTexture } from "./shaders";
-
-export const MODELS_URL = "/factory/models.bin";
 
 /**
  * Baked vertex animation: a float texture with frames across; rows are each
